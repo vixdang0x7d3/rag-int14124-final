@@ -1,0 +1,31 @@
+[project]
+name = "rag-int14124-final"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11.5"
+dependencies = [
+    "accelerate>=1.6.0",
+    "bitsandbytes>=0.45.5",
+    "dotenv>=0.9.9",
+    "huggingface-hub>=0.31.1",
+    "ipywidgets>=8.1.7",
+    "ninja>=1.11.1.4",
+    "numpy>=2.2.5",
+    "packaging>=25.0",
+    "pandas>=2.2.3",
+    "pathlib>=1.0.1",
+    "pyarrow>=20.0.0",
+    "pymupdf>=1.25.5",
+    "sentence-transformers>=4.1.0",
+    "setuptools>=80.3.1",
+    "spacy>=3.8.5",
+    "torch>=2.7.0",
+    "tqdm>=4.67.1",
+    "wheel>=0.45.1",
+]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=6.29.5",
+]
