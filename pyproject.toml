@@ -6,23 +6,30 @@ readme = "README.md"
 requires-python = ">=3.11.5"
 dependencies = [
     "accelerate>=1.6.0",
+    "beautifulsoup4>=4.13.4",
     "bitsandbytes>=0.45.5",
     "dotenv>=0.9.9",
     "huggingface-hub>=0.31.1",
     "ipywidgets>=8.1.7",
+    "langchain-core>=0.3.61",
     "ninja>=1.11.1.4",
     "numpy>=2.2.5",
-    "packaging>=25.0",
+    "packaging>=23.2",
     "pandas>=2.2.3",
     "pathlib>=1.0.1",
     "pyarrow>=20.0.0",
     "pymupdf>=1.25.5",
     "sentence-transformers>=4.1.0",
     "setuptools>=80.3.1",
-    "spacy>=3.8.5",
+    "spacy>=3.8.7",
+    "tenacity>=8.1.0",
     "torch>=2.7.0",
     "tqdm>=4.67.1",
     "wheel>=0.45.1",
+    "langchain-text-splitters>=0.3.8",
+    "langchain-community>=0.3.24",
+    "openai>=1.82.0",
+    "marimo[lsp]>=0.13.14",
 ]
 
 [dependency-groups]
