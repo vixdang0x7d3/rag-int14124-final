@@ -378,7 +378,7 @@ def _(chunk_data_1, embeddings_1):
 @app.cell
 def _(chunk_data_1, pd):
     chunk_embedding_df = pd.DataFrame(chunk_data_1)
-    save_path = 'chunk_embedding_df.parquet'
+    save_path = 'data/chunk_embedding_df.parquet'
     chunk_embedding_df.to_parquet(save_path, index=False)
     return (save_path,)
 
