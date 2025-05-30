@@ -30,6 +30,9 @@ dependencies = [
     "langchain-community>=0.3.24",
     "openai>=1.82.0",
     "marimo[lsp]>=0.13.14",
+    "fuzzywuzzy>=0.18.0",
+    "tiktoken>=0.9.0",
+    "chromadb>=1.0.11",
 ]
 
 [dependency-groups]
