@@ -1,0 +1,168 @@
+{
+  "version": "1",
+  "metadata": {
+    "marimo_version": "0.13.15"
+  },
+  "cells": [
+    {
+      "id": "Hbol",
+      "code_hash": "1d0db38904205bec4d6f6f6a1f6cec3e",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "MJUe",
+      "code_hash": "8af688161be44e1a561c122625af2f27",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<span class=\"markdown prose dark:prose-invert\"><span class=\"paragraph\">Install the ChromaDB Evaluation Framework package</span>\n<span class=\"paragraph\">For <code>pip</code> users:</span>\n<div class=\"language-scdoc codehilite\"><pre><span></span><code>pip add git+https://github.com/brandonstarxel/chunking_evaluation.git\n</code></pre></div></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "vblA",
+      "code_hash": "a6ca984249f64d30d86795472756eb17",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": [
+        {
+          "type": "stream",
+          "name": "stdout",
+          "text": "Using CUDA ? YES\n"
+        },
+        {
+          "type": "stream",
+          "name": "stdout",
+          "text": "GPU: NVIDIA GeForce GTX 1660 Ti\n"
+        }
+      ]
+    },
+    {
+      "id": "bkHC",
+      "code_hash": "1a6f0853d327e7976bf1fe21e283a41e",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<span class=\"markdown prose dark:prose-invert\"><h3 id=\"import-and-dependencies\">Import and dependencies</h3></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "lEQa",
+      "code_hash": "072e2ac9e3f44bf108d37162c4be1783",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "PKri",
+      "code_hash": "2ff04769045f58fcea1de830e37f9e0b",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<span class=\"markdown prose dark:prose-invert\"><h3 id=\"naive-chunking-stratergy\">Naive chunking stratergy</h3>\n<span class=\"paragraph\">We'll use the <code>BaseChunker</code> class to define our own. At it's core <code>BaseChunker</code> is very simple:</span>\n<div class=\"language-python codehilite\"><pre><span></span><code><span class=\"k\">class</span><span class=\"w\"> </span><span class=\"nc\">BaseChunker</span><span class=\"p\">(</span><span class=\"n\">ABC</span><span class=\"p\">):</span>\n    <span class=\"nd\">@abstractmethod</span>\n    <span class=\"k\">def</span><span class=\"w\"> </span><span class=\"nf\">split_text</span><span class=\"p\">(</span><span class=\"bp\">self</span><span class=\"p\">,</span> <span class=\"n\">text</span><span class=\"p\">:</span> <span class=\"nb\">str</span><span class=\"p\">)</span> <span class=\"o\">-&gt;</span> <span class=\"nb\">list</span><span class=\"p\">[</span><span class=\"nb\">str</span><span class=\"p\">]:</span>\n        <span class=\"k\">pass</span>\n</code></pre></div>\n<span class=\"paragraph\">It expects only a <code>split_text</code> method that can take in a string and return a list of strings, which is our chunks. The transformation along the way can be more creatively defined.</span>\n<span class=\"paragraph\">We'll use this as a base to reimplement our naive chunker.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "Xref",
+      "code_hash": "337d8dbdbab01d874472890b83ed25a1",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "SFPL",
+      "code_hash": "99e71bfb0be26ffbb6fd27a82da638ef",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<span class=\"markdown prose dark:prose-invert\"><h3 id=\"defining-a-embedding-function-and-chunker\">Defining a embedding function and chunker</h3></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "BYtC",
+      "code_hash": "27b73ef5974a6add7466a52cc4c47143",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<pre style='font-size: 12px'>&#x27;SentenceTransformerEmbeddingFunction&#x27;</pre>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "RGSE",
+      "code_hash": "1865e8c08cdc0f559d729009b518818b",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<span class=\"markdown prose dark:prose-invert\"><h3 id=\"start-general-evaluation\">Start General Evaluation</h3></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "Kclp",
+      "code_hash": "829a459a65798e94e567daf37a8c52a5",
+      "outputs": [
+        {
+          "type": "error",
+          "ename": "exception",
+          "evalue": "cannot access local variable 'e' where it is not associated with a value",
+          "traceback": []
+        }
+      ],
+      "console": [
+        {
+          "type": "stream",
+          "name": "stderr",
+          "text": "<span class=\"codehilite\"><div class=\"highlight\"><pre><span></span><span class=\"gt\">Traceback (most recent call last):</span>\n  File <span class=\"nb\">&quot;/home/saladass/crafts/rag-int14124-final/.venv/lib/python3.11/site-packages/chunking_evaluation/evaluation_framework/base_evaluation.py&quot;</span>, line <span class=\"m\">375</span>, in <span class=\"n\">run</span>\n<span class=\"w\">    </span><span class=\"n\">question_collection</span> <span class=\"o\">=</span> <span class=\"n\">questions_client</span><span class=\"o\">.</span><span class=\"n\">get_collection</span><span class=\"p\">(</span><span class=\"s2\">&quot;auto_questions_sentence_transformer&quot;</span><span class=\"p\">,</span> <span class=\"n\">embedding_function</span><span class=\"o\">=</span><span class=\"n\">embedding_function</span><span class=\"p\">)</span>\n<span class=\"w\">                          </span><span class=\"pm\">^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^</span>\n  File <span class=\"nb\">&quot;/home/saladass/crafts/rag-int14124-final/.venv/lib/python3.11/site-packages/chromadb/api/client.py&quot;</span>, line <span class=\"m\">183</span>, in <span class=\"n\">get_collection</span>\n<span class=\"w\">    </span><span class=\"n\">model</span> <span class=\"o\">=</span> <span class=\"bp\">self</span><span class=\"o\">.</span><span class=\"n\">_server</span><span class=\"o\">.</span><span class=\"n\">get_collection</span><span class=\"p\">(</span>\n<span class=\"w\">            </span><span class=\"pm\">^^^^^^^^^^^^^^^^^^^^^^^^^^^^</span>\n  File <span class=\"nb\">&quot;/home/saladass/crafts/rag-int14124-final/.venv/lib/python3.11/site-packages/chromadb/api/rust.py&quot;</span>, line <span class=\"m\">253</span>, in <span class=\"n\">get_collection</span>\n<span class=\"w\">    </span><span class=\"n\">collection</span> <span class=\"o\">=</span> <span class=\"bp\">self</span><span class=\"o\">.</span><span class=\"n\">bindings</span><span class=\"o\">.</span><span class=\"n\">get_collection</span><span class=\"p\">(</span><span class=\"n\">name</span><span class=\"p\">,</span> <span class=\"n\">tenant</span><span class=\"p\">,</span> <span class=\"n\">database</span><span class=\"p\">)</span>\n<span class=\"w\">                 </span><span class=\"pm\">^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^</span>\n<span class=\"gr\">chromadb.errors.NotFoundError</span>: <span class=\"n\">Collection [auto_questions_sentence_transformer] does not exists</span>\n\n<span class=\"gt\">During handling of the above exception, another exception occurred:</span>\n\n<span class=\"gt\">Traceback (most recent call last):</span>\n  File <span class=\"nb\">&quot;/home/saladass/crafts/rag-int14124-final/.venv/lib/python3.11/site-packages/marimo/_runtime/executor.py&quot;</span>, line <span class=\"m\">138</span>, in <span class=\"n\">execute_cell</span>\n<span class=\"w\">    </span><span class=\"n\">exec</span><span class=\"p\">(</span><span class=\"n\">cell</span><span class=\"o\">.</span><span class=\"n\">body</span><span class=\"p\">,</span> <span class=\"n\">glbls</span><span class=\"p\">)</span>\n  File <span class=\"nb\">&quot;/tmp/marimo_63880/__marimo__cell_Kclp_.py&quot;</span>, line <span class=\"m\">5</span>, in <span class=\"n\">&lt;module&gt;</span>\n<span class=\"w\">    </span><span class=\"n\">results</span> <span class=\"o\">=</span> <span class=\"n\">evaluation</span><span class=\"o\">.</span><span class=\"n\">run</span><span class=\"p\">(</span>\n<span class=\"w\">              </span><span class=\"pm\">^^^^^^^^^^^^^^^</span>\n  File <span class=\"nb\">&quot;/home/saladass/crafts/rag-int14124-final/.venv/lib/python3.11/site-packages/chunking_evaluation/evaluation_framework/base_evaluation.py&quot;</span>, line <span class=\"m\">377</span>, in <span class=\"n\">run</span>\n<span class=\"w\">    </span><span class=\"nb\">print</span><span class=\"p\">(</span><span class=\"s2\">&quot;Warning: Failed to use the frozen embeddings originally used in the paper. As a result, this package will now generate a new set of embeddings. The change should be minimal and only come from the noise floor of SentenceTransformer&#39;s embedding function. The error: &quot;</span><span class=\"p\">,</span> <span class=\"n\">e</span><span class=\"p\">)</span>\n<span class=\"w\">                                                                                                                                                                                                                                                                                      </span><span class=\"pm\">^</span>\n<span class=\"gr\">UnboundLocalError</span>: <span class=\"n\">cannot access local variable &#39;e&#39; where it is not associated with a value</span>\n</pre></div>\n</span>"
+        }
+      ]
+    }
+  ]
+}

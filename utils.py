@@ -71,15 +71,6 @@ def rigorous_document_search(document: str, target: str):
     return reference, start_index, end_index
 
 
-def get_sentencetransformer_embedding_function(
-    model_name: str = "all-MiniLM-L6-v2", device="cpu"
-):
-    embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(
-        model_name=model_name, device=device
-    )
-    return embedding_function
-
-
 def openai_token_count(string: str) -> int:
     """Returns the number of tokens in a text string"""
     encoding = tiktoken.get_encoding("cl100k_base")
@@ -203,7 +194,7 @@ def exact_match_score(prediction, ground_truth):
     return normalize_answer(prediction) == normalize_answer(ground_truth)
 
 
-def calcualate_exact_match(output_lns: list[str], reference_lns: list[str]):
+def calculate_exact_match(output_lns: list[str], reference_lns: list[str]):
     assert len(output_lns) == len(reference_lns)
 
     em = 0
