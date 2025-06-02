@@ -1,8 +1,4 @@
-from chromadb.utils import embedding_functions
 import marimo
-from torch import device
-
-from evaluation.base_evaluation import BaseDatasetCollection
 
 __generated_with = "0.13.15"
 app = marimo.App(width="medium")
@@ -45,23 +41,6 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""### Import and dependencies""")
-    return
-
-
-@app.cell
-def _():
-    import os
-    import pandas as pd
-    from chromadb.utils import embedding_functions
-
-    from evaluation import BaseDatasetCollection
-
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
     mo.md(r"""### Setup codes that will be GeneralDatasetCollection""")
     return
 
@@ -84,7 +63,7 @@ def _(mo):
     mo.output.append(corpora_id_paths)
     mo.output.append(questions_df_path)
 
-    return (questions_df_path, corpora_id_paths, chroma_db_path)
+    return chroma_db_path, corpora_id_paths, questions_df_path
 
 
 @app.cell(hide_code=True)
@@ -93,14 +72,18 @@ def _(mo):
     return
 
 
-@app.cell
-def _(questions_df_path, corpora_id_paths, chroma_db_path, device):
+@app.cell(hide_code=True)
+def _(chroma_db_path, corpora_id_paths, device, questions_df_path):
+    from chromadb.utils import embedding_functions
+    from evaluation import BaseDatasetCollection
+    from chunker import RecursiveTokenChunker
+
     embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(
         model_name="all-mpnet-base-v2",
         device=device,
     )
 
-    chunker = None
+    chunker = RecursiveTokenChunker()
 
     base = BaseDatasetCollection(
         str(questions_df_path),
@@ -109,8 +92,8 @@ def _(questions_df_path, corpora_id_paths, chroma_db_path, device):
     )
 
     collection, questions_collection = base.get_collections(
-        embedding_function,
         chunker,
+        embedding_function,
     )
 
     return

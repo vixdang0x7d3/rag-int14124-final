@@ -5,8 +5,6 @@ import pandas as pd
 
 import chromadb
 
-from typing import Callable
-
 from utils import rigorous_document_search
 
 
@@ -40,7 +38,7 @@ class BaseDatasetCollection:
                 columns=["questions", "reference", "corpus_id"]  # type: ignore
             )
 
-        self.corpus_list = self.questions_df
+        self.corpus_list = self.questions_df["corpus_id"].unique().tolist()
 
     def _get_chunks_and_metadata(self, splitter):
         """
@@ -92,8 +90,8 @@ class BaseDatasetCollection:
 
     def _chunker_to_document_collection(
         self,
-        chunker: Callable,
-        embbeding_function: chromadb.EmbeddingFunction,
+        chunker,
+        embbeding_function,
         chroma_db_path: str | None = None,
         collection_name: str | None = None,
     ):
@@ -190,7 +188,7 @@ class BaseDatasetCollection:
     def get_collections(
         self,
         chunker,
-        embedding_function: chromadb.EmbeddingFunction | None,
+        embedding_function,
         db_to_save_chunks: str | None = None,
         db_to_save_questions: str | None = None,
     ):
@@ -203,7 +201,7 @@ class BaseDatasetCollection:
         """
 
         if embedding_function is None:
-            embedding_function = (
+            embedding_function: chromadb.EmbeddingFunction = (
                 embedding_functions.SentenceTransformerEmbeddingFunction(
                     model_name="all-MiniLM-L6-v2"
                 )
@@ -246,7 +244,8 @@ class BaseDatasetCollection:
             try:
                 chunk_client = chromadb.PersistentClient(path=collection_name)
                 collection = chunk_client.get_collection(
-                    collection_name, embedding_function=embedding_function
+                    collection_name,
+                    embedding_function=embedding_function,  # type: ignore
                 )
             except Exception:
                 collection = self._chunker_to_document_collection(
@@ -284,7 +283,8 @@ class BaseDatasetCollection:
                         path=db_to_save_questions
                     )
                     questions_collection = question_client.get_collection(
-                        collection_name, embedding_function=embedding_function
+                        collection_name,
+                        embedding_function=embedding_function,  # type: ignore
                     )
                 except Exception:
                     questions_collection = self._question_df_to_collection(
