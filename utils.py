@@ -1,10 +1,11 @@
 import re
+
+from enum import Enum
 from typing import Counter
 
 import tiktoken
 from fuzzywuzzy import fuzz, process
 
-from chromadb.utils import embedding_functions
 
 # from chromaDB evaluation repo
 
@@ -154,6 +155,34 @@ def find_target_in_document(document, target):
     end_index = start_index + len(target)
 
     return start_index, end_index
+
+
+class Language(str, Enum):
+    """Enum of programming languages."""
+
+    CPP = "cpp"
+    GO = "go"
+    JAVA = "java"
+    KOTLIN = "kotlin"
+    JS = "js"
+    TS = "ts"
+    PHP = "php"
+    PROTO = "proto"
+    PYTHON = "python"
+    RST = "rst"
+    RUBY = "ruby"
+    RUST = "rust"
+    SCALA = "scala"
+    SWIFT = "swift"
+    MARKDOWN = "markdown"
+    LATEX = "latex"
+    HTML = "html"
+    SOL = "sol"
+    CSHARP = "csharp"
+    COBOL = "cobol"
+    C = "c"
+    LUA = "lua"
+    PERL = "perl"
 
 
 # from OG rag full pipeline evaluation

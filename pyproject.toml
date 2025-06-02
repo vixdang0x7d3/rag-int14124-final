@@ -39,3 +39,6 @@ dev = [
     "ipykernel>=6.29.5",
     "marimo[lsp]>=0.13.15",
 ]
+
+[tool.marimo.runtime]
+watcher_on_save = "autorun"

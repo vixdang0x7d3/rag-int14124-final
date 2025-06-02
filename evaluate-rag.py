@@ -1,4 +1,8 @@
+from chromadb.utils import embedding_functions
 import marimo
+from torch import device
+
+from evaluation.base_evaluation import BaseDatasetCollection
 
 __generated_with = "0.13.15"
 app = marimo.App(width="medium")
@@ -7,6 +11,7 @@ app = marimo.App(width="medium")
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -31,7 +36,7 @@ def _(mo):
 def _():
     import torch
 
-    device = 'cuda' if torch.cuda.is_available else 'cpu'
+    device = "cuda" if torch.cuda.is_available else "cpu"
     print(f"Using CUDA ? {'YES' if device == 'cuda' else 'NO'}")
     if device:
         print(f"GPU: {torch.cuda.get_device_name(0)}")
@@ -48,99 +53,64 @@ def _(mo):
 def _():
     import os
     import pandas as pd
-
     from chromadb.utils import embedding_functions
-    return (embedding_functions,)
+
+    from evaluation import BaseDatasetCollection
+
+    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-    ### Naive chunking stratergy
-
-    We'll use the `BaseChunker` class to define our own. At it's core `BaseChunker` is very simple:
-
-    ```python
-    class BaseChunker(ABC):
-        @abstractmethod
-        def split_text(self, text: str) -> list[str]:
-            pass
-    ```
-
-    It expects only a `split_text` method that can take in a string and return a list of strings, which is our chunks. The transformation along the way can be more creatively defined.
-
-    We'll use this as a base to reimplement our naive chunker.
-    """
-    )
+    mo.md(r"""### Setup codes that will be GeneralDatasetCollection""")
     return
 
 
 @app.cell
-def _(BaseChunker):
-    from spacy.lang.en import English
+def _(mo):
+    from pathlib import Path
 
+    # These are parameters
+    chroma_db_path = Path("chroma_db/general_evaluation")
+    general_dataset_path = Path("datasets/general_evaluation")
 
-    class SentenceChunker(BaseChunker):
-        def __init__(self, sentences_per_chunk: int = 3):
-            self.sentences_per_chunk = sentences_per_chunk
-            self.nlp = English()
-            self.nlp.add_pipe("sentencizer")
+    questions_df_path = general_dataset_path / "questions_df.csv"
 
-        def split_text(self, text: str) -> list[str]:
-            chunk_size = self.sentences_per_chunk
+    corpora_dir_path = general_dataset_path / "corpora"
+    corpora_filenames = [f for f in corpora_dir_path.iterdir() if f.is_file()]
 
-            if not text:
-                return []
+    corpora_id_paths = {f.stem: str(f) for f in corpora_filenames}
 
-            sentences = list(self.nlp(text).sents)
-            sentences = [str(sent) for sent in sentences]
+    mo.output.append(corpora_id_paths)
+    mo.output.append(questions_df_path)
 
-            chunks = []
-
-            for i in range(0, len(sentences), chunk_size):
-                chunk = ' '.join(sentences[i:i+chunk_size])
-                chunks.append(chunk)
-
-            return chunks
-    return (SentenceChunker,)
+    return (questions_df_path, corpora_id_paths, chroma_db_path)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""### Defining a embedding function and chunker""")
+    mo.md(r"""### Testing code""")
     return
 
 
 @app.cell
-def _(SentenceChunker, device, embedding_functions):
-    sent_trans_ef = embedding_functions.SentenceTransformerEmbeddingFunction(
-        model_name='all-mpnet-base-v2',
-        device=device
+def _(questions_df_path, corpora_id_paths, chroma_db_path, device):
+    embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(
+        model_name="all-mpnet-base-v2",
+        device=device,
     )
 
-    sentence_chunker = SentenceChunker(sentences_per_chunk = 10)
+    chunker = None
 
-    sent_trans_ef.__class__.__name__
-    return sent_trans_ef, sentence_chunker
+    base = BaseDatasetCollection(
+        str(questions_df_path),
+        str(chroma_db_path),
+        corpora_id_paths,
+    )
 
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""### Start General Evaluation""")
-    return
-
-
-@app.cell
-def _(GeneralEvaluation, sent_trans_ef, sentence_chunker):
-
-    evaluation = GeneralEvaluation()
-
-
-    results = evaluation.run(
-        sentence_chunker, 
-        sent_trans_ef,
-        db_to_save_chunks="datasets/general_evaluation/naive-configuration"
+    collection, questions_collection = base.get_collections(
+        embedding_function,
+        chunker,
     )
 
     return

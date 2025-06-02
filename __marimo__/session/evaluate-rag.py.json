@@ -6,7 +6,7 @@
   "cells": [
     {
       "id": "Hbol",
-      "code_hash": "1d0db38904205bec4d6f6f6a1f6cec3e",
+      "code_hash": "b03ae3d1a8c7e35b57a5d71425064bb8",
       "outputs": [
         {
           "type": "data",
@@ -32,7 +32,7 @@
     },
     {
       "id": "vblA",
-      "code_hash": "a6ca984249f64d30d86795472756eb17",
+      "code_hash": "025a47d16d33eecd49a8ffd319341e10",
       "outputs": [
         {
           "type": "data",
@@ -69,7 +69,7 @@
     },
     {
       "id": "lEQa",
-      "code_hash": "072e2ac9e3f44bf108d37162c4be1783",
+      "code_hash": "f1c60177789d4aaa89a7da4939baf00a",
       "outputs": [
         {
           "type": "data",
@@ -82,12 +82,12 @@
     },
     {
       "id": "PKri",
-      "code_hash": "2ff04769045f58fcea1de830e37f9e0b",
+      "code_hash": "7e678fdcca4100a784bbadb8e8536eab",
       "outputs": [
         {
           "type": "data",
           "data": {
-            "text/html": "<span class=\"markdown prose dark:prose-invert\"><h3 id=\"naive-chunking-stratergy\">Naive chunking stratergy</h3>\n<span class=\"paragraph\">We'll use the <code>BaseChunker</code> class to define our own. At it's core <code>BaseChunker</code> is very simple:</span>\n<div class=\"language-python codehilite\"><pre><span></span><code><span class=\"k\">class</span><span class=\"w\"> </span><span class=\"nc\">BaseChunker</span><span class=\"p\">(</span><span class=\"n\">ABC</span><span class=\"p\">):</span>\n    <span class=\"nd\">@abstractmethod</span>\n    <span class=\"k\">def</span><span class=\"w\"> </span><span class=\"nf\">split_text</span><span class=\"p\">(</span><span class=\"bp\">self</span><span class=\"p\">,</span> <span class=\"n\">text</span><span class=\"p\">:</span> <span class=\"nb\">str</span><span class=\"p\">)</span> <span class=\"o\">-&gt;</span> <span class=\"nb\">list</span><span class=\"p\">[</span><span class=\"nb\">str</span><span class=\"p\">]:</span>\n        <span class=\"k\">pass</span>\n</code></pre></div>\n<span class=\"paragraph\">It expects only a <code>split_text</code> method that can take in a string and return a list of strings, which is our chunks. The transformation along the way can be more creatively defined.</span>\n<span class=\"paragraph\">We'll use this as a base to reimplement our naive chunker.</span></span>"
+            "text/html": "<div style='display: flex;flex: 1;flex-direction: column;justify-content: flex-start;align-items: normal;flex-wrap: nowrap;gap: 0.5rem'><marimo-json-output data-json-data='{&quot;chatlogs&quot;: &quot;datasets/general_evaluation/corpora/chatlogs.md&quot;, &quot;state_of_the_union&quot;: &quot;datasets/general_evaluation/corpora/state_of_the_union.md&quot;, &quot;finance&quot;: &quot;datasets/general_evaluation/corpora/finance.md&quot;, &quot;pubmed&quot;: &quot;datasets/general_evaluation/corpora/pubmed.md&quot;, &quot;wikitexts&quot;: &quot;datasets/general_evaluation/corpora/wikitexts.md&quot;}' data-value-types='&quot;python&quot;'></marimo-json-output><span>datasets/general_evaluation/questions_df.csv</span></div>"
           }
         }
       ],
@@ -95,7 +95,52 @@
     },
     {
       "id": "Xref",
-      "code_hash": "337d8dbdbab01d874472890b83ed25a1",
+      "code_hash": "4b91c5e8ddde65c119c455984cc666fd",
+      "outputs": [
+        {
+          "type": "error",
+          "ename": "exception",
+          "evalue": "'question'",
+          "traceback": []
+        }
+      ],
+      "console": [
+        {
+          "type": "stream",
+          "name": "stderr",
+          "text": "<span class=\"codehilite\"><div class=\"highlight\"><pre><span></span><span class=\"gt\">Traceback (most recent call last):</span>\n  File <span class=\"nb\">&quot;/home/saladass/crafts/rag-int14124-final/.venv/lib/python3.11/site-packages/marimo/_runtime/executor.py&quot;</span>, line <span class=\"m\">138</span>, in <span class=\"n\">execute_cell</span>\n<span class=\"w\">    </span><span class=\"n\">exec</span><span class=\"p\">(</span><span class=\"n\">cell</span><span class=\"o\">.</span><span class=\"n\">body</span><span class=\"p\">,</span> <span class=\"n\">glbls</span><span class=\"p\">)</span>\n  File <span class=\"nb\">&quot;/tmp/marimo_14125/__marimo__cell_Xref_.py&quot;</span>, line <span class=\"m\">14</span>, in <span class=\"n\">&lt;module&gt;</span>\n<span class=\"w\">    </span><span class=\"n\">collection</span><span class=\"p\">,</span> <span class=\"n\">questions_collection</span> <span class=\"o\">=</span> <span class=\"n\">base</span><span class=\"o\">.</span><span class=\"n\">get_collections</span><span class=\"p\">(</span>\n<span class=\"w\">                                       </span><span class=\"pm\">^^^^^^^^^^^^^^^^^^^^^</span>\n  File <span class=\"nb\">&quot;/home/saladass/crafts/rag-int14124-final/evaluation/base_evaluation.py&quot;</span>, line <span class=\"m\">260</span>, in <span class=\"n\">get_collections</span>\n<span class=\"w\">    </span><span class=\"n\">collection</span> <span class=\"o\">=</span> <span class=\"bp\">self</span><span class=\"o\">.</span><span class=\"n\">_chunker_to_document_collection</span><span class=\"p\">(</span>\n<span class=\"w\">                 </span><span class=\"pm\">^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^</span>\n  File <span class=\"nb\">&quot;/home/saladass/crafts/rag-int14124-final/evaluation/base_evaluation.py&quot;</span>, line <span class=\"m\">132</span>, in <span class=\"n\">_chunker_to_document_collection</span>\n<span class=\"w\">    </span><span class=\"n\">docs</span><span class=\"p\">,</span> <span class=\"n\">metas</span> <span class=\"o\">=</span> <span class=\"bp\">self</span><span class=\"o\">.</span><span class=\"n\">_get_chunks_and_metadata</span><span class=\"p\">(</span><span class=\"n\">chunker</span><span class=\"p\">)</span>\n<span class=\"w\">                  </span><span class=\"pm\">^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^</span>\n  File <span class=\"nb\">&quot;/home/saladass/crafts/rag-int14124-final/evaluation/base_evaluation.py&quot;</span>, line <span class=\"m\">57</span>, in <span class=\"n\">_get_chunks_and_metadata</span>\n<span class=\"w\">    </span><span class=\"n\">corpus_path</span> <span class=\"o\">=</span> <span class=\"bp\">self</span><span class=\"o\">.</span><span class=\"n\">corpora_id_paths</span><span class=\"p\">[</span><span class=\"n\">corpus_id</span><span class=\"p\">]</span>\n<span class=\"w\">                  </span><span class=\"pm\">~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^</span>\n<span class=\"gr\">KeyError</span>: <span class=\"n\">&#39;question&#39;</span>\n</pre></div>\n</span>"
+        }
+      ]
+    },
+    {
+      "id": "SFPL",
+      "code_hash": "3f035a2c8f873c87b1c3961c9983bdbb",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<span class=\"markdown prose dark:prose-invert\"><h3 id=\"setup-codes-that-will-be-generaldatasetcollection\">Setup codes that will be GeneralDatasetCollection</h3></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "BYtC",
+      "code_hash": "3d816765b4f87254fbc2379edcffd229",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<span class=\"markdown prose dark:prose-invert\"><h3 id=\"testing-code\">Testing code</h3></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "RGSE",
+      "code_hash": null,
       "outputs": [
         {
           "type": "data",
@@ -107,52 +152,13 @@
       "console": []
     },
     {
-      "id": "SFPL",
-      "code_hash": "99e71bfb0be26ffbb6fd27a82da638ef",
-      "outputs": [
-        {
-          "type": "data",
-          "data": {
-            "text/html": "<span class=\"markdown prose dark:prose-invert\"><h3 id=\"defining-a-embedding-function-and-chunker\">Defining a embedding function and chunker</h3></span>"
-          }
-        }
-      ],
-      "console": []
-    },
-    {
-      "id": "BYtC",
-      "code_hash": "27b73ef5974a6add7466a52cc4c47143",
-      "outputs": [
-        {
-          "type": "data",
-          "data": {
-            "text/html": "<pre style='font-size: 12px'>&#x27;SentenceTransformerEmbeddingFunction&#x27;</pre>"
-          }
-        }
-      ],
-      "console": []
-    },
-    {
-      "id": "RGSE",
-      "code_hash": "1865e8c08cdc0f559d729009b518818b",
-      "outputs": [
-        {
-          "type": "data",
-          "data": {
-            "text/html": "<span class=\"markdown prose dark:prose-invert\"><h3 id=\"start-general-evaluation\">Start General Evaluation</h3></span>"
-          }
-        }
-      ],
-      "console": []
-    },
-    {
       "id": "Kclp",
-      "code_hash": "829a459a65798e94e567daf37a8c52a5",
+      "code_hash": "7f04e90ce41d76d79566e4a7dc0e1b68",
       "outputs": [
         {
           "type": "error",
           "ename": "exception",
-          "evalue": "cannot access local variable 'e' where it is not associated with a value",
+          "evalue": "name 'GeneralEvaluation' is not defined",
           "traceback": []
         }
       ],
@@ -160,7 +166,7 @@
         {
           "type": "stream",
           "name": "stderr",
-          "text": "<span class=\"codehilite\"><div class=\"highlight\"><pre><span></span><span class=\"gt\">Traceback (most recent call last):</span>\n  File <span class=\"nb\">&quot;/home/saladass/crafts/rag-int14124-final/.venv/lib/python3.11/site-packages/chunking_evaluation/evaluation_framework/base_evaluation.py&quot;</span>, line <span class=\"m\">375</span>, in <span class=\"n\">run</span>\n<span class=\"w\">    </span><span class=\"n\">question_collection</span> <span class=\"o\">=</span> <span class=\"n\">questions_client</span><span class=\"o\">.</span><span class=\"n\">get_collection</span><span class=\"p\">(</span><span class=\"s2\">&quot;auto_questions_sentence_transformer&quot;</span><span class=\"p\">,</span> <span class=\"n\">embedding_function</span><span class=\"o\">=</span><span class=\"n\">embedding_function</span><span class=\"p\">)</span>\n<span class=\"w\">                          </span><span class=\"pm\">^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^</span>\n  File <span class=\"nb\">&quot;/home/saladass/crafts/rag-int14124-final/.venv/lib/python3.11/site-packages/chromadb/api/client.py&quot;</span>, line <span class=\"m\">183</span>, in <span class=\"n\">get_collection</span>\n<span class=\"w\">    </span><span class=\"n\">model</span> <span class=\"o\">=</span> <span class=\"bp\">self</span><span class=\"o\">.</span><span class=\"n\">_server</span><span class=\"o\">.</span><span class=\"n\">get_collection</span><span class=\"p\">(</span>\n<span class=\"w\">            </span><span class=\"pm\">^^^^^^^^^^^^^^^^^^^^^^^^^^^^</span>\n  File <span class=\"nb\">&quot;/home/saladass/crafts/rag-int14124-final/.venv/lib/python3.11/site-packages/chromadb/api/rust.py&quot;</span>, line <span class=\"m\">253</span>, in <span class=\"n\">get_collection</span>\n<span class=\"w\">    </span><span class=\"n\">collection</span> <span class=\"o\">=</span> <span class=\"bp\">self</span><span class=\"o\">.</span><span class=\"n\">bindings</span><span class=\"o\">.</span><span class=\"n\">get_collection</span><span class=\"p\">(</span><span class=\"n\">name</span><span class=\"p\">,</span> <span class=\"n\">tenant</span><span class=\"p\">,</span> <span class=\"n\">database</span><span class=\"p\">)</span>\n<span class=\"w\">                 </span><span class=\"pm\">^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^</span>\n<span class=\"gr\">chromadb.errors.NotFoundError</span>: <span class=\"n\">Collection [auto_questions_sentence_transformer] does not exists</span>\n\n<span class=\"gt\">During handling of the above exception, another exception occurred:</span>\n\n<span class=\"gt\">Traceback (most recent call last):</span>\n  File <span class=\"nb\">&quot;/home/saladass/crafts/rag-int14124-final/.venv/lib/python3.11/site-packages/marimo/_runtime/executor.py&quot;</span>, line <span class=\"m\">138</span>, in <span class=\"n\">execute_cell</span>\n<span class=\"w\">    </span><span class=\"n\">exec</span><span class=\"p\">(</span><span class=\"n\">cell</span><span class=\"o\">.</span><span class=\"n\">body</span><span class=\"p\">,</span> <span class=\"n\">glbls</span><span class=\"p\">)</span>\n  File <span class=\"nb\">&quot;/tmp/marimo_63880/__marimo__cell_Kclp_.py&quot;</span>, line <span class=\"m\">5</span>, in <span class=\"n\">&lt;module&gt;</span>\n<span class=\"w\">    </span><span class=\"n\">results</span> <span class=\"o\">=</span> <span class=\"n\">evaluation</span><span class=\"o\">.</span><span class=\"n\">run</span><span class=\"p\">(</span>\n<span class=\"w\">              </span><span class=\"pm\">^^^^^^^^^^^^^^^</span>\n  File <span class=\"nb\">&quot;/home/saladass/crafts/rag-int14124-final/.venv/lib/python3.11/site-packages/chunking_evaluation/evaluation_framework/base_evaluation.py&quot;</span>, line <span class=\"m\">377</span>, in <span class=\"n\">run</span>\n<span class=\"w\">    </span><span class=\"nb\">print</span><span class=\"p\">(</span><span class=\"s2\">&quot;Warning: Failed to use the frozen embeddings originally used in the paper. As a result, this package will now generate a new set of embeddings. The change should be minimal and only come from the noise floor of SentenceTransformer&#39;s embedding function. The error: &quot;</span><span class=\"p\">,</span> <span class=\"n\">e</span><span class=\"p\">)</span>\n<span class=\"w\">                                                                                                                                                                                                                                                                                      </span><span class=\"pm\">^</span>\n<span class=\"gr\">UnboundLocalError</span>: <span class=\"n\">cannot access local variable &#39;e&#39; where it is not associated with a value</span>\n</pre></div>\n</span>"
+          "text": "<span class=\"codehilite\"><div class=\"highlight\"><pre><span></span><span class=\"gt\">Traceback (most recent call last):</span>\n  File <span class=\"nb\">&quot;/home/saladass/crafts/rag-int14124-final/.venv/lib/python3.11/site-packages/marimo/_runtime/executor.py&quot;</span>, line <span class=\"m\">138</span>, in <span class=\"n\">execute_cell</span>\n<span class=\"w\">    </span><span class=\"n\">exec</span><span class=\"p\">(</span><span class=\"n\">cell</span><span class=\"o\">.</span><span class=\"n\">body</span><span class=\"p\">,</span> <span class=\"n\">glbls</span><span class=\"p\">)</span>\n  File <span class=\"nb\">&quot;/tmp/marimo_14125/__marimo__cell_Kclp_.py&quot;</span>, line <span class=\"m\">1</span>, in <span class=\"n\">&lt;module&gt;</span>\n<span class=\"w\">    </span><span class=\"n\">evaluation</span> <span class=\"o\">=</span> <span class=\"n\">GeneralEvaluation</span><span class=\"p\">()</span>\n<span class=\"w\">                 </span><span class=\"pm\">^^^^^^^^^^^^^^^^^</span>\n<span class=\"gr\">NameError</span>: <span class=\"n\">name &#39;GeneralEvaluation&#39; is not defined</span>\n</pre></div>\n</span>"
         }
       ]
     }
