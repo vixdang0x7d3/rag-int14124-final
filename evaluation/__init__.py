@@ -1,3 +1,5 @@
-from .base_evaluation import BaseDatasetCollection
+from .base_eval_set import BaseEvalSet
+from .general_eval_set import GeneralEvalSet
+from .evaluation import Evaluation
 
-__all__ = ["BaseDatasetCollection"]
+__all__ = ["BaseEvalSet", "GeneralEvalSet", "Evaluation"]

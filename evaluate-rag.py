@@ -41,42 +41,17 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""### Setup codes that will be GeneralDatasetCollection""")
-    return
-
-
-@app.cell
-def _(mo):
-    from pathlib import Path
-
-    # These are parameters
-    chroma_db_path = Path("chroma_db/general_evaluation")
-    general_dataset_path = Path("datasets/general_evaluation")
-
-    questions_df_path = general_dataset_path / "questions_df.csv"
-
-    corpora_dir_path = general_dataset_path / "corpora"
-    corpora_filenames = [f for f in corpora_dir_path.iterdir() if f.is_file()]
-
-    corpora_id_paths = {f.stem: str(f) for f in corpora_filenames}
-
-    mo.output.append(corpora_id_paths)
-    mo.output.append(questions_df_path)
-
-    return chroma_db_path, corpora_id_paths, questions_df_path
-
-
-@app.cell(hide_code=True)
-def _(mo):
     mo.md(r"""### Testing code""")
     return
 
 
-@app.cell(hide_code=True)
-def _(chroma_db_path, corpora_id_paths, device, questions_df_path):
+@app.cell
+def _(device):
     from chromadb.utils import embedding_functions
-    from evaluation import BaseDatasetCollection
+    from evaluation import GeneralEvalSet
     from chunker import RecursiveTokenChunker
+
+    from pathlib import Path
 
     embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(
         model_name="all-mpnet-base-v2",
@@ -85,17 +60,20 @@ def _(chroma_db_path, corpora_id_paths, device, questions_df_path):
 
     chunker = RecursiveTokenChunker()
 
-    base = BaseDatasetCollection(
-        str(questions_df_path),
-        str(chroma_db_path),
-        corpora_id_paths,
+    general_set = GeneralEvalSet(
+        general_benchmark_path=Path("datasets/general_evaluation")
     )
+    return chunker, embedding_function, general_set
 
-    collection, questions_collection = base.get_collections(
+
+@app.cell
+def _(chunker, embedding_function, general_set):
+    collection, question_collection = general_set.get_collections(
         chunker,
         embedding_function,
+        db_to_save_chunks="chroma_db/general_chunks_db/",
+        db_to_save_questions="chroma_db/general_questions_db/",
     )
-
     return
 
 

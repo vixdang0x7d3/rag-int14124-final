@@ -1,14 +1,14 @@
 import os
-import json
-from chromadb.utils import embedding_functions
 import pandas as pd
+import json
 
+from chromadb.utils import embedding_functions
 import chromadb
 
 from utils import rigorous_document_search
 
 
-class BaseDatasetCollection:
+class BaseEvalSet:
     def __init__(
         self, question_csv_path: str, chroma_fallback_path=None, corpora_id_paths=None
     ) -> None:
@@ -196,12 +196,12 @@ class BaseDatasetCollection:
         If caller provides database paths:
         Creates clients to connect to chunk database and questions database.
         Resolve collection name for each of them and try to fetch embeddings from databases.
-        If fails, it will call *_to_collection's to create new collections and return them.
-        Otherwise, the method will switch to a in-memory client.
+        If databases doesn't exist, it will call *_to_collection's to create new collections and return them.
+        Otherwise if database paths asre not provided then the method will switch to a in-memory client.
         """
 
         if embedding_function is None:
-            embedding_function: chromadb.EmbeddingFunction = (
+            embedding_function = (
                 embedding_functions.SentenceTransformerEmbeddingFunction(
                     model_name="all-MiniLM-L6-v2"
                 )
@@ -242,7 +242,7 @@ class BaseDatasetCollection:
             )
 
             try:
-                chunk_client = chromadb.PersistentClient(path=collection_name)
+                chunk_client = chromadb.PersistentClient(path=db_to_save_chunks)
                 collection = chunk_client.get_collection(
                     collection_name,
                     embedding_function=embedding_function,  # type: ignore
