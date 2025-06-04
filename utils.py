@@ -22,7 +22,7 @@ def find_query_despite_whitespace(document, query):
     match = regex.search(document)
 
     if match:
-        return document[match.start() :, match.end()], match.start(), match.end()
+        return document[match.start() : match.end()], match.start(), match.end()
     else:
         return None
 

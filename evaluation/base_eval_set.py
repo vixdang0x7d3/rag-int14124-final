@@ -73,7 +73,7 @@ class BaseEvalSet:
                         corpus, document
                     )
                 except Exception as e:
-                    print(f"Error in finding {document}: {e}")
+                    print(f"Error in finding '{document}': {e}")
 
                 current_metadatas.append(
                     {

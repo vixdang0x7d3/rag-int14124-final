@@ -30,7 +30,7 @@ class Evaluation:
     def _load_questions_df(self):
         if os.path.exists(self._questions_csv_path):
             self._questions_df = pd.read_csv(self._questions_csv_path)
-            self._questions_df["reference"] = self._questions_df["references"].apply(
+            self._questions_df["references"] = self._questions_df["references"].apply(
                 json.loads
             )
         else:
@@ -124,7 +124,7 @@ class Evaluation:
         recall_scores = []
         precision_scores = []
 
-        for (_, row), highlighted_chunks_count, metadatas in zip(
+        for (_, row), highlighted_chunk_count, metadatas in zip(
             self._questions_df.iterrows(), highlighted_chunks_count, question_metadatas
         ):
             _ = row["question"]
@@ -135,7 +135,7 @@ class Evaluation:
             denominator_chunks_sets = []
             unused_highlights = [(x["start_index"], x["end_index"]) for x in references]
 
-            for metadata in metadatas[:highlighted_chunks_count]:
+            for metadata in metadatas[:highlighted_chunk_count]:
                 chunk_start, chunk_end, chunk_corpus_id = (
                     metadata["start_index"],
                     metadata["end_index"],
@@ -178,16 +178,32 @@ class Evaluation:
             precision_denominator = sum_of_ranges(
                 [
                     (x["start_index"], x["end_index"])
-                    for x in metadatas[:highlighted_chunks_count]
+                    for x in metadatas[:highlighted_chunk_count]
                 ]
             )
 
             iou_denominator = precision_denominator + sum_of_ranges(unused_highlights)
 
+            print(
+                [
+                    (x["start_index"], x["end_index"])
+                    for x in metadatas[:highlighted_chunk_count]
+                ]
+            )
+
+            # print(recall_denominator)
+            # print(precision_denominator)
+            # print(iou_denominator)
+            # print("---")
+
             recall_score = numerator_value / recall_denominator
             recall_scores.append(recall_score)
 
-            precision_score = numerator_value / precision_denominator
+            precision_score = (
+                numerator_value / precision_denominator
+                if precision_denominator > 0
+                else 0.0
+            )
             precision_scores.append(precision_score)
 
             iou_score = numerator_value / iou_denominator
