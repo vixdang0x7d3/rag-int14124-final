@@ -1,0 +1,29 @@
+
+
+Design Patterns & Anti-patterns#
+This section is a collection of common design patterns and anti-patterns for writing Ray applications.
+
+
+Pattern: Using nested tasks to achieve nested parallelism
+Pattern: Using generators to reduce heap memory usage
+Pattern: Using ray.wait to limit the number of pending tasks
+Pattern: Using resources to limit the number of concurrently running tasks
+Pattern: Using asyncio to run actor methods concurrently
+Pattern: Using an actor to synchronize other tasks and actors
+Pattern: Using a supervisor actor to manage a tree of actors
+Pattern: Using pipelining to increase throughput
+Anti-pattern: Returning ray.put() ObjectRefs from a task harms performance and fault tolerance
+Anti-pattern: Calling ray.get in a loop harms parallelism
+Anti-pattern: Calling ray.get unnecessarily harms performance
+Anti-pattern: Processing results in submission order using ray.get increases runtime
+Anti-pattern: Fetching too many objects at once with ray.get causes failure
+Anti-pattern: Over-parallelizing with too fine-grained tasks harms speedup
+Anti-pattern: Redefining the same remote function or class harms performance
+Anti-pattern: Passing the same large argument by value repeatedly harms performance
+Anti-pattern: Closure capturing large objects harms performance
+Anti-pattern: Using global variables to share state between tasks and actors
+Anti-pattern: Serialize ray.ObjectRef out of band
+Anti-pattern: Forking new processes in application code
+
+
+

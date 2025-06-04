@@ -1,0 +1,237 @@
+
+
+AlgorithmConfig API#
+
+Note
+Ray 2.40 uses RLlib’s new API stack by default.
+The Ray team has mostly completed transitioning algorithms, example scripts, and
+documentation to the new code base.
+If you’re still using the old API stack, see New API stack migration guide for details on how to migrate.
+
+RLlib’s AlgorithmConfig API is
+the auto-validated and type-safe gateway into configuring and building an RLlib
+Algorithm.
+In essence, you first create an instance of AlgorithmConfig
+and then call some of its methods to set various configuration options. RLlib uses the following, black compliant format
+in all parts of its code.
+Note that you can chain together more than one method call, including the constructor:
+from ray.rllib.algorithms.algorithm_config import AlgorithmConfig
+
+config = (
+    # Create an `AlgorithmConfig` instance.
+    AlgorithmConfig()
+    # Change the learning rate.
+    .training(lr=0.0005)
+    # Change the number of Learner actors.
+    .learners(num_learners=2)
+)
+
+
+
+Hint
+For value checking and type-safety reasons, you should never set attributes in your
+AlgorithmConfig
+directly, but always go through the proper methods:
+# WRONG!
+config.env = "CartPole-v1"  # <- don't set attributes directly
+
+# CORRECT!
+config.environment(env="CartPole-v1")  # call the proper method
+
+
+
+
+Algorithm specific config classes#
+You don’t use the base AlgorithmConfig class directly in practice, but always its algorithm-specific
+subclasses, such as PPOConfig. Each subclass comes
+with its own set of additional arguments to the training()
+method.
+Normally, you should pick the specific AlgorithmConfig
+subclass that matches the Algorithm
+you would like to run your learning experiments with. For example, if you would like to
+use IMPALA as your algorithm, you should import its specific config class:
+from ray.rllib.algorithms.impala import IMPALAConfig
+
+config = (
+    # Create an `IMPALAConfig` instance.
+    IMPALAConfig()
+    # Specify the RL environment.
+    .environment("CartPole-v1")
+    # Change the learning rate.
+    .training(lr=0.0004)
+)
+
+
+To change algorithm-specific settings, here for IMPALA, also use the
+training() method:
+# Change an IMPALA-specific setting (the entropy coefficient).
+config.training(entropy_coeff=0.01)
+
+
+You can build the IMPALA instance directly from the
+config object through calling the
+build_algo() method:
+# Build the algorithm instance.
+impala = config.build_algo()
+
+
+The config object stored inside any built Algorithm instance
+is a copy of your original config. This allows you to further alter your original config object and
+build another algorithm instance without affecting the previously built one:
+# Further alter the config without affecting the previously built IMPALA object ...
+config.training(lr=0.00123)
+# ... and build a new IMPALA from it.
+another_impala = config.build_algo()
+
+
+If you are working with Ray Tune,
+pass your AlgorithmConfig
+instance into the constructor of the Tuner:
+from ray import tune
+
+tuner = tune.Tuner(
+    "IMPALA",
+    param_space=config,  # <- your RLlib AlgorithmConfig object
+    ..
+)
+# Run the experiment with Ray Tune.
+results = tuner.fit()
+
+
+
+
+Generic config settings#
+Most config settings are generic and apply to all of RLlib’s Algorithm classes.
+The following sections walk you through the most important config settings users should pay close attention to before
+diving further into other config settings and before starting with hyperparameter fine tuning.
+
+RL Environment#
+To configure, which RL environment your algorithm trains against, use the env argument to the
+environment() method:
+config.environment("Humanoid-v5")
+
+
+See this RL environment guide for more details.
+
+Tip
+Install both Atari and
+MuJoCo to be able to run
+all of RLlib’s tuned examples:
+pip install "gymnasium[atari,accept-rom-license,mujoco]"
+
+
+
+
+
+Learning rate lr#
+Set the learning rate for updating your models through the lr argument to the
+training() method:
+config.training(lr=0.0001)
+
+
+
+
+Train batch size#
+Set the train batch size, per Learner actor,
+through the train_batch_size_per_learner argument to the training()
+method:
+config.training(train_batch_size_per_learner=256)
+
+
+
+Note
+You can compute the total, effective train batch size through multiplying
+train_batch_size_per_learner with (num_learners or 1).
+Or you can also just check the value of your config’s
+total_train_batch_size property:
+config.training(train_batch_size_per_learner=256)
+config.learners(num_learners=2)
+print(config.total_train_batch_size)  # expect: 512 = 256 * 2
+
+
+
+
+
+Discount factor gamma#
+Set the RL discount factor
+through the gamma argument to the training()
+method:
+config.training(gamma=0.995)
+
+
+
+
+Scaling with num_env_runners and num_learners#
+Set the number of EnvRunner actors used to collect training samples
+through the num_env_runners argument to the env_runners()
+method:
+config.env_runners(num_env_runners=4)
+
+# Also use `num_envs_per_env_runner` to vectorize your environment on each EnvRunner actor.
+# Note that this option is only available in single-agent setups.
+#  The Ray Team is working on a solution for this restriction.
+config.env_runners(num_envs_per_env_runner=10)
+
+
+Set the number of Learner actors used to update your models
+through the num_learners argument to the learners()
+method. This should correspond to the number of GPUs you have available for training.
+config.learners(num_learners=2)
+
+
+
+
+Disable explore behavior#
+Switch off/on exploratory behavior
+through the explore argument to the env_runners()
+method. To compute actions, the EnvRunner calls forward_exploration() on the RLModule when explore=True
+and forward_inference() when explore=False. The default value is explore=True.
+# Disable exploration behavior.
+# When False, the EnvRunner calls `forward_inference()` on the RLModule to compute
+# actions instead of `forward_exploration()`.
+config.env_runners(explore=False)
+
+
+
+
+Rollout length#
+Set the number of timesteps that each EnvRunner steps
+through with each of its RL environment copies through the rollout_fragment_length argument.
+Pass this argument to the env_runners()
+method. Note that some algorithms, like PPO,
+set this value automatically, based on the train batch size,
+number of EnvRunner actors and number of envs per
+EnvRunner.
+config.env_runners(rollout_fragment_length=50)
+
+
+
+
+All available methods and their settings#
+Besides the previously described most common settings, the AlgorithmConfig
+class and its algo-specific subclasses come with many more configuration options.
+To structure things more semantically, AlgorithmConfig groups
+its various config settings into the following categories, each represented by its own method:
+
+Config settings for the RL environment
+Config settings for training behavior (including algo-specific settings)
+Config settings for EnvRunners
+Config settings for Learners
+Config settings for adding callbacks
+Config settings for multi-agent setups
+Config settings for offline RL
+Config settings for evaluating policies
+Config settings for the DL framework
+Config settings for reporting and logging behavior
+Config settings for checkpointing
+Config settings for debugging
+Experimental config settings
+
+To familiarize yourself with the vast number of RLlib’s different config options, you can browse through
+RLlib’s examples folder or take a look at this
+examples folder overview page.
+Each example script usually introduces a new config setting or shows you how to implement specific customizations through
+a combination of setting certain config options and adding custom code to your experiment.
+
+
+

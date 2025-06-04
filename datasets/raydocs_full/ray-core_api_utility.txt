@@ -1,0 +1,79 @@
+
+
+Utility#
+
+
+ray.util.ActorPool
+Utility class to operate on a fixed pool of actors.
+
+ray.util.queue.Queue
+A first-in, first-out queue implementation on Ray.
+
+ray.util.list_named_actors
+List all named actors in the system.
+
+ray.util.serialization.register_serializer
+Use the given serializer to serialize instances of type cls, and use the deserializer to deserialize the serialized object.
+
+ray.util.serialization.deregister_serializer
+Deregister the serializer associated with the type cls.
+
+ray.util.accelerators.tpu.get_current_pod_worker_count
+Count the number of workers associated with the TPU pod that the worker belongs to.
+
+ray.util.accelerators.tpu.get_current_pod_name
+Return the name of the TPU pod that the worker is a part of.
+
+ray.util.accelerators.tpu.get_num_tpu_chips_on_node
+Return the number of TPU chips on the node.
+
+ray.nodes
+Get a list of the nodes in the cluster (for debugging only).
+
+ray.cluster_resources
+Get the current total cluster resources.
+
+ray.available_resources
+Get the current available cluster resources.
+
+ray.util.queue.Empty
+PublicAPI (beta): This API is in beta and may change before becoming stable.
+
+ray.util.queue.Full
+PublicAPI (beta): This API is in beta and may change before becoming stable.
+
+
+
+
+Custom Metrics#
+
+
+ray.util.metrics.Counter
+A cumulative metric that is monotonically increasing.
+
+ray.util.metrics.Gauge
+Gauges keep the last recorded value and drop everything before.
+
+ray.util.metrics.Histogram
+Tracks the size and number of events in buckets.
+
+
+
+
+
+Debugging#
+
+
+ray.util.rpdb.set_trace
+Interrupt the flow of the program and drop into the Ray debugger.
+
+ray.util.inspect_serializability
+Identifies what objects are preventing serialization.
+
+ray.timeline
+Return a list of profiling events that can viewed as a timeline.
+
+
+
+
+

@@ -1,0 +1,17 @@
+
+
+ray.rllib.utils.numpy.l2_loss#
+
+
+ray.rllib.utils.numpy.l2_loss(x: numpy.ndarray) → numpy.ndarray[source]#
+Computes half the L2 norm of a tensor (w/o the sqrt): sum(x**2) / 2.
+
+Parameters:
+x – The input tensor.
+
+Returns:
+The l2-loss output according to the above formula given x.
+
+
+
+

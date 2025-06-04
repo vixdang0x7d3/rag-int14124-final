@@ -1,0 +1,75 @@
+
+
+Tune Execution (tune.Tuner)#
+
+Tuner#
+
+
+Tuner
+Tuner is the recommended way of launching hyperparameter tuning jobs with Ray Tune.
+
+
+
+
+
+Tuner.fit
+Executes hyperparameter tuning job as configured and returns result.
+
+Tuner.get_results
+Get results of a hyperparameter tuning run.
+
+
+
+
+Tuner Configuration#
+
+
+TuneConfig
+Tune specific configs.
+
+RunConfig
+Runtime configuration for training and tuning runs.
+
+CheckpointConfig
+Configurable parameters for defining the checkpointing strategy.
+
+FailureConfig
+Configuration related to failure handling of each training/tuning run.
+
+
+
+
+
+Restoring a Tuner#
+
+
+Tuner.restore
+Restores Tuner after a previously failed run.
+
+Tuner.can_restore
+Checks whether a given directory contains a restorable Tune experiment.
+
+
+
+
+
+
+tune.run_experiments#
+
+
+run_experiments
+Runs and blocks until all trials finish.
+
+run
+Executes training.
+
+Experiment
+Tracks experiment specifications.
+
+TuneError
+General error class raised by ray.tune.
+
+
+
+
+

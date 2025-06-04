@@ -1,0 +1,203 @@
+
+
+LearnerGroup API#
+
+Note
+Ray 2.40 uses RLlib’s new API stack by default.
+The Ray team has mostly completed transitioning algorithms, example scripts, and
+documentation to the new code base.
+If you’re still using the old API stack, see New API stack migration guide for details on how to migrate.
+
+
+Configuring a LearnerGroup and Learner actors#
+
+
+AlgorithmConfig.learners
+Sets LearnerGroup and Learner worker related configurations.
+
+
+
+
+
+Constructing a LearnerGroup#
+
+
+AlgorithmConfig.build_learner_group
+Builds and returns a new LearnerGroup object based on settings in self.
+
+
+
+
+
+LearnerGroup
+Coordinator of n (possibly remote) Learner workers.
+
+
+
+
+
+
+Learner API#
+
+Constructing a Learner#
+
+
+AlgorithmConfig.build_learner
+Builds and returns a new Learner object based on settings in self.
+
+
+
+
+
+Learner
+Base class for Learners.
+
+Learner.build
+Builds the Learner.
+
+Learner._check_is_built
+
+
+Learner._make_module
+Construct the multi-agent RL module for the learner.
+
+
+
+
+
+Implementing a custom RLModule to fit a Learner#
+
+
+Learner.rl_module_required_apis
+Returns the required APIs for an RLModule to be compatible with this Learner.
+
+Learner.rl_module_is_compatible
+Check whether the given module is compatible with this Learner.
+
+
+
+
+
+Performing updates#
+
+
+Learner.update
+Run num_epochs epochs over the given train batch.
+
+Learner.before_gradient_based_update
+Called before gradient-based updates are completed.
+
+Learner.after_gradient_based_update
+Called after gradient-based updates are completed.
+
+
+
+
+
+Computing losses#
+
+
+Learner.compute_losses
+Computes the loss(es) for the module being optimized.
+
+Learner.compute_loss_for_module
+Computes the loss for a single module.
+
+
+
+
+
+Configuring optimizers#
+
+
+Learner.configure_optimizers_for_module
+Configures an optimizer for the given module_id.
+
+Learner.configure_optimizers
+Configures, creates, and registers the optimizers for this Learner.
+
+Learner.register_optimizer
+Registers an optimizer with a ModuleID, name, param list and lr-scheduler.
+
+Learner.get_optimizers_for_module
+Returns a list of (optimizer_name, optimizer instance)-tuples for module_id.
+
+Learner.get_optimizer
+Returns the optimizer object, configured under the given module_id and name.
+
+Learner.get_parameters
+Returns the list of parameters of a module.
+
+Learner.get_param_ref
+Returns a hashable reference to a trainable parameter.
+
+Learner.filter_param_dict_for_optimizer
+Reduces the given ParamDict to contain only parameters for given optimizer.
+
+Learner._check_registered_optimizer
+Checks that the given optimizer and parameters are valid for the framework.
+
+Learner._set_optimizer_lr
+Updates the learning rate of the given local optimizer.
+
+
+
+
+
+Gradient computation#
+
+
+Learner.compute_gradients
+Computes the gradients based on the given losses.
+
+Learner.postprocess_gradients
+Applies potential postprocessing operations on the gradients.
+
+Learner.postprocess_gradients_for_module
+Applies postprocessing operations on the gradients of the given module.
+
+Learner.apply_gradients
+Applies the gradients to the MultiRLModule parameters.
+
+Learner._get_clip_function
+Returns the gradient clipping function to use.
+
+
+
+
+
+Saving and restoring#
+
+
+Learner.save_to_path
+Saves the state of the implementing class (or state) to path.
+
+Learner.restore_from_path
+Restores the state of the implementing class from the given path.
+
+Learner.from_checkpoint
+Creates a new Checkpointable instance from the given location and returns it.
+
+Learner.get_state
+Returns the implementing class's current state as a dict.
+
+Learner.set_state
+Sets the implementing class' state to the given state dict.
+
+
+
+
+
+Adding and removing modules#
+
+
+Learner.add_module
+Adds a module to the underlying MultiRLModule.
+
+Learner.remove_module
+Removes a module from the Learner.
+
+
+
+
+

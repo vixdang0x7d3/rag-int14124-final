@@ -1,0 +1,33 @@
+
+
+ray.rllib.algorithms.algorithm.Algorithm.get_state#
+
+
+Algorithm.get_state(components: str | Collection[str] | None = None, *, not_components: str | Collection[str] | None = None, **kwargs) → Dict[str, Any][source]#
+Returns the implementing class’s current state as a dict.
+The returned dict must only contain msgpack-serializable data if you want to
+use the AlgorithmConfig._msgpack_checkpoints option. Consider returning your
+non msgpack-serializable data from the Checkpointable.get_ctor_args_and_kwargs
+method, instead.
+
+Parameters:
+
+components – An optional collection of string keys to be included in the
+returned state. This might be useful, if getting certain components
+of the state is expensive (e.g. reading/compiling the weights of a large
+NN) and at the same time, these components are not required by the
+caller.
+not_components – An optional list of string keys to be excluded in the
+returned state, even if the same string is part of components.
+This is useful to get the complete state of the class, except
+one or a few components.
+kwargs – Forward-compatibility kwargs.
+
+
+Returns:
+The current state of the implementing class (or only the components
+specified, w/o those in not_components).
+
+
+
+

@@ -1,0 +1,52 @@
+
+
+
+
+
+
+
+
+
+
+
+
+Use CaseLarge Language ModelsGenerative AIComputer VisionNatural Language Processing LibraryDataServeTrain FrameworkAWS NeuronPyTorchLightningTransformersAccelerateDeepSpeedTensorFlowHorovodXGBoostHugging FaceData-JuicervLLMAny All ExamplesMaintained by the Ray TeamContributed by the Ray Community
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sorry! We could not find an example matching that filter.
+
+
+            Help us improve our examples by suggesting one. Tell us what example
+            you would like to have.
+          
+
+
+
+Image Classification Batch Inference with PyTorch ResNet152Beginner. Data. PyTorch.Computer Vision ray-teamObject Detection Batch Inference with PyTorch FasterRCNN_ResNet50Beginner. Data. PyTorch.Computer Vision ray-teamImage Classification Batch Inference with Hugging Face Vision TransformerBeginner. Data. Transformers.Computer Vision ray-teamBatch Inference with LoRA AdapterBeginner. Data. vLLM.Large Language Models Generative AI ray-teamBatch Inference with Structural OutputBeginner. Data. vLLM.Large Language Models Generative AI ray-teamTabular Data Training and Batch Inference with XGBoostBeginner. Data. XGBoost. ray-teamServe ML ModelsBeginner. Serve. PyTorch.Computer Vision ray-teamServe a Stable Diffusion ModelBeginner. Serve.Computer Vision Generative AI ray-teamServe a Text Classification ModelBeginner. Serve.Natural Language Processing ray-teamServe an Object Detection ModelBeginner. Serve.Computer Vision ray-teamServe an Inference Model on AWS NeuronCores Using FastAPIIntermediate. Serve.Natural Language Processing ray-teamServe an Inference with Stable Diffusion Model on AWS NeuronCores Using FastAPIIntermediate. Serve.Computer Vision Generative AI ray-teamServe a model on Intel Gaudi AcceleratorIntermediate. Serve. PyTorch.Generative AI Large Language Models ray-teamScale a Gradio App with Ray ServeIntermediate. Serve.Generative AI Large Language Models Natural Language Processing ray-teamServe a Text Generator with Request BatchingIntermediate. Serve.Generative AI Large Language Models Natural Language Processing ray-teamServe DeepSeekBeginner. Serve.Generative AI Large Language Models Natural Language Processing ray-teamServe a Chatbot with Request and Response StreamingIntermediate. Serve.Generative AI Large Language Models Natural Language Processing ray-teamServing models with Triton Server in Ray ServeIntermediate. Serve.Computer Vision Generative AI ray-teamServe a Java AppAdvanced. Serve. ray-teamTrain an image classifier with PyTorchBeginner. Train. PyTorch.Computer Vision ray-teamTrain an image classifier with LightningBeginner. Train. Lightning.Computer Vision ray-teamTrain a text classifier with Hugging Face AccelerateBeginner. Train. Accelerate. PyTorch. Hugging Face.Large Language Models Natural Language Processing ray-teamTrain an image classifier with TensorFlowBeginner. Train. TensorFlow.Computer Vision ray-teamTrain with Horovod and PyTorchBeginner. Train. Horovod. ray-teamTrain ResNet model with Intel GaudiBeginner. Train. PyTorch.Computer Vision community*Contributed by the Ray Community💪 ✨Train BERT model with Intel GaudiBeginner. Train. Transformers.Natural Language Processing community*Contributed by the Ray Community💪 ✨Train a text classifier with DeepSpeedIntermediate. Train. DeepSpeed. PyTorch.Large Language Models Natural Language Processing ray-teamFine-tune a personalized Stable Diffusion modelIntermediate. Train. PyTorch.Computer Vision Generative AI ray-teamFinetune Stable Diffusion and generate images with Intel GaudiIntermediate. Train. Accelerate. Transformers.Computer Vision Generative AI community*Contributed by the Ray Community💪 ✨Train a text classifier with PyTorch Lightning and Ray DataIntermediate. Train. Lightning.Natural Language Processing ray-teamTrain a text classifier with Hugging Face TransformersIntermediate. Train. Transformers.Natural Language Processing ray-teamFine-tune Llama-2-7b and Llama-2-70b with Intel GaudiIntermediate. Train. Accelerate. Transformers.Natural Language Processing Large Language Models community*Contributed by the Ray Community💪 ✨Pre-train Llama-2 with Intel GaudiIntermediate. Train. Accelerate. Transformers. DeepSpeed.Natural Language Processing Large Language Models community*Contributed by the Ray Community💪 ✨Fine-tune Llama3.1 with AWS TrainiumAdvanced. Train. PyTorch. AWS Neuron.Natural Language Processing Large Language Models community*Contributed by the Ray Community💪 ✨Fine-tune a Llama-2 text generation model with DeepSpeed and Hugging Face AccelerateAdvanced. Train. Accelerate. DeepSpeed. Hugging Face.Natural Language Processing Large Language Models ray-teamFine-tune a GPT-J-6B text generation model with DeepSpeed and Hugging Face TransformersAdvanced. Train. Hugging Face. DeepSpeed.Natural Language Processing Large Language Models Generative AI ray-teamFine-tune a vicuna-13b text generation model with PyTorch Lightning and DeepSpeedAdvanced. Train. Lightning. DeepSpeed.Large Language Models Generative AI ray-teamFine-tune a dolly-v2-7b text generation model with PyTorch Lightning and FSDPAdvanced. Train. Lightning.Large Language Models Generative AI Natural Language Processing ray-teamTrain a tabular model with XGBoostBeginner. Train. XGBoost. ray-team

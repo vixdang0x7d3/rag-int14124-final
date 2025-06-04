@@ -1,0 +1,60 @@
+
+
+ray.rllib.offline.offline_env_runner.OfflineSingleAgentEnvRunner#
+
+
+class ray.rllib.offline.offline_env_runner.OfflineSingleAgentEnvRunner(*, config: AlgorithmConfig, **kwargs)[source]#
+Bases: SingleAgentEnvRunner
+The environment runner to record the single agent case.
+PublicAPI (alpha): This API is in alpha and may change before becoming stable.
+Methods
+
+
+apply
+Calls the given function with this Actor instance.
+
+assert_healthy
+Checks that self.__init__() has been completed properly.
+
+from_checkpoint
+Creates a new Checkpointable instance from the given location and returns it.
+
+make_env
+Creates a vectorized gymnasium env and stores it in self.env.
+
+ping
+Ping the actor.
+
+restore_from_path
+Restores the state of the implementing class from the given path.
+
+sample
+Samples from environments and writes data to disk.
+
+sample_get_state_and_metrics
+Convenience method for fast, async algorithms.
+
+save_to_path
+Saves the state of the implementing class (or state) to path.
+
+stop
+Writes the reamining samples to disk
+
+
+
+Attributes
+
+
+CLASS_AND_CTOR_ARGS_FILE_NAME
+
+
+METADATA_FILE_NAME
+
+
+STATE_FILE_NAME
+
+
+
+
+
+

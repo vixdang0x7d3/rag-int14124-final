@@ -1,0 +1,36 @@
+
+
+ray.rllib.algorithms.algorithm.Algorithm.train#
+
+
+Algorithm.train()#
+Runs one logical iteration of training.
+Calls step() internally. Subclasses should override step()
+instead to return results.
+This method automatically fills the following fields in the result:
+
+done (bool): training is terminated. Filled only if not provided.
+time_this_iter_s (float): Time in seconds this iteration
+took to run. This may be overridden in order to override the
+system-computed time difference.
+time_total_s (float): Accumulated time in seconds for this
+entire experiment.
+training_iteration (int): The index of this
+training iteration, e.g. call to train(). This is incremented
+after step() is called.
+pid (str): The pid of the training process.
+date (str): A formatted date of when the result was processed.
+timestamp (str): A UNIX timestamp of when the result
+was processed. This may be overridden.
+hostname (str): Hostname of the machine hosting the training
+process.
+node_ip (str): Node ip of the machine hosting the training
+process.
+
+
+Returns:
+A dict that describes training progress.
+
+
+
+

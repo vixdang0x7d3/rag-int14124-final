@@ -1,0 +1,17 @@
+
+
+ray.rllib.core.rl_module.rl_module.RLModule.set_state#
+
+
+RLModule.set_state(state: Dict[str, Any]) → None[source]#
+Sets the implementing class’ state to the given state dict.
+If component keys are missing in state, these components of the implementing
+class will not be updated/set.
+
+Parameters:
+state – The state dict to restore the state from. Maps component keys
+to the corresponding subcomponent’s own state.
+
+
+
+

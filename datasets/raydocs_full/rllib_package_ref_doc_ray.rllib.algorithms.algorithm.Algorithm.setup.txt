@@ -1,0 +1,18 @@
+
+
+ray.rllib.algorithms.algorithm.Algorithm.setup#
+
+
+Algorithm.setup(config: AlgorithmConfig) → None[source]#
+Subclasses should override this for custom initialization.
+
+Added in version 0.8.7.
+
+
+Parameters:
+config – Hyperparameters and other configs given.
+Copy of self.config.
+
+
+
+

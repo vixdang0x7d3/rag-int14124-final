@@ -1,0 +1,16 @@
+
+
+ray.rllib.algorithms.algorithm_config.AlgorithmConfig.get_evaluation_config_object#
+
+
+AlgorithmConfig.get_evaluation_config_object() → AlgorithmConfig | None[source]#
+Creates a full AlgorithmConfig object from self.evaluation_config.
+
+Returns:
+A fully valid AlgorithmConfig object that can be used for the evaluation
+EnvRunnerGroup. If self is already an evaluation config object, return
+None.
+
+
+
+

@@ -1,0 +1,8 @@
+
+
+ray.rllib.offline.offline_prelearner.OfflinePreLearner.__init__#
+
+
+OfflinePreLearner.__init__(*, config: AlgorithmConfig, spaces: Tuple[gymnasium.Space, gymnasium.Space] | None = None, module_spec: MultiRLModuleSpec | None = None, module_state: Dict[str, Any] | None = None, **kwargs: Dict[str, Any])[source]#
+
+

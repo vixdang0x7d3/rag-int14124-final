@@ -1,0 +1,24 @@
+
+
+ray.rllib.core.rl_module.rl_module.RLModule.forward_inference#
+
+
+RLModule.forward_inference(batch: Dict[str, Any], **kwargs) → Dict[str, Any][source]#
+DO NOT OVERRIDE! Forward-pass during evaluation, called from the sampler.
+This method should not be overridden. Override the self._forward_inference()
+method instead.
+
+Parameters:
+
+batch – The input batch. This input batch should comply with
+input_specs_inference().
+**kwargs – Additional keyword arguments.
+
+
+Returns:
+The output of the forward pass. This output should comply with the
+ouptut_specs_inference().
+
+
+
+

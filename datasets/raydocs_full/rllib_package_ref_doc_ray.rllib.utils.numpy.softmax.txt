@@ -1,0 +1,24 @@
+
+
+ray.rllib.utils.numpy.softmax#
+
+
+ray.rllib.utils.numpy.softmax(x: numpy.ndarray | list, axis: int = -1, epsilon: float | None = None) → numpy.ndarray[source]#
+Returns the softmax values for x.
+The exact formula used is:
+S(xi) = e^xi / SUMj(e^xj), where j goes over all elements in x.
+
+Parameters:
+
+x – The input to the softmax function.
+axis – The axis along which to softmax.
+epsilon – Optional epsilon as a minimum value. If None, use
+SMALL_NUMBER.
+
+
+Returns:
+The softmax over x.
+
+
+
+

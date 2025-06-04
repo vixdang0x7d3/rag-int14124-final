@@ -1,0 +1,49 @@
+
+
+ray.rllib.algorithms.algorithm.Algorithm.save_to_path#
+
+
+Algorithm.save_to_path(path: str | Path | None = None, *, state: Dict[str, Any] | None = None, filesystem: pyarrow.fs.FileSystem | None = None, use_msgpack: bool = False) → str#
+Saves the state of the implementing class (or state) to path.
+The state of the implementing class is always saved in the following format:
+path/
+    [component1]/
+        [component1 subcomponentA]/
+            ...
+        [component1 subcomponentB]/
+            ...
+    [component2]/
+            ...
+    [cls.METADATA_FILE_NAME] (json)
+    [cls.STATE_FILE_NAME] (pkl|msgpack)
+
+
+The main logic is to loop through all subcomponents of this Checkpointable
+and call their respective save_to_path methods. Then save the remaining
+(non subcomponent) state to this Checkpointable’s STATE_FILE_NAME.
+In the exception that a component is a FaultTolerantActorManager instance,
+instead of calling save_to_path directly on that manager, the first healthy
+actor is interpreted as the component and its save_to_path method is called.
+Even if that actor is located on another node, the created file is automatically
+synced to the local node.
+
+Parameters:
+
+path – The path to the directory to save the state of the implementing class
+to. If path doesn’t exist or is None, then a new directory will be
+created (and returned).
+state – An optional state dict to be used instead of getting a new state of
+the implementing class through self.get_state().
+filesystem – PyArrow FileSystem to use to access data at the path.
+If not specified, this is inferred from the URI scheme of path.
+use_msgpack – Whether the state file should be written using msgpack and
+msgpack_numpy (file extension is .msgpack), rather than pickle (file
+extension is .pkl).
+
+
+Returns:
+The path (str) where the state has been saved.
+
+
+
+

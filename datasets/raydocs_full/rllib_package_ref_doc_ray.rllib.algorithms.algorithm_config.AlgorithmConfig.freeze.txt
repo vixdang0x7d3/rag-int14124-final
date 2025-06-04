@@ -1,0 +1,11 @@
+
+
+ray.rllib.algorithms.algorithm_config.AlgorithmConfig.freeze#
+
+
+AlgorithmConfig.freeze() → None[source]#
+Freezes this config object, such that no attributes can be set anymore.
+Algorithms should use this method to make sure that their config objects
+remain read-only after this.
+
+

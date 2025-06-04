@@ -1,0 +1,22 @@
+
+
+ray.rllib.core.rl_module.multi_rl_module.MultiRLModule.remove_module#
+
+
+MultiRLModule.remove_module(module_id: str, *, raise_err_if_not_found: bool = True) → None[source]#
+Removes a module at runtime from the multi-agent module.
+
+Parameters:
+
+module_id – The module ID to remove.
+raise_err_if_not_found – Whether to raise an error if the module ID is not
+found.
+
+
+Raises:
+ValueError – If the module ID does not exist and raise_err_if_not_found is
+    True.
+
+
+
+

@@ -1,0 +1,21 @@
+
+
+ray.util.dask.callbacks.RayDaskCallback._ray_posttask#
+
+
+RayDaskCallback._ray_posttask(key, result, pre_state)[source]#
+Run after executing a Dask task within a Ray task.
+This method executes within a Ray worker. This callback receives the
+return value of the _ray_pretask callback, if provided.
+
+Parameters:
+
+key – The Dask graph key for the Dask task.
+result – The task result value.
+pre_state – The return value of the corresponding
+_ray_pretask callback, if said callback is defined.
+
+
+
+
+

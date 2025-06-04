@@ -1,0 +1,17 @@
+
+
+ray.rllib.utils.torch_utils.compute_global_norm#
+
+
+ray.rllib.utils.torch_utils.compute_global_norm(gradients_list: ParamList) → numpy.array | jnp.ndarray | tf.Tensor | torch.Tensor[source]#
+Computes the global norm for a gradients dict.
+
+Parameters:
+gradients_list – The gradients list containing parameters.
+
+Returns:
+Returns the global norm of all tensors in gradients_list.
+
+
+
+

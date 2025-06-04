@@ -1,0 +1,9 @@
+
+
+ray.rllib.offline.offline_prelearner.OfflinePreLearner._map_to_episodes#
+
+
+static OfflinePreLearner._map_to_episodes(is_multi_agent: bool, batch: Dict[str, list | numpy.ndarray], schema: Dict[str, str] = {'actions': 'actions', 'agent_id': 'agent_id', 'agent_index': 'agent_index', 'dones': 'dones', 'eps_id': 'eps_id', 'infos': 'infos', 'module_id': 'module_id', 'new_obs': 'new_obs', 'obs': 'obs', 'rewards': 'rewards', 't': 't', 'terminateds': 'terminateds', 'truncateds': 'truncateds', 'unroll_id': 'unroll_id'}, to_numpy: bool = False, input_compress_columns: List[str] | None = None, ignore_final_observation: bool | None = False, observation_space: gymnasium.Space = None, action_space: gymnasium.Space = None, **kwargs: Dict[str, Any]) → Dict[str, List[SingleAgentEpisode | MultiAgentEpisode]][source]#
+Maps a batch of data to episodes.
+
+

@@ -1,0 +1,63 @@
+
+
+ray.rllib.algorithms.algorithm_config.AlgorithmConfig.get_multi_agent_setup#
+
+
+AlgorithmConfig.get_multi_agent_setup(*, policies: Dict[str, PolicySpec] | None = None, env: Any | gymnasium.Env | None = None, spaces: Dict[str, Tuple[gymnasium.Space, gymnasium.Space]] | None = None, default_policy_class: Type[Policy] | None = None) → Tuple[Dict[str, PolicySpec], Callable[[str, SampleBatch | MultiAgentBatch | Dict[str, Any]], bool]][source]#
+Compiles complete multi-agent config (dict) from the information in self.
+Infers the observation- and action spaces, the policy classes, and the policy’s
+configs. The returned MultiAgentPolicyConfigDict is fully unified and strictly
+maps PolicyIDs to complete PolicySpec objects (with all their fields not-None).
+Examples:
+.. testcode:
+import gymnasium as gym
+from ray.rllib.algorithms.ppo import PPOConfig
+config = (
+  PPOConfig()
+  .environment("CartPole-v1")
+  .framework("torch")
+  .multi_agent(policies={"pol1", "pol2"}, policies_to_train=["pol1"])
+)
+policy_dict, is_policy_to_train = config.get_multi_agent_setup(
+    env=gym.make("CartPole-v1"))
+is_policy_to_train("pol1")
+is_policy_to_train("pol2")
+
+
+
+Parameters:
+
+policies – An optional multi-agent policies dict, mapping policy IDs
+to PolicySpec objects. If not provided uses self.policies
+instead. Note that the policy_class, observation_space, and
+action_space properties in these PolicySpecs may be None and must
+therefore be inferred here.
+env – An optional env instance, from which to infer the different spaces for
+the different policies. If not provided, tries to infer from
+spaces. Otherwise from self.observation_space and
+self.action_space. Raises an error, if no information on spaces can be
+infered.
+spaces – Optional dict mapping policy IDs to tuples of 1) observation space
+and 2) action space that should be used for the respective policy.
+These spaces were usually provided by an already instantiated remote
+EnvRunner. Note that if the env argument is provided, tries to
+infer spaces from env first.
+default_policy_class – The Policy class to use should a PolicySpec have its
+policy_class property set to None.
+
+
+Returns:
+A tuple consisting of 1) a MultiAgentPolicyConfigDict and 2) a
+is_policy_to_train(PolicyID, SampleBatchType) -> bool callable.
+
+Raises:
+
+ValueError – In case, no spaces can be infered for the policy/ies.
+ValueError – In case, two agents in the env map to the same PolicyID
+    (according to self.policy_mapping_fn), but have different action- or
+    observation spaces according to the infered space information.
+
+
+
+
+

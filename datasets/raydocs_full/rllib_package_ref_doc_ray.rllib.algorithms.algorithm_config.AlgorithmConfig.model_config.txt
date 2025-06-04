@@ -1,0 +1,19 @@
+
+
+ray.rllib.algorithms.algorithm_config.AlgorithmConfig.model_config#
+
+
+property AlgorithmConfig.model_config#
+Defines the model configuration used.
+This method combines the auto configuration self _model_config_auto_includes
+defined by an algorithm with the user-defined configuration in
+self._model_config.This configuration dictionary is used to
+configure the RLModule in the new stack and the ModelV2 in the old
+stack.
+
+Returns:
+A dictionary with the model configuration.
+
+
+
+

@@ -1,0 +1,32 @@
+
+
+ray.rllib.algorithms.algorithm.Algorithm.from_checkpoint#
+
+
+classmethod Algorithm.from_checkpoint(path: str | Checkpoint, filesystem: pyarrow.fs.FileSystem | None = None, *, policy_ids: Collection[str] | None = None, policy_mapping_fn: Callable[[Any, int | str], str] | None = None, policies_to_train: Collection[str] | Callable[[str, SampleBatch | MultiAgentBatch | Dict[str, Any] | None], bool] | None = None, checkpoint=-1, **kwargs) → Algorithm[source]#
+Creates a new algorithm instance from a given checkpoint.
+
+Parameters:
+
+path – The path (str) to the checkpoint directory to use or a Ray Train
+Checkpoint instance to restore from.
+filesystem – PyArrow FileSystem to use to access data at the path. If not
+specified, this is inferred from the URI scheme of path.
+policy_ids – Optional list of PolicyIDs to recover. This allows users to
+restore an Algorithm with only a subset of the originally present
+Policies.
+policy_mapping_fn – An optional (updated) policy mapping function to use from
+here on.
+policies_to_train – An optional list of policy IDs to be trained or a
+callable taking PolicyID and SampleBatchType and returning a bool
+(trainable or not?). If None, will keep the existing setup in place.
+Policies, whose IDs are not in the list (or for which the callable
+returns False) will not be updated.
+
+
+Returns:
+The instantiated Algorithm.
+
+
+
+

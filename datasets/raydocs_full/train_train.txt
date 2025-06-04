@@ -1,0 +1,189 @@
+
+
+Ray Train: Scalable Model Training#
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Ray Train is a scalable machine learning library for distributed training and fine-tuning.
+Ray Train allows you to scale model training code from a single machine to a cluster of machines in the cloud, and abstracts away the complexities of distributed computing.
+Whether you have large models or large datasets, Ray Train is the simplest solution for distributed training.
+Ray Train provides support for many frameworks:
+
+
+
+
+
+
+PyTorch Ecosystem
+More Frameworks
+
+
+
+PyTorch
+TensorFlow
+
+PyTorch Lightning
+Keras
+
+Hugging Face Transformers
+Horovod
+
+Hugging Face Accelerate
+XGBoost
+
+DeepSpeed
+LightGBM
+
+
+
+
+Install Ray Train#
+To install Ray Train, run:
+$ pip install -U "ray[train]"
+
+
+To learn more about installing Ray and its libraries, see
+Installing Ray.
+
+
+Get started#
+
+
+
+
+
+Overview
+
+
+Understand the key concepts for distributed training with Ray Train.
+
+
+Learn the basics
+
+
+
+
+
+
+PyTorch
+
+
+Get started on distributed model training with Ray Train and PyTorch.
+
+
+Try Ray Train with PyTorch
+
+
+
+
+
+
+PyTorch Lightning
+
+
+Get started on distributed model training with Ray Train and Lightning.
+
+
+Try Ray Train with Lightning
+
+
+
+
+
+
+Hugging Face Transformers
+
+
+Get started on distributed model training with Ray Train and Transformers.
+
+
+Try Ray Train with Transformers
+
+
+
+
+
+
+
+Learn more#
+
+
+
+
+
+More Frameworks
+
+
+Don’t see your framework? See these guides.
+
+
+Try Ray Train with other frameworks
+
+
+
+
+
+
+User Guides
+
+
+Get how-to instructions for common training tasks with Ray Train.
+
+
+Read how-to guides
+
+
+
+
+
+
+Examples
+
+
+Browse end-to-end code examples for different use cases.
+
+
+Learn through examples
+
+
+
+
+
+
+API
+
+
+Consult the API Reference for full descriptions of the Ray Train API.
+
+
+Read the API Reference
+
+
+
+
+
+
+

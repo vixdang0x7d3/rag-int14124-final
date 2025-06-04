@@ -1,0 +1,8 @@
+
+
+ray.rllib.core.rl_module.rl_module.RLModuleSpec.inference_only#
+
+
+RLModuleSpec.inference_only: bool = False#
+
+

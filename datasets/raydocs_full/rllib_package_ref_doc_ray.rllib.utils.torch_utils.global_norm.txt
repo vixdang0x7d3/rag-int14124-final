@@ -1,0 +1,21 @@
+
+
+ray.rllib.utils.torch_utils.global_norm#
+
+
+ray.rllib.utils.torch_utils.global_norm(tensors: List[numpy.array | jnp.ndarray | tf.Tensor | torch.Tensor]) → numpy.array | jnp.ndarray | tf.Tensor | torch.Tensor[source]#
+Returns the global L2 norm over a list of tensors.
+
+output = sqrt(SUM(t ** 2 for t in tensors)),where SUM reduces over all tensors and over all elements in tensors.
+
+
+
+Parameters:
+tensors – The list of tensors to calculate the global norm over.
+
+Returns:
+The global L2 norm over the given tensor list.
+
+
+
+

@@ -1,0 +1,28 @@
+
+
+ray.rllib.callbacks.callbacks.RLlibCallback.on_environment_created#
+
+
+RLlibCallback.on_environment_created(*, env_runner: EnvRunner, metrics_logger: MetricsLogger | None = None, env: gymnasium.Env, env_context: EnvContext, **kwargs) → None[source]#
+Callback run when a new environment object has been created.
+Note: This only applies to the new API stack. The env used is usually a
+gym.Env (or more specifically a gym.vector.Env).
+
+Parameters:
+
+env_runner – Reference to the current EnvRunner instance.
+metrics_logger – The MetricsLogger object inside the env_runner. Can be
+used to log custom metrics after environment creation.
+env – The environment object that has been created on env_runner. This is
+usually a gym.Env (or a gym.vector.Env) object.
+env_context – The EnvContext object that has been passed to the
+gym.make() call as kwargs (and to the gym.Env as config). It should
+have all the config key/value pairs in it as well as the
+EnvContext-typical properties: worker_index, num_workers, and
+remote.
+kwargs – Forward compatibility placeholder.
+
+
+
+
+

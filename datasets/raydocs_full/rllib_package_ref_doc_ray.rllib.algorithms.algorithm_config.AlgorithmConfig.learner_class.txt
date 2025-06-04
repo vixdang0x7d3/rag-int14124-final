@@ -1,0 +1,14 @@
+
+
+ray.rllib.algorithms.algorithm_config.AlgorithmConfig.learner_class#
+
+
+property AlgorithmConfig.learner_class: Type[Learner]#
+Returns the Learner sub-class to use by this Algorithm.
+Either
+a) User sets a specific learner class via calling .training(learner_class=...)
+b) User leaves learner class unset (None) and the AlgorithmConfig itself
+figures out the actual learner class by calling its own
+.get_default_learner_class() method.
+
+

@@ -1,0 +1,18 @@
+
+
+ray.util.dask.callbacks.RayDaskCallback._ray_postsubmit_all#
+
+
+RayDaskCallback._ray_postsubmit_all(object_refs: List[ray._raylet.ObjectRef], dsk)[source]#
+Run after Ray submits all tasks.
+
+Parameters:
+
+object_refs – The object references
+for the output (leaf) Ray tasks of the task graph.
+dsk – The Dask graph.
+
+
+
+
+

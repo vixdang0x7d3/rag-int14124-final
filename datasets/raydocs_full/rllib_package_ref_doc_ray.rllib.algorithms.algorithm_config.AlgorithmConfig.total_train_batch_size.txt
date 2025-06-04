@@ -1,0 +1,12 @@
+
+
+ray.rllib.algorithms.algorithm_config.AlgorithmConfig.total_train_batch_size#
+
+
+property AlgorithmConfig.total_train_batch_size: int#
+Returns the effective total train batch size.
+New API stack: train_batch_size_per_learner * [effective num Learners].
+@OldAPIStack: User never touches train_batch_size_per_learner or
+num_learners) -> train_batch_size.
+
+

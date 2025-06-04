@@ -1,0 +1,38 @@
+
+
+Anti-pattern: Passing the same large argument by value repeatedly harms performance#
+TLDR: Avoid passing the same large argument by value to multiple tasks, use ray.put() and pass by reference instead.
+When passing a large argument (>100KB) by value to a task,
+Ray will implicitly store the argument in the object store and the worker process will fetch the argument to the local object store from the caller’s object store before running the task.
+If we pass the same large argument to multiple tasks, Ray will end up storing multiple copies of the argument in the object store since Ray doesn’t do deduplication.
+Instead of passing the large argument by value to multiple tasks,
+we should use ray.put() to store the argument to the object store once and get an ObjectRef,
+then pass the argument reference to tasks. This way, we make sure all tasks use the same copy of the argument, which is faster and uses less object store memory.
+
+Code example#
+Anti-pattern:
+import ray
+import numpy as np
+
+ray.init()
+
+
+@ray.remote
+def func(large_arg, i):
+    return len(large_arg) + i
+
+
+large_arg = np.zeros(1024 * 1024)
+
+# 10 copies of large_arg are stored in the object store.
+outputs = ray.get([func.remote(large_arg, i) for i in range(10)])
+
+
+Better approach:
+# 1 copy of large_arg is stored in the object store.
+large_arg_ref = ray.put(large_arg)
+outputs = ray.get([func.remote(large_arg_ref, i) for i in range(10)])
+
+
+
+

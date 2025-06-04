@@ -1,0 +1,22 @@
+
+
+ray.rllib.utils.numpy.sigmoid#
+
+
+ray.rllib.utils.numpy.sigmoid(x: numpy.ndarray, derivative: bool = False) → numpy.ndarray[source]#
+Returns the sigmoid function applied to x.
+Alternatively, can return the derivative or the sigmoid function.
+
+Parameters:
+
+x – The input to the sigmoid function.
+derivative – Whether to return the derivative or not.
+Default: False.
+
+
+Returns:
+The sigmoid function (or its derivative) applied to x.
+
+
+
+

@@ -1,0 +1,27 @@
+
+
+Env Utils#
+
+Note
+Ray 2.40 uses RLlib’s new API stack by default.
+The Ray team has mostly completed transitioning algorithms, example scripts, and
+documentation to the new code base.
+If you’re still using the old API stack, see New API stack migration guide for details on how to migrate.
+
+
+rllib.env.utils#
+
+
+RLlink
+PublicAPI (alpha): This API is in alpha and may change before becoming stable.
+
+try_import_open_spiel
+Tries importing open_spiel and returns the module (or None).
+
+try_import_pyspiel
+Tries importing pyspiel and returns the module (or None).
+
+
+
+
+

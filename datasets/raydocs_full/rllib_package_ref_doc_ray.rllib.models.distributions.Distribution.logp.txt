@@ -1,0 +1,20 @@
+
+
+ray.rllib.models.distributions.Distribution.logp#
+
+
+abstract Distribution.logp(value: numpy.array | jnp.ndarray | tf.Tensor | torch.Tensor, **kwargs) → numpy.array | jnp.ndarray | tf.Tensor | torch.Tensor[source]#
+The log-likelihood of the distribution computed at value
+
+Parameters:
+
+value – The value to compute the log-likelihood at.
+**kwargs – Forward compatibility placeholder.
+
+
+Returns:
+The log-likelihood of the value.
+
+
+
+

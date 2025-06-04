@@ -1,0 +1,21 @@
+
+
+ray.rllib.core.rl_module.rl_module.RLModule.get_state#
+
+
+RLModule.get_state(components: str | Collection[str] | None = None, *, not_components: str | Collection[str] | None = None, inference_only: bool = False, **kwargs) → Dict[str, Any][source]#
+Returns the state dict of the module.
+
+Parameters:
+inference_only – Whether the returned state should be an inference-only
+state (w/o those model components that are not needed for action
+computations, such as a value function or a target network).
+Note that setting this to False might raise an error if
+self.inference_only is True.
+
+Returns:
+This RLModule’s state dict.
+
+
+
+

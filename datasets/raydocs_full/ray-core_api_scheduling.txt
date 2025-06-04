@@ -1,0 +1,42 @@
+
+
+Scheduling API#
+
+Scheduling Strategy#
+
+
+ray.util.scheduling_strategies.PlacementGroupSchedulingStrategy
+Placement group based scheduling strategy.
+
+ray.util.scheduling_strategies.NodeAffinitySchedulingStrategy
+Static scheduling strategy used to run a task or actor on a particular node.
+
+
+
+
+
+Placement Group#
+
+
+ray.util.placement_group
+Asynchronously creates a PlacementGroup.
+
+ray.util.placement_group.get_placement_group
+Get a placement group object with a global name.
+
+ray.util.placement_group.PlacementGroup
+A handle to a placement group.
+
+ray.util.placement_group_table
+Get the state of the placement group from GCS.
+
+ray.util.remove_placement_group
+Asynchronously remove placement group.
+
+ray.util.get_current_placement_group
+Get the current placement group which a task or actor is using.
+
+
+
+
+

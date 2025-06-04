@@ -1,0 +1,186 @@
+
+
+Note
+Ray 2.40 uses RLlib’s new API stack by default.
+The Ray team has mostly completed transitioning algorithms, example scripts, and
+documentation to the new code base.
+If you’re still using the old API stack, see New API stack migration guide for details on how to migrate.
+
+
+Install RLlib for Development#
+You can develop RLlib locally without needing to compile Ray by using the setup-dev.py script.
+This sets up symlinks between the ray/rllib dir in your local git clone and the respective directory bundled with the pip-installed ray package.
+This way, every change you make in the source files in your local git clone will immediately be reflected in your installed ray as well.
+However if you have installed ray from source using these instructions then don’t use this,
+as these steps should have already created the necessary symlinks.
+When using the setup-dev.py script,
+make sure that your git branch is in sync with the installed Ray binaries, meaning you are up-to-date on master
+and have the latest wheel installed.
+# Clone your fork onto your local machine, e.g.:
+git clone https://github.com/[your username]/ray.git
+cd ray
+# Only enter 'Y' at the first question on linking RLlib.
+# This leads to the most stable behavior and you won't have to re-install ray as often.
+# If you anticipate making changes to e.g. Tune or Train quite often, consider also symlinking Ray Tune or Train here
+# (say 'Y' when asked by the script about creating the Tune or Train symlinks).
+python python/ray/setup-dev.py
+
+
+
+
+Contributing to RLlib#
+
+Contributing Fixes and Enhancements#
+Feel free to file new RLlib-related PRs through Ray’s github repo.
+The RLlib team is very grateful for any external help they can get from the open-source community. If you are unsure about how to structure your
+bug-fix or enhancement-PRs, create a small PR first, then ask us questions within its conversation section.
+See here for an example of a good first community PR.
+
+
+Contributing Algorithms#
+These are the guidelines for merging new algorithms into RLlib.
+We distinguish between two levels of contributions: As an example script
+(possibly with additional classes in other files)
+or as a fully-integrated RLlib Algorithm in rllib/algorithms.
+
+
+Example Algorithms:
+must subclass Algorithm and implement the training_step() method
+must include the main example script, in which the algo is demoed, in a CI test, which proves that the algo is learning a certain task.
+should offer functionality not present in existing algorithms
+
+
+
+
+
+Fully integrated Algorithms have the following additional requirements:
+must offer substantial new functionality not possible to add to other algorithms
+should support custom RLModules
+should use RLlib abstractions and support distributed execution
+should include at least one tuned hyperparameter example, testing of which is part of the CI
+
+
+
+
+
+Both integrated and contributed algorithms ship with the ray PyPI package, and are tested as part of Ray’s automated tests.
+
+
+New Features#
+New feature developments, discussions, and upcoming priorities are tracked on the GitHub issues page
+(note that this may not include all development efforts).
+
+
+
+API Stability#
+
+API Decorators in the Codebase#
+Objects and methods annotated with @PublicAPI (new API stack),
+@DeveloperAPI (new API stack), or @OldAPIStack (old API stack)
+have the following API compatibility guarantees:
+
+
+ray.util.annotations.PublicAPI(*args, **kwargs)[source]
+Annotation for documenting public APIs.
+Public APIs are classes and methods exposed to end users of Ray.
+If stability="alpha", the API can be used by advanced users who are
+tolerant to and expect breaking changes.
+If stability="beta", the API is still public and can be used by early
+users, but are subject to change.
+If stability="stable", the APIs will remain backwards compatible across
+minor Ray releases (e.g., Ray 1.4 -> 1.8).
+For a full definition of the stability levels, please refer to the
+Ray API Stability definitions.
+
+Parameters:
+
+stability – One of {“stable”, “beta”, “alpha”}.
+api_group – Optional. Used only for doc rendering purpose. APIs in the same group
+will be grouped together in the API doc pages.
+
+
+
+Examples
+>>> from ray.util.annotations import PublicAPI
+>>> @PublicAPI
+... def func(x):
+...     return x
+
+
+>>> @PublicAPI(stability="beta")
+... def func(y):
+...     return y
+
+
+
+
+
+ray.util.annotations.DeveloperAPI(*args, **kwargs)[source]
+Annotation for documenting developer APIs.
+Developer APIs are lower-level methods explicitly exposed to advanced Ray
+users and library developers. Their interfaces may change across minor
+Ray releases.
+Examples
+>>> from ray.util.annotations import DeveloperAPI
+>>> @DeveloperAPI
+... def func(x):
+...     return x
+
+
+
+
+
+ray.rllib.utils.annotations.OldAPIStack(obj)[source]
+Decorator for classes/methods/functions belonging to the old API stack.
+These should be deprecated at some point after Ray 3.0 (RLlib GA).
+It is recommended for users to start exploring (and coding against) the new API
+stack instead.
+
+
+
+
+Benchmarks#
+A number of training run results are available in the rl-experiments repo,
+and there is also a list of working hyperparameter configurations in tuned_examples, sorted by algorithm.
+Benchmark results are extremely valuable to the community, so if you happen to have results that may be of interest, consider making a pull request to either repo.
+
+
+Debugging RLlib#
+
+Finding Memory Leaks In Workers#
+Keeping the memory usage of long running workers stable can be challenging. The MemoryTrackingCallbacks class can be used to track memory usage of workers.
+
+
+class ray.rllib.callbacks.callbacks.MemoryTrackingCallbacks[source]#
+MemoryTrackingCallbacks can be used to trace and track memory usage
+in rollout workers.
+The Memory Tracking Callbacks uses tracemalloc and psutil to track
+python allocations during rollouts,
+in training or evaluation.
+The tracking data is logged to the custom_metrics of an episode and
+can therefore be viewed in tensorboard
+(or in WandB etc..)
+Add MemoryTrackingCallbacks callback to the tune config
+e.g. { …’callbacks’: MemoryTrackingCallbacks …}
+
+Note
+This class is meant for debugging and should not be used
+in production code as tracemalloc incurs
+a significant slowdown in execution speed.
+
+
+The objects with the top 20 memory usage in the workers are added as custom metrics. These can then be monitored using tensorboard or other metrics integrations like Weights & Biases:
+
+
+
+Troubleshooting#
+If you encounter errors like
+blas_thread_init: pthread_create: Resource temporarily unavailable when using many workers,
+try setting OMP_NUM_THREADS=1. Similarly, check configured system limits with
+ulimit -a for other resource limit errors.
+For debugging unexpected hangs or performance problems, you can run ray stack to dump
+the stack traces of all Ray workers on the current node, ray timeline to dump
+a timeline visualization of tasks to a file, and ray memory to list all object
+references in the cluster.
+
+

@@ -1,0 +1,40 @@
+
+
+Large Language Model (LLM) API#
+
+LLM processor builder#
+
+
+build_llm_processor
+Build a LLM processor using the given config.
+
+
+
+
+
+Processor#
+
+
+Processor
+A processor is composed of a preprocess stage, followed by one or more processing stages, and finally a postprocess stage.
+
+
+
+
+
+Processor configs#
+
+
+ProcessorConfig
+The processor configuration.
+
+HttpRequestProcessorConfig
+The configuration for the HTTP request processor.
+
+vLLMEngineProcessorConfig
+The configuration for the vLLM engine processor.
+
+
+
+
+

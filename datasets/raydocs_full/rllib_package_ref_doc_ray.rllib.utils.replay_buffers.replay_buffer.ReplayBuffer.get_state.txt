@@ -1,0 +1,15 @@
+
+
+ray.rllib.utils.replay_buffers.replay_buffer.ReplayBuffer.get_state#
+
+
+ReplayBuffer.get_state() → Dict[str, Any][source]#
+Returns all local state in a dict.
+
+Returns:
+The serializable local state.
+
+
+DeveloperAPI: This API may change across minor Ray releases.
+
+

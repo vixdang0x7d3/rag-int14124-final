@@ -1,0 +1,114 @@
+
+
+ray.rllib.utils.metrics.metrics_logger.MetricsLogger.log_value#
+
+
+MetricsLogger.log_value(key: str | Tuple[str, ...], value: Any, *, reduce: str | None = 'mean', window: int | float | None = None, ema_coeff: float | None = None, clear_on_reduce: bool = False, with_throughput: bool = False) → None[source]#
+Logs a new value under a (possibly nested) key to the logger.
+from ray.rllib.utils.metrics.metrics_logger import MetricsLogger
+from ray.rllib.utils.test_utils import check
+
+logger = MetricsLogger()
+
+# Log n simple float values under the "loss" key. By default, all logged
+# values under that key are averaged, once `reduce()` is called.
+logger.log_value("loss", 0.01, window=10)
+logger.log_value("loss", 0.02)  # don't have to repeat `window` if key
+                                # already exists
+logger.log_value("loss", 0.03)
+
+# Peek at the current (reduced) value.
+# Note that in the underlying structure, the internal values list still
+# contains all logged values (0.01, 0.02, and 0.03).
+check(logger.peek("loss"), 0.02)
+
+# Log 10x (window size) the same value.
+for _ in range(10):
+    logger.log_value("loss", 0.05)
+check(logger.peek("loss"), 0.05)
+
+# Internals check (note that users should not be concerned with accessing
+# these). Len should always be 10, since the underlying struct is a
+# `deque(max_len=10)`.
+check(len(logger.stats["loss"].values), 10)
+
+# Only, when we call `reduce` does the underlying structure get "cleaned
+# up". In this case, the list is shortened to 10 items (window size).
+results = logger.reduce(return_stats_obj=False)
+check(results, {"loss": 0.05})
+check(len(logger.stats["loss"].values), 10)
+
+# Log a value under a deeper nested key.
+logger.log_value(("some", "nested", "key"), -1.0)
+check(logger.peek(("some", "nested", "key")), -1.0)
+
+# Log n values without reducing them (we want to just collect some items).
+logger.log_value("some_items", 5.0, reduce=None)
+logger.log_value("some_items", 6.0)
+logger.log_value("some_items", 7.0)
+# Peeking at these returns the full list of items (no reduction set up).
+check(logger.peek("some_items"), [5.0, 6.0, 7.0])
+# If you don't want the internal list to grow indefinitely, you should set
+# `clear_on_reduce=True`:
+logger.log_value("some_more_items", -5.0, reduce=None, clear_on_reduce=True)
+logger.log_value("some_more_items", -6.0)
+logger.log_value("some_more_items", -7.0)
+# Peeking at these returns the full list of items (no reduction set up).
+check(logger.peek("some_more_items"), [-5.0, -6.0, -7.0])
+# Reducing everything (and return plain values, not `Stats` objects).
+results = logger.reduce(return_stats_obj=False)
+check(results, {
+    "loss": 0.05,
+    "some": {
+        "nested": {
+            "key": -1.0,
+        },
+    },
+    "some_items": [5.0, 6.0, 7.0],  # reduce=None; list as-is
+    "some_more_items": [-5.0, -6.0, -7.0],  # reduce=None; list as-is
+})
+# However, the `reduce()` call did empty the `some_more_items` list
+# (b/c we set `clear_on_reduce=True`).
+check(logger.peek("some_more_items"), [])
+# ... but not the "some_items" list (b/c `clear_on_reduce=False`).
+check(logger.peek("some_items"), [])
+
+
+
+Parameters:
+
+key – The key (or nested key-tuple) to log the value under.
+value – The value to log.
+reduce – The reduction method to apply, once self.reduce() is called.
+If None, will collect all logged values under key in a list (and
+also return that list upon calling self.reduce()).
+window – An optional window size to reduce over.
+If not None, then the reduction operation is only applied to the most
+recent window items, and - after reduction - the internal values list
+under key is shortened to hold at most window items (the most
+recent ones).
+Must be None if ema_coeff is provided.
+If None (and ema_coeff is None), reduction must not be “mean”.
+ema_coeff – An optional EMA coefficient to use if reduce is “mean”
+and no window is provided. Note that if both window and ema_coeff
+are provided, an error is thrown. Also, if ema_coeff is provided,
+reduce must be “mean”.
+The reduction formula for EMA is:
+EMA(t1) = (1.0 - ema_coeff) * EMA(t0) + ema_coeff * new_value
+clear_on_reduce – If True, all values under key will be emptied after
+self.reduce() is called. Setting this to True is useful for cases,
+in which the internal values list would otherwise grow indefinitely,
+for example if reduce is None and there is no window provided.
+with_throughput – Whether to track a throughput estimate together with this
+metric. This is only supported for reduce=sum and
+clear_on_reduce=False metrics (aka. “lifetime counts”). The Stats
+object under the logged key then keeps track of the time passed
+between two consecutive calls to reduce() and update its throughput
+estimate. The current throughput estimate of a key can be obtained
+through: peeked_value, throuthput_per_sec =
+<MetricsLogger>.peek([key], throughput=True).
+
+
+
+
+

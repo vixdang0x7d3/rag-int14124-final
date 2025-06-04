@@ -1,0 +1,13 @@
+
+
+ray.rllib.core.rl_module.rl_module.RLModule.setup#
+
+
+RLModule.setup()[source]#
+Sets up the components of the module.
+This is called automatically during the __init__ method of this class,
+therefore, the subclass should call super.__init__() in its constructor. This
+abstraction can be used to create any components (e.g. NN layers) that your
+RLModule needs.
+
+

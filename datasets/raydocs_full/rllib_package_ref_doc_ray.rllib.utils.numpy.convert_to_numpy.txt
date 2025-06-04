@@ -1,0 +1,24 @@
+
+
+ray.rllib.utils.numpy.convert_to_numpy#
+
+
+ray.rllib.utils.numpy.convert_to_numpy(x: numpy.array | jnp.ndarray | tf.Tensor | torch.Tensor | dict | tuple, reduce_type: bool = True) → numpy.array | jnp.ndarray | tf.Tensor | torch.Tensor | dict | tuple[source]#
+Converts values in stats to non-Tensor numpy or python types.
+
+Parameters:
+
+x – Any (possibly nested) struct, the values in which will be
+converted and returned as a new struct with all torch/tf tensors
+being converted to numpy types.
+reduce_type – Whether to automatically reduce all float64 and int64 data
+into float32 and int32 data, respectively.
+
+
+Returns:
+A new struct with the same structure as x, but with all
+values converted to numpy arrays (on CPU).
+
+
+
+

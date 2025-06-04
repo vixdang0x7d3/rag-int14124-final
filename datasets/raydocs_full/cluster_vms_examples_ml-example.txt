@@ -1,0 +1,194 @@
+
+
+Ray Train XGBoostTrainer on VMs#
+
+Note
+To learn the basics of Ray on VMs, we recommend taking a look
+at the introductory guide first.
+
+In this guide, we show you how to run a sample Ray machine learning
+workload on AWS. The similar steps can be used to deploy on GCP or Azure as well.
+We will run Ray’s XGBoost training benchmark with a 100 gigabyte training set.
+To learn more about using Ray’s XGBoostTrainer, check out the XGBoostTrainer documentation.
+
+VM cluster setup#
+For the workload in this guide, it is recommended to use the following setup:
+
+10 nodes total
+A capacity of 16 CPU and 64 Gi memory per node. For the major cloud providers, suitable instance types include
+
+m5.4xlarge (Amazon Web Services)
+Standard_D5_v2 (Azure)
+e2-standard-16 (Google Cloud)
+
+
+Each node should be configured with 1000 gigabytes of disk space (to store the training set).
+
+The corresponding cluster configuration file is as follows:
+# This is a Ray cluster configuration for exploration of the 100Gi Ray XGBoostTrainer benchmark.
+
+# The configuration includes 1 Ray head node and 9 worker nodes.
+
+cluster_name: ray-cluster-xgboost-benchmark
+
+# The maximum number of worker nodes to launch in addition to the head
+# node.
+max_workers: 9
+
+docker:
+  image: "rayproject/ray-ml:2.0.0"
+  container_name: "ray_container"
+
+provider:
+  type: aws
+  region: us-west-2
+  availability_zone: us-west-2a
+
+auth:
+  ssh_user: ubuntu
+
+available_node_types:
+  # Configurations for the head node.
+  head:
+    node_config:
+      InstanceType: m5.4xlarge
+      ImageId: latest_dlami
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: 1000
+
+  # Configurations for the worker nodes.
+  worker:
+    # To experiment with autoscaling, set min_workers to 0.
+    # min_workers: 0
+    min_workers: 9
+    max_workers: 9
+    node_config:
+      InstanceType: m5.4xlarge
+      ImageId: latest_dlami
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: 1000
+
+head_node_type: head
+
+
+
+Optional: Set up an autoscaling cluster
+If you would like to try running the workload with autoscaling enabled,
+change min_workers of worker nodes to 0.
+After the workload is submitted, 9 workers nodes will
+scale up to accommodate the workload. These nodes will scale back down after the workload is complete.
+
+
+
+Deploy a Ray cluster#
+Now we’re ready to deploy the Ray cluster with the configuration that’s defined above.
+Before running the command, make sure your aws credentials are configured correctly.
+ray up -y cluster.yaml
+
+
+A Ray head node and 9 Ray worker nodes will be created.
+
+
+Run the workload#
+We will use Ray Job Submission to kick off the workload.
+
+Connect to the cluster#
+First, we connect to the Job server. Run the following blocking command
+in a separate shell.
+ray dashboard cluster.yaml
+
+
+This will forward remote port 8265 to port 8265 on localhost.
+
+
+Submit the workload#
+We’ll use the Ray Job Python SDK to submit the XGBoost workload.
+from ray.job_submission import JobSubmissionClient
+
+client = JobSubmissionClient("http://127.0.0.1:8265")
+
+kick_off_xgboost_benchmark = (
+    # Clone ray. If ray is already present, don't clone again.
+    "git clone https://github.com/ray-project/ray || true; "
+    # Run the benchmark.
+    "python ray/release/train_tests/xgboost_lightgbm/train_batch_inference_benchmark.py"
+    " xgboost --size=100G --disable-check"
+)
+
+
+submission_id = client.submit_job(
+    entrypoint=kick_off_xgboost_benchmark,
+)
+
+print("Use the following command to follow this Job's logs:")
+print(f"ray job logs '{submission_id}' --follow")
+
+
+To submit the workload, run the above Python script.
+The script is available in the Ray repository.
+# Download the above script.
+curl https://raw.githubusercontent.com/ray-project/ray/releases/2.0.0/doc/source/cluster/doc_code/xgboost_submit.py -o xgboost_submit.py
+# Run the script.
+python xgboost_submit.py
+
+
+
+
+Observe progress#
+The benchmark may take up to 30 minutes to run.
+Use the following tools to observe its progress.
+
+Job logs#
+To follow the job’s logs, use the command printed by the above submission script.
+# Substitute the Ray Job's submission id.
+ray job logs 'raysubmit_xxxxxxxxxxxxxxxx' --address="http://localhost:8265" --follow
+
+
+
+
+Ray Dashboard#
+View localhost:8265 in your browser to access the Ray Dashboard.
+
+
+Ray Status#
+Observe autoscaling status and Ray resource usage with
+ray exec cluster.yaml 'ray status'
+
+
+
+
+
+Job completion#
+
+Benchmark results#
+Once the benchmark is complete, the job log will display the results:
+Results: {'training_time': 1338.488839321999, 'prediction_time': 403.36653568099973}
+
+
+The performance of the benchmark is sensitive to the underlying cloud infrastructure –
+you might not match the numbers quoted in the benchmark docs.
+
+
+Model parameters#
+The file model.json in the Ray head node contains the parameters for the trained model.
+Other result data will be available in the directory ray_results in the head node.
+Refer to the XGBoostTrainer documentation for details.
+
+Scale-down
+If autoscaling is enabled, Ray worker nodes will scale down after the specified idle timeout.
+
+
+
+Clean-up#
+Delete your Ray cluster with the following command:
+ray down -y cluster.yaml
+
+
+
+
+
+

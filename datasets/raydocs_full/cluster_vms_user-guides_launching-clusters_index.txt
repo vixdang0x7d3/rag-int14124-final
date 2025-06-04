@@ -1,0 +1,46 @@
+
+
+Launching Ray Clusters on AWS, GCP, Azure, vSphere, On-Prem#
+In this section, you can find guides for launching Ray clusters in various clouds or on-premises.
+
+Table of Contents#
+
+
+Launching Ray Clusters on AWS
+Install Ray cluster launcher
+Install and Configure AWS Python SDK (Boto3)
+Start Ray with the Ray cluster launcher
+AWS Configurations
+Monitor Ray using Amazon CloudWatch
+
+
+Launching Ray Clusters on GCP
+Install Ray cluster launcher
+Install and Configure Google API Client
+Start Ray with the Ray cluster launcher
+GCP Configurations
+
+
+Launching Ray Clusters on Azure
+Using Ray cluster launcher
+Using Azure portal
+
+
+Launching Ray Clusters on vSphere
+Prepare the vSphere environment
+Prepare the frozen VM
+Install Ray cluster launcher
+Install VMware vSphere Automation SDK for Python
+Start Ray with the Ray cluster launcher
+Configure vSAN File Service as persistent storage for Ray AI Libraries
+
+
+Launching an On-Premise Cluster
+Manually Set up a Ray Cluster
+Using Ray cluster launcher
+
+
+
+
+
+

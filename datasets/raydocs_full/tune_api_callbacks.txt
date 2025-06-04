@@ -1,0 +1,81 @@
+
+
+Tune Callbacks (tune.Callback)#
+See this user guide for more details.
+
+See also
+Tune’s built-in loggers use the Callback interface.
+
+
+Callback Interface#
+
+Callback Initialization and Setup#
+
+
+Callback
+Tune base callback that can be extended and passed to a TrialRunner
+
+
+
+
+
+Callback.setup
+Called once at the very beginning of training.
+
+
+
+
+
+Callback Hooks#
+
+
+Callback.on_checkpoint
+Called after a trial saved a checkpoint with Tune.
+
+Callback.on_experiment_end
+Called after experiment is over and all trials have concluded.
+
+Callback.on_step_begin
+Called at the start of each tuning loop step.
+
+Callback.on_step_end
+Called at the end of each tuning loop step.
+
+Callback.on_trial_complete
+Called after a trial instance completed.
+
+Callback.on_trial_error
+Called after a trial instance failed (errored).
+
+Callback.on_trial_restore
+Called after restoring a trial instance.
+
+Callback.on_trial_result
+Called after receiving a result from a trial.
+
+Callback.on_trial_save
+Called after receiving a checkpoint from a trial.
+
+Callback.on_trial_start
+Called after starting a trial instance.
+
+
+
+
+
+Stateful Callbacks#
+The following methods must be overridden for stateful callbacks to be saved/restored
+properly by Tune.
+
+
+Callback.get_state
+Get the state of the callback.
+
+Callback.set_state
+Set the state of the callback.
+
+
+
+
+
+

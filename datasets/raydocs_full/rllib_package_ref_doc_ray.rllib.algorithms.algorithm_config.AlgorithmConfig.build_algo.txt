@@ -1,0 +1,29 @@
+
+
+ray.rllib.algorithms.algorithm_config.AlgorithmConfig.build_algo#
+
+
+AlgorithmConfig.build_algo(env: str | Any | gymnasium.Env | None = None, logger_creator: Callable[[], Logger] | None = None, use_copy: bool = True) → Algorithm[source]#
+Builds an Algorithm from this AlgorithmConfig (or a copy thereof).
+
+Parameters:
+
+env – Name of the environment to use (e.g. a gym-registered str),
+a full class path (e.g.
+“ray.rllib.examples.envs.classes.random_env.RandomEnv”), or an Env
+class directly. Note that this arg can also be specified via
+the “env” key in config.
+logger_creator – Callable that creates a ray.tune.Logger
+object. If unspecified, a default logger is created.
+use_copy – Whether to deepcopy self and pass the copy to the Algorithm
+(instead of self) as config. This is useful in case you would like to
+recycle the same AlgorithmConfig over and over, e.g. in a test case, in
+which we loop over different DL-frameworks.
+
+
+Returns:
+A ray.rllib.algorithms.algorithm.Algorithm object.
+
+
+
+

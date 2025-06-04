@@ -1,0 +1,13 @@
+
+
+ray.rllib.core.rl_module.rl_module.RLModule._forward_inference#
+
+
+RLModule._forward_inference(batch: Dict[str, Any], **kwargs) → Dict[str, Any][source]#
+Forward-pass used for action computation without exploration behavior.
+Override this method only, if you need specific behavior for non-exploratory
+action computation behavior. If you have only one generic behavior for all
+phases of training and evaluation, override self._forward() instead.
+By default, this calls the generic self._forward() method.
+
+

@@ -1,0 +1,94 @@
+
+
+Python SDK API Reference#
+For an overview with examples see Ray Jobs.
+For the CLI reference see Ray Job Submission CLI Reference.
+
+JobSubmissionClient#
+
+
+JobSubmissionClient
+A local client for submitting and interacting with jobs on a remote cluster.
+
+
+
+
+
+JobSubmissionClient.submit_job
+Submit and execute a job asynchronously.
+
+JobSubmissionClient.stop_job
+Request a job to exit asynchronously.
+
+JobSubmissionClient.get_job_status
+Get the most recent status of a job.
+
+JobSubmissionClient.get_job_info
+Get the latest status and other information associated with a job.
+
+JobSubmissionClient.list_jobs
+List all jobs along with their status and other information.
+
+JobSubmissionClient.get_job_logs
+Get all logs produced by a job.
+
+JobSubmissionClient.tail_job_logs
+Get an iterator that follows the logs of a job.
+
+JobSubmissionClient.delete_job
+Delete a job in a terminal state and all of its associated data.
+
+
+
+
+
+JobStatus#
+
+
+JobStatus
+An enumeration for describing the status of a job.
+
+
+
+
+
+JobInfo#
+
+
+JobInfo
+A class for recording information associated with a job and its execution.
+
+
+
+
+
+JobDetails#
+
+
+JobDetails
+Job data with extra details about its driver and its submission.
+
+
+
+
+
+JobType#
+
+
+JobType
+An enumeration for describing the different job types.
+
+
+
+
+
+DriverInfo#
+
+
+DriverInfo
+A class for recording information about the driver related to the job.
+
+
+
+
+

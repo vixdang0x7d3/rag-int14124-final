@@ -1,0 +1,796 @@
+
+
+Ray Serve API#
+
+Python API#
+
+Writing Applications#
+
+
+
+serve.Deployment
+Class (or function) decorated with the @serve.deployment decorator.
+
+serve.Application
+One or more deployments bound with arguments that can be deployed together.
+
+
+
+
+Deployment Decorators#
+
+
+serve.deployment
+Decorator that converts a Python class to a Deployment.
+
+serve.ingress
+Wrap a deployment class with a FastAPI application for HTTP request parsing.
+
+serve.batch
+Converts a function to asynchronously handle batches.
+
+serve.multiplexed
+Wrap a callable or method used to load multiplexed models in a replica.
+
+
+
+
+
+Deployment Handles#
+
+Note
+The deprecated RayServeHandle and RayServeSyncHandle APIs have been fully removed as of Ray 2.10.
+See the model composition guide for how to update code to use the DeploymentHandle API instead.
+
+
+
+serve.handle.DeploymentHandle
+A handle used to make requests to a deployment at runtime.
+
+serve.handle.DeploymentResponse
+A future-like object wrapping the result of a unary deployment handle call.
+
+serve.handle.DeploymentResponseGenerator
+A future-like object wrapping the result of a streaming deployment handle call.
+
+
+
+
+
+
+Running Applications#
+
+
+serve.start
+Start Serve on the cluster.
+
+serve.run
+Run an application and return a handle to its ingress deployment.
+
+serve.delete
+Delete an application by its name.
+
+serve.status
+Get the status of Serve on the cluster.
+
+serve.shutdown
+Completely shut down Serve on the cluster.
+
+
+
+
+
+Configurations#
+
+
+serve.config.ProxyLocation
+Config for where to run proxies to receive ingress traffic to the cluster.
+
+serve.config.gRPCOptions
+gRPC options for the proxies.
+
+serve.config.HTTPOptions
+HTTP options for the proxies.
+
+serve.config.AutoscalingConfig
+Config for the Serve Autoscaler.
+
+
+
+
+
+Schemas#
+
+
+serve.schema.ServeActorDetails
+Detailed info about a Ray Serve actor.
+
+serve.schema.ProxyDetails
+Detailed info about a Ray Serve ProxyActor.
+
+serve.schema.ApplicationStatusOverview
+Describes the status of an application and all its deployments.
+
+serve.schema.ServeStatus
+Describes the status of Serve.
+
+serve.schema.DeploymentStatusOverview
+Describes the status of a deployment.
+
+serve.schema.EncodingType
+Encoding type for the serve logs.
+
+
+
+
+Advanced APIs#
+
+
+serve.get_replica_context
+Returns the deployment and replica tag from within a replica at runtime.
+
+serve.context.ReplicaContext
+Stores runtime context info for replicas.
+
+serve.get_multiplexed_model_id
+Get the multiplexed model ID for the current request.
+
+serve.get_app_handle
+Get a handle to the application's ingress deployment by name.
+
+serve.get_deployment_handle
+Get a handle to a deployment by name.
+
+serve.grpc_util.RayServegRPCContext
+Context manager to set and get gRPC context.
+
+serve.exceptions.BackPressureError
+Raised when max_queued_requests is exceeded on a DeploymentHandle.
+
+serve.exceptions.RayServeException
+
+
+serve.exceptions.RequestCancelledError
+Raise when a Serve request is cancelled.
+
+serve.exceptions.DeploymentUnavailableError
+Raised when a Serve deployment is unavailable to receive requests.
+
+
+
+
+
+
+
+Command Line Interface (CLI)#
+
+serve#
+CLI for managing Serve applications on a Ray cluster.
+serve [OPTIONS] COMMAND [ARGS]...
+
+
+
+build#
+Imports the applications at IMPORT_PATHS and generates a structured, multi-application config for them. If the flag –single-app is set, accepts one application and generates a single-application config. Config outputted from this command can be used by serve deploy or the REST API.
+serve build [OPTIONS] IMPORT_PATHS...
+
+
+Options
+
+
+-d, --app-dir <app_dir>#
+Local directory to look for the IMPORT_PATH (will be inserted into PYTHONPATH). Defaults to ‘.’, meaning that an object in ./main.py can be imported as ‘main.object’. Not relevant if you’re importing from an installed module.
+
+
+
+-o, --output-path <output_path>#
+Local path where the output config will be written in YAML format. If not provided, the config will be printed to STDOUT.
+
+
+
+--grpc-servicer-functions <grpc_servicer_functions>#
+Servicer function for adding the method handler to the gRPC server. Defaults to an empty list and no gRPC server is started.
+
+Arguments
+
+
+IMPORT_PATHS#
+Required argument(s)
+
+
+
+config#
+Gets the current configs of Serve applications on the cluster.
+serve config [OPTIONS]
+
+
+Options
+
+
+-a, --address <address>#
+Address for the Ray dashboard. Defaults to http://localhost:8265. Can also be set using the RAY_DASHBOARD_ADDRESS environment variable.
+
+
+
+-n, --name <name>#
+Name of an application. Only applies to multi-application mode. If set, this will only fetch the config for the specified application.
+
+
+
+deploy#
+Deploy an application from an import path (e.g., main:app) or a group of applications from a YAML config file.
+Passed import paths must point to an Application object or a function that returns one. If a function is used, arguments can be passed to it in ‘key=val’ format after the import path, for example:
+serve deploy main:app model_path=’/path/to/model.pkl’ num_replicas=5
+This command makes a REST API request to a running Ray cluster.
+serve deploy [OPTIONS] CONFIG_OR_IMPORT_PATH [ARGUMENTS]...
+
+
+Options
+
+
+--runtime-env <runtime_env>#
+Path to a local YAML file containing a runtime_env definition. Ignored when deploying from a config file.
+
+
+
+--runtime-env-json <runtime_env_json>#
+JSON-serialized runtime_env dictionary. Ignored when deploying from a config file.
+
+
+
+--working-dir <working_dir>#
+Directory containing files that your application(s) will run in. This must be a remote URI to a .zip file (e.g., S3 bucket). This overrides the working_dir in –runtime-env if both are specified. Ignored when deploying from a config file.
+
+
+
+--name <name>#
+Custom name for the application. Ignored when deploying from a config file.
+
+
+
+-a, --address <address>#
+Address for the Ray dashboard. Defaults to http://localhost:8265. Can also be set using the RAY_DASHBOARD_ADDRESS environment variable.
+
+Arguments
+
+
+CONFIG_OR_IMPORT_PATH#
+Required argument
+
+
+
+ARGUMENTS#
+Optional argument(s)
+
+
+
+run#
+Run an application from an import path (e.g., my_script:app) or a group of applications from a YAML config file.
+Passed import paths must point to an Application object or a function that returns one. If a function is used, arguments can be passed to it in ‘key=val’ format after the import path, for example:
+serve run my_script:app model_path=’/path/to/model.pkl’ num_replicas=5
+If passing a YAML config, existing applications with no code changes will not be updated.
+By default, this will block and stream logs to the console. If you Ctrl-C the command, it will shut down Serve on the cluster.
+serve run [OPTIONS] CONFIG_OR_IMPORT_PATH [ARGUMENTS]...
+
+
+Options
+
+
+--runtime-env <runtime_env>#
+Path to a local YAML file containing a runtime_env definition. This will be passed to ray.init() as the default for deployments.
+
+
+
+--runtime-env-json <runtime_env_json>#
+JSON-serialized runtime_env dictionary. This will be passed to ray.init() as the default for deployments.
+
+
+
+--working-dir <working_dir>#
+Directory containing files that your application(s) will run in. Can be a local directory or a remote URI to a .zip file (S3, GS, HTTP). This overrides the working_dir in –runtime-env if both are specified. This will be passed to ray.init() as the default for deployments.
+
+
+
+-d, --app-dir <app_dir>#
+Local directory to look for the IMPORT_PATH (will be inserted into PYTHONPATH). Defaults to ‘.’, meaning that an object in ./main.py can be imported as ‘main.object’. Not relevant if you’re importing from an installed module.
+
+
+
+-a, --address <address>#
+Address to use for ray.init(). Can also be set using the RAY_ADDRESS environment variable.
+
+
+
+--blocking, --non-blocking#
+Whether or not this command should be blocking. If blocking, it will loop and log status until Ctrl-C’d, then clean up the app.
+
+
+
+-r, --reload#
+This is an experimental feature - Listens for changes to files in the working directory, –working-dir or the working_dir in the –runtime-env, and automatically redeploys the application. This will block until Ctrl-C’d, then clean up the app.
+
+
+
+--route-prefix <route_prefix>#
+Route prefix for the application. This should only be used when running an application specified by import path and will be ignored if running a config file.
+
+
+
+--name <name>#
+Name of the application. This should only be used when running an application specified by import path and will be ignored if running a config file.
+
+Arguments
+
+
+CONFIG_OR_IMPORT_PATH#
+Required argument
+
+
+
+ARGUMENTS#
+Optional argument(s)
+
+
+
+shutdown#
+Shuts down Serve on the cluster, deleting all applications.
+serve shutdown [OPTIONS]
+
+
+Options
+
+
+-a, --address <address>#
+Address for the Ray dashboard. Defaults to http://localhost:8265. Can also be set using the RAY_DASHBOARD_ADDRESS environment variable.
+
+
+
+-y, --yes#
+Bypass confirmation prompt.
+
+
+
+start#
+Start Serve on the Ray cluster.
+serve start [OPTIONS]
+
+
+Options
+
+
+-a, --address <address>#
+Address to use for ray.init(). Can also be set using the RAY_ADDRESS environment variable.
+
+
+
+--http-host <http_host>#
+Host for HTTP proxies to listen on. Defaults to 127.0.0.1.
+
+
+
+--http-port <http_port>#
+Port for HTTP proxies to listen on. Defaults to 8000.
+
+
+
+--http-location <http_location>#
+DEPRECATED: Use --proxy-location instead.
+
+Options:
+DeploymentMode.NoServer | DeploymentMode.HeadOnly | DeploymentMode.EveryNode
+
+
+
+
+
+--proxy-location <proxy_location>#
+Location of the proxies. Defaults to EveryNode.
+
+Options:
+ProxyLocation.Disabled | ProxyLocation.HeadOnly | ProxyLocation.EveryNode
+
+
+
+
+
+--grpc-port <grpc_port>#
+Port for gRPC proxies to listen on. Defaults to 9000.
+
+
+
+--grpc-servicer-functions <grpc_servicer_functions>#
+Servicer function for adding the method handler to the gRPC server. Defaults to an empty list and no gRPC server is started.
+
+
+
+status#
+Prints status information about all applications on the cluster.
+An application may be:
+
+NOT_STARTED: the application does not exist.
+DEPLOYING: the deployments in the application are still deploying and haven’t reached the target number of replicas.
+RUNNING: all deployments are healthy.
+DEPLOY_FAILED: the application failed to deploy or reach a running state.
+DELETING: the application is being deleted, and the deployments in the application are being teared down.
+
+The deployments within each application may be:
+
+HEALTHY: all replicas are acting normally and passing their health checks.
+UNHEALTHY: at least one replica is not acting normally and may not be passing its health check.
+UPDATING: the deployment is updating.
+
+serve status [OPTIONS]
+
+
+Options
+
+
+-a, --address <address>#
+Address for the Ray dashboard. Defaults to http://localhost:8265. Can also be set using the RAY_DASHBOARD_ADDRESS environment variable.
+
+
+
+-n, --name <name>#
+Name of an application. If set, this will display only the status of the specified application.
+
+
+
+
+
+Serve REST API#
+The Serve REST API is exposed at the same port as the Ray Dashboard. The Dashboard port is 8265 by default. This port can be changed using the --dashboard-port argument when running ray start. All example requests in this section use the default port.
+
+PUT "/api/serve/applications/"#
+Declaratively deploys a list of Serve applications. If Serve is already running on the Ray cluster, removes all applications not listed in the new config. If Serve is not running on the Ray cluster, starts Serve. See multi-app config schema for the request’s JSON schema.
+Example Request:
+PUT /api/serve/applications/ HTTP/1.1
+Host: http://localhost:8265/
+Accept: application/json
+Content-Type: application/json
+
+{
+    "applications": [
+        {
+            "name": "text_app",
+            "route_prefix": "/",
+            "import_path": "text_ml:app",
+            "runtime_env": {
+                "working_dir": "https://github.com/ray-project/serve_config_examples/archive/HEAD.zip"
+            },
+            "deployments": [
+                {"name": "Translator", "user_config": {"language": "french"}},
+                {"name": "Summarizer"},
+            ]
+        },
+    ]
+}
+
+
+Example Response
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+
+
+
+GET "/api/serve/applications/"#
+Gets cluster-level info and comprehensive details on all Serve applications deployed on the Ray cluster. See metadata schema for the response’s JSON schema.
+GET /api/serve/applications/ HTTP/1.1
+Host: http://localhost:8265/
+Accept: application/json
+
+
+Example Response (abridged JSON):
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "controller_info": {
+        "node_id": "cef533a072b0f03bf92a6b98cb4eb9153b7b7c7b7f15954feb2f38ec",
+        "node_ip": "10.0.29.214",
+        "actor_id": "1d214b7bdf07446ea0ed9d7001000000",
+        "actor_name": "SERVE_CONTROLLER_ACTOR",
+        "worker_id": "adf416ae436a806ca302d4712e0df163245aba7ab835b0e0f4d85819",
+        "log_file_path": "/serve/controller_29778.log"
+    },
+    "proxy_location": "EveryNode",
+    "http_options": {
+        "host": "0.0.0.0",
+        "port": 8000,
+        "root_path": "",
+        "request_timeout_s": null,
+        "keep_alive_timeout_s": 5
+    },
+    "grpc_options": {
+        "port": 9000,
+        "grpc_servicer_functions": [],
+        "request_timeout_s": null
+    },
+    "proxies": {
+        "cef533a072b0f03bf92a6b98cb4eb9153b7b7c7b7f15954feb2f38ec": {
+            "node_id": "cef533a072b0f03bf92a6b98cb4eb9153b7b7c7b7f15954feb2f38ec",
+            "node_ip": "10.0.29.214",
+            "actor_id": "b7a16b8342e1ced620ae638901000000",
+            "actor_name": "SERVE_CONTROLLER_ACTOR:SERVE_PROXY_ACTOR-cef533a072b0f03bf92a6b98cb4eb9153b7b7c7b7f15954feb2f38ec",
+            "worker_id": "206b7fe05b65fac7fdceec3c9af1da5bee82b0e1dbb97f8bf732d530",
+            "log_file_path": "/serve/http_proxy_10.0.29.214.log",
+            "status": "HEALTHY"
+        }
+    },
+    "deploy_mode": "MULTI_APP",
+    "applications": {
+        "app1": {
+            "name": "app1",
+            "route_prefix": "/",
+            "docs_path": null,
+            "status": "RUNNING",
+            "message": "",
+            "last_deployed_time_s": 1694042836.1912267,
+            "deployed_app_config": {
+                "name": "app1",
+                "route_prefix": "/",
+                "import_path": "src.text-test:app",
+                "deployments": [
+                    {
+                        "name": "Translator",
+                        "num_replicas": 1,
+                        "user_config": {
+                            "language": "german"
+                        }
+                    }
+                ]
+            },
+            "deployments": {
+                "Translator": {
+                    "name": "Translator",
+                    "status": "HEALTHY",
+                    "message": "",
+                    "deployment_config": {
+                        "name": "Translator",
+                        "num_replicas": 1,
+                        "max_ongoing_requests": 100,
+                        "user_config": {
+                            "language": "german"
+                        },
+                        "graceful_shutdown_wait_loop_s": 2.0,
+                        "graceful_shutdown_timeout_s": 20.0,
+                        "health_check_period_s": 10.0,
+                        "health_check_timeout_s": 30.0,
+                        "ray_actor_options": {
+                            "runtime_env": {
+                                "env_vars": {}
+                            },
+                            "num_cpus": 1.0
+                        },
+                        "is_driver_deployment": false
+                    },
+                    "replicas": [
+                        {
+                            "node_id": "cef533a072b0f03bf92a6b98cb4eb9153b7b7c7b7f15954feb2f38ec",
+                            "node_ip": "10.0.29.214",
+                            "actor_id": "4bb8479ad0c9e9087fee651901000000",
+                            "actor_name": "SERVE_REPLICA::app1#Translator#oMhRlb",
+                            "worker_id": "1624afa1822b62108ead72443ce72ef3c0f280f3075b89dd5c5d5e5f",
+                            "log_file_path": "/serve/deployment_Translator_app1#Translator#oMhRlb.log",
+                            "replica_id": "app1#Translator#oMhRlb",
+                            "state": "RUNNING",
+                            "pid": 29892,
+                            "start_time_s": 1694042840.577496
+                        }
+                    ]
+                },
+                "Summarizer": {
+                    "name": "Summarizer",
+                    "status": "HEALTHY",
+                    "message": "",
+                    "deployment_config": {
+                        "name": "Summarizer",
+                        "num_replicas": 1,
+                        "max_ongoing_requests": 100,
+                        "user_config": null,
+                        "graceful_shutdown_wait_loop_s": 2.0,
+                        "graceful_shutdown_timeout_s": 20.0,
+                        "health_check_period_s": 10.0,
+                        "health_check_timeout_s": 30.0,
+                        "ray_actor_options": {
+                            "runtime_env": {},
+                            "num_cpus": 1.0
+                        },
+                        "is_driver_deployment": false
+                    },
+                    "replicas": [
+                        {
+                            "node_id": "cef533a072b0f03bf92a6b98cb4eb9153b7b7c7b7f15954feb2f38ec",
+                            "node_ip": "10.0.29.214",
+                            "actor_id": "7118ae807cffc1c99ad5ad2701000000",
+                            "actor_name": "SERVE_REPLICA::app1#Summarizer#cwiPXg",
+                            "worker_id": "12de2ac83c18ce4a61a443a1f3308294caf5a586f9aa320b29deed92",
+                            "log_file_path": "/serve/deployment_Summarizer_app1#Summarizer#cwiPXg.log",
+                            "replica_id": "app1#Summarizer#cwiPXg",
+                            "state": "RUNNING",
+                            "pid": 29893,
+                            "start_time_s": 1694042840.5789504
+                        }
+                    ]
+                }
+            }
+        }
+    }
+}
+
+
+
+
+DELETE "/api/serve/applications/"#
+Shuts down Serve and all applications running on the Ray cluster. Has no effect if Serve is not running on the Ray cluster.
+Example Request:
+DELETE /api/serve/applications/ HTTP/1.1
+Host: http://localhost:8265/
+Accept: application/json
+
+
+Example Response
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+
+
+
+
+Config Schemas#
+
+
+schema.ServeDeploySchema
+Multi-application config for deploying a list of Serve applications to the Ray cluster.
+
+schema.gRPCOptionsSchema
+Options to start the gRPC Proxy with.
+
+schema.HTTPOptionsSchema
+Options to start the HTTP Proxy with.
+
+schema.ServeApplicationSchema
+Describes one Serve application, and currently can also be used as a standalone config to deploy a single application to a Ray cluster.
+
+schema.DeploymentSchema
+Specifies options for one deployment within a Serve application.
+
+schema.RayActorOptionsSchema
+Options with which to start a replica actor.
+
+
+
+
+
+Response Schemas#
+
+
+schema.ServeInstanceDetails
+Serve metadata with system-level info and details on all applications deployed to the Ray cluster.
+
+schema.APIType
+Tracks the type of API that an application originates from.
+
+schema.ApplicationStatus
+The current status of the application.
+
+schema.ApplicationDetails
+Detailed info about a Serve application.
+
+schema.DeploymentDetails
+Detailed info about a deployment within a Serve application.
+
+schema.ReplicaDetails
+Detailed info about a single deployment replica.
+
+schema.ProxyStatus
+The current status of the proxy.
+
+schema.TargetGroup
+PublicAPI (alpha): This API is in alpha and may change before becoming stable.
+
+schema.Target
+PublicAPI (alpha): This API is in alpha and may change before becoming stable.
+
+
+
+
+
+Observability#
+
+
+metrics.Counter
+A serve cumulative metric that is monotonically increasing.
+
+metrics.Histogram
+Tracks the size and number of events in buckets.
+
+metrics.Gauge
+Gauges keep the last recorded value and drop everything before.
+
+schema.LoggingConfig
+Logging config schema for configuring serve components logs.
+
+
+
+
+
+LLM API#
+
+Builders#
+
+
+serve.llm.build_llm_deployment
+Helper to build a single vllm deployment from the given llm config.
+
+serve.llm.build_openai_app
+Helper to build an OpenAI compatible app with the llm deployment setup from the given llm serving args.
+
+
+
+
+
+Configs#
+
+
+serve.llm.LLMConfig
+The configuration for starting an LLM deployment.
+
+serve.llm.LLMServingArgs
+The configuration for starting an LLM deployment application.
+
+serve.llm.ModelLoadingConfig
+The configuration for loading an LLM model.
+
+serve.llm.CloudMirrorConfig
+The configuration for mirroring an LLM model from cloud storage.
+
+serve.llm.LoraConfig
+The configuration for loading an LLM model with LoRA.
+
+
+
+
+
+Deployments#
+
+
+serve.llm.LLMServer
+The implementation of the vLLM engine deployment.
+
+serve.llm.LLMRouter
+The implementation of the OpenAI compatiple model router.
+
+
+
+
+
+OpenAI API Models#
+
+
+serve.llm.openai_api_models.ChatCompletionRequest
+ChatCompletionRequest is the request body for the chat completion API.
+
+serve.llm.openai_api_models.CompletionRequest
+CompletionRequest is the request body for the completion API.
+
+serve.llm.openai_api_models.ChatCompletionStreamResponse
+ChatCompletionStreamResponse is the response body for the chat completion API.
+
+serve.llm.openai_api_models.ChatCompletionResponse
+ChatCompletionResponse is the response body for the chat completion API.
+
+serve.llm.openai_api_models.CompletionStreamResponse
+CompletionStreamResponse is the response body for the completion API.
+
+serve.llm.openai_api_models.CompletionResponse
+CompletionResponse is the response body for the completion API.
+
+serve.llm.openai_api_models.ErrorResponse
+The returned response in case of an error.
+
+
+
+
+
+

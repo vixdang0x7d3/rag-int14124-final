@@ -1,0 +1,20 @@
+
+
+ray.rllib.utils.torch_utils.reduce_mean_ignore_inf#
+
+
+ray.rllib.utils.torch_utils.reduce_mean_ignore_inf(x: numpy.array | jnp.ndarray | tf.Tensor | torch.Tensor, axis: int | None = None) → numpy.array | jnp.ndarray | tf.Tensor | torch.Tensor[source]#
+Same as torch.mean() but ignores -inf values.
+
+Parameters:
+
+x – The input tensor to reduce mean over.
+axis – The axis over which to reduce. None for all axes.
+
+
+Returns:
+The mean reduced inputs, ignoring inf values.
+
+
+
+

@@ -1,0 +1,20 @@
+
+
+ray.rllib.core.rl_module.multi_rl_module.MultiRLModule.set_state#
+
+
+MultiRLModule.set_state(state: Dict[str, Any]) → None[source]#
+Sets the state of the multi-agent module.
+It is assumed that the state_dict is a mapping from module IDs to the
+corresponding module’s state. This method sets the state of each module by
+calling their set_state method. If you want to set the state of some of the
+RLModules within this MultiRLModule your state_dict can only include the
+state of those RLModules. Override this method to customize the state_dict for
+custom more advanced multi-agent use cases.
+
+Parameters:
+state – The state dict to set.
+
+
+
+

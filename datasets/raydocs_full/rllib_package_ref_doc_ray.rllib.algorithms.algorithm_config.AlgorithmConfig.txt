@@ -1,0 +1,270 @@
+
+
+ray.rllib.algorithms.algorithm_config.AlgorithmConfig#
+
+
+class ray.rllib.algorithms.algorithm_config.AlgorithmConfig(algo_class: type | None = None)[source]#
+Bases: _Config
+A RLlib AlgorithmConfig builds an RLlib Algorithm from a given configuration.
+from ray.rllib.algorithms.ppo import PPOConfig
+from ray.rllib.algorithms.callbacks import MemoryTrackingCallbacks
+# Construct a generic config object, specifying values within different
+# sub-categories, e.g. "training".
+config = (
+    PPOConfig()
+    .training(gamma=0.9, lr=0.01)
+    .environment(env="CartPole-v1")
+    .env_runners(num_env_runners=0)
+    .callbacks(MemoryTrackingCallbacks)
+)
+# A config object can be used to construct the respective Algorithm.
+rllib_algo = config.build()
+
+
+from ray.rllib.algorithms.ppo import PPOConfig
+from ray import tune
+# In combination with a tune.grid_search:
+config = PPOConfig()
+config.training(lr=tune.grid_search([0.01, 0.001]))
+# Use `to_dict()` method to get the legacy plain python config dict
+# for usage with `tune.Tuner().fit()`.
+tune.Tuner("PPO", param_space=config.to_dict())
+
+
+Methods
+
+
+__init__
+Initializes an AlgorithmConfig instance.
+
+api_stack
+Sets the config's API stack settings.
+
+build_algo
+Builds an Algorithm from this AlgorithmConfig (or a copy thereof).
+
+build_learner
+Builds and returns a new Learner object based on settings in self.
+
+build_learner_group
+Builds and returns a new LearnerGroup object based on settings in self.
+
+callbacks
+Sets the callbacks configuration.
+
+checkpointing
+Sets the config's checkpointing settings.
+
+copy
+Creates a deep copy of this config and (un)freezes if necessary.
+
+debugging
+Sets the config's debugging settings.
+
+env_runners
+Sets the rollout worker configuration.
+
+environment
+Sets the config's RL-environment settings.
+
+evaluation
+Sets the config's evaluation settings.
+
+experimental
+Sets the config's experimental settings.
+
+fault_tolerance
+Sets the config's fault tolerance settings.
+
+framework
+Sets the config's DL framework settings.
+
+freeze
+Freezes this config object, such that no attributes can be set anymore.
+
+from_dict
+Creates an AlgorithmConfig from a legacy python config dict.
+
+from_state
+Returns an instance constructed from the state.
+
+get
+Shim method to help pretend we are a dict.
+
+get_config_for_module
+Returns an AlgorithmConfig object, specific to the given module ID.
+
+get_default_learner_class
+Returns the Learner class to use for this algorithm.
+
+get_default_rl_module_spec
+Returns the RLModule spec to use for this algorithm.
+
+get_evaluation_config_object
+Creates a full AlgorithmConfig object from self.evaluation_config.
+
+get_multi_agent_setup
+Compiles complete multi-agent config (dict) from the information in self.
+
+get_multi_rl_module_spec
+Returns the MultiRLModuleSpec based on the given env/spaces.
+
+get_rl_module_spec
+Returns the RLModuleSpec based on the given env/spaces.
+
+get_rollout_fragment_length
+Automatically infers a proper rollout_fragment_length setting if "auto".
+
+get_state
+Returns a dict state that can be pickled.
+
+get_torch_compile_worker_config
+Returns the TorchCompileConfig to use on workers.
+
+items
+Shim method to help pretend we are a dict.
+
+keys
+Shim method to help pretend we are a dict.
+
+learners
+Sets LearnerGroup and Learner worker related configurations.
+
+multi_agent
+Sets the config's multi-agent settings.
+
+offline_data
+Sets the config's offline data settings.
+
+overrides
+Generates and validates a set of config key/value pairs (passed via kwargs).
+
+pop
+Shim method to help pretend we are a dict.
+
+python_environment
+Sets the config's python environment settings.
+
+reporting
+Sets the config's reporting settings.
+
+resources
+Specifies resources allocated for an Algorithm and its ray actors/workers.
+
+rl_module
+Sets the config's RLModule settings.
+
+serialize
+Returns a mapping from str to JSON'able values representing this config.
+
+to_dict
+Converts all settings into a legacy config dict for backward compatibility.
+
+training
+Sets the training related configuration.
+
+update_from_dict
+Modifies this AlgorithmConfig via the provided python config dict.
+
+validate
+Validates all values in this config.
+
+validate_train_batch_size_vs_rollout_fragment_length
+Detects mismatches for train_batch_size vs rollout_fragment_length.
+
+values
+Shim method to help pretend we are a dict.
+
+
+
+Attributes
+
+
+custom_resources_per_worker
+
+
+delay_between_worker_restarts_s
+
+
+evaluation_num_workers
+
+
+ignore_worker_failures
+
+
+is_atari
+True if if specified env is an Atari env.
+
+is_multi_agent
+Returns whether this config specifies a multi-agent setup.
+
+is_offline
+Defines, if this config is for offline RL.
+
+learner_class
+Returns the Learner sub-class to use by this Algorithm.
+
+max_num_worker_restarts
+
+
+model_config
+Defines the model configuration used.
+
+num_consecutive_worker_failures_tolerance
+
+
+num_cpus_for_local_worker
+
+
+num_cpus_per_learner_worker
+
+
+num_cpus_per_worker
+
+
+num_envs_per_worker
+
+
+num_gpus_per_learner_worker
+
+
+num_gpus_per_worker
+
+
+num_learner_workers
+
+
+num_rollout_workers
+
+
+recreate_failed_env_runners
+
+
+recreate_failed_workers
+
+
+rl_module_spec
+
+
+total_train_batch_size
+Returns the effective total train batch size.
+
+train_batch_size_per_learner
+
+
+uses_new_env_runners
+
+
+validate_workers_after_construction
+
+
+worker_health_probe_timeout_s
+
+
+worker_restore_timeout_s
+
+
+
+
+
+

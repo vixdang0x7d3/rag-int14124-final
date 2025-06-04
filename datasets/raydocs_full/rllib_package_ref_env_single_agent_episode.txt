@@ -1,0 +1,106 @@
+
+
+SingleAgentEpisode API#
+
+Note
+Ray 2.40 uses RLlib’s new API stack by default.
+The Ray team has mostly completed transitioning algorithms, example scripts, and
+documentation to the new code base.
+If you’re still using the old API stack, see New API stack migration guide for details on how to migrate.
+
+
+rllib.env.single_agent_episode.SingleAgentEpisode#
+
+Constructor#
+
+
+SingleAgentEpisode
+A class representing RL environment episodes for individual agents.
+
+validate
+Validates the episode's data.
+
+
+
+
+
+Getting basic information#
+
+
+__len__
+Returning the length of an episode.
+
+get_return
+Calculates an episode's return, excluding the lookback buffer's rewards.
+
+get_duration_s
+Returns the duration of this Episode (chunk) in seconds.
+
+is_done
+Whether the episode is actually done (terminated or truncated).
+
+is_numpy
+True, if the data in this episode is already stored as numpy arrays.
+
+env_steps
+Returns the number of environment steps.
+
+
+
+
+
+Getting environment data#
+
+
+get_observations
+Returns individual observations or batched ranges thereof from this episode.
+
+get_infos
+Returns individual info dicts or list (ranges) thereof from this episode.
+
+get_actions
+Returns individual actions or batched ranges thereof from this episode.
+
+get_rewards
+Returns individual rewards or batched ranges thereof from this episode.
+
+get_extra_model_outputs
+Returns extra model outputs (under given key) from this episode.
+
+
+
+
+
+Adding data#
+
+
+add_env_reset
+Adds the initial data (after an env.reset()) to the episode.
+
+add_env_step
+Adds results of an env.step() call (including the action) to this episode.
+
+
+
+
+
+Creating and handling episode chunks#
+
+
+cut
+Returns a successor episode chunk (of len=0) continuing from this Episode.
+
+slice
+Returns a slice of this episode with the given slice object.
+
+concat_episode
+Adds the given other SingleAgentEpisode to the right side of self.
+
+to_numpy
+Converts this Episode's list attributes to numpy arrays.
+
+
+
+
+
+

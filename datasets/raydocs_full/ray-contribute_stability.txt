@@ -1,0 +1,118 @@
+
+
+API Stability#
+Ray provides stability guarantees for its public APIs in Ray core and libraries, which are decorated/labeled accordingly.
+An API can be labeled:
+
+PublicAPI, which means the API is exposed to end users. PublicAPI has three sub-levels (alpha, beta, stable), as described below.
+DeveloperAPI, which means the API is explicitly exposed to advanced Ray users and library developers
+Deprecated, which may be removed in future releases of Ray.
+
+Ray’s PublicAPI stability definitions are based off the Google stability level guidelines, with minor differences:
+
+Alpha#
+An alpha component undergoes rapid iteration with a known set of users who
+must be tolerant of change. The number of users should be a
+curated, manageable set, such that it is feasible to communicate with all
+of them individually.
+Breaking changes must be both allowed and expected in alpha components, and
+users must have no expectation of stability.
+
+
+Beta#
+A beta component must be considered complete and ready to be declared
+stable, subject to public testing.
+Because users of beta components tend to have a lower tolerance of change, beta
+components should be as stable as possible; however, the beta component
+must be permitted to change over time. These changes should be minimal
+but may include backwards-incompatible changes to beta components.
+Backwards-incompatible changes must be made only after a reasonable
+deprecation period to provide users with an opportunity to migrate their code.
+
+
+Stable#
+A stable component must be fully-supported over the lifetime of the major
+API version. Because users expect such stability from components marked stable,
+there must be no breaking changes to these components within a major version
+(excluding extraordinary circumstances).
+
+Docstrings#
+
+
+ray.util.annotations.PublicAPI(*args, **kwargs)[source]#
+Annotation for documenting public APIs.
+Public APIs are classes and methods exposed to end users of Ray.
+If stability="alpha", the API can be used by advanced users who are
+tolerant to and expect breaking changes.
+If stability="beta", the API is still public and can be used by early
+users, but are subject to change.
+If stability="stable", the APIs will remain backwards compatible across
+minor Ray releases (e.g., Ray 1.4 -> 1.8).
+For a full definition of the stability levels, please refer to the
+Ray API Stability definitions.
+
+Parameters:
+
+stability – One of {“stable”, “beta”, “alpha”}.
+api_group – Optional. Used only for doc rendering purpose. APIs in the same group
+will be grouped together in the API doc pages.
+
+
+
+Examples
+>>> from ray.util.annotations import PublicAPI
+>>> @PublicAPI
+... def func(x):
+...     return x
+
+
+>>> @PublicAPI(stability="beta")
+... def func(y):
+...     return y
+
+
+
+
+
+ray.util.annotations.DeveloperAPI(*args, **kwargs)[source]#
+Annotation for documenting developer APIs.
+Developer APIs are lower-level methods explicitly exposed to advanced Ray
+users and library developers. Their interfaces may change across minor
+Ray releases.
+Examples
+>>> from ray.util.annotations import DeveloperAPI
+>>> @DeveloperAPI
+... def func(x):
+...     return x
+
+
+
+
+
+ray.util.annotations.Deprecated(*args, **kwargs)[source]#
+Annotation for documenting a deprecated API.
+Deprecated APIs may be removed in future releases of Ray.
+
+Parameters:
+message – a message to help users understand the reason for the
+deprecation, and provide a migration path.
+
+
+Examples
+>>> from ray.util.annotations import Deprecated
+>>> @Deprecated
+... def func(x):
+...     return x
+
+
+>>> @Deprecated(message="g() is deprecated because the API is error "
+...   "prone. Please call h() instead.")
+... def g(y):
+...     return y
+
+
+
+Undecorated functions can be generally assumed to not be part of the Ray public API.
+
+
+

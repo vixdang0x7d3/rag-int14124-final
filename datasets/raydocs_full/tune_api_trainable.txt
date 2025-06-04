@@ -1,0 +1,375 @@
+
+
+Training in Tune (tune.Trainable, tune.report)#
+Training can be done with either a Function API (tune.report()) or
+Class API (tune.Trainable).
+For the sake of example, let’s maximize this objective function:
+def objective(x, a, b):
+    return a * (x ** 0.5) + b
+
+
+
+Function Trainable API#
+Use the Function API to define a custom training function that Tune runs in Ray actor processes. Each trial is placed
+into a Ray actor process and runs in parallel.
+The config argument in the function is a dictionary populated automatically by Ray Tune and corresponding to
+the hyperparameters selected for the trial from the search space.
+With the Function API, you can report intermediate metrics by simply calling tune.report() within the function.
+from ray import tune
+
+
+def trainable(config: dict):
+    intermediate_score = 0
+    for x in range(20):
+        intermediate_score = objective(x, config["a"], config["b"])
+        tune.report({"score": intermediate_score})  # This sends the score to Tune.
+
+
+tuner = tune.Tuner(trainable, param_space={"a": 2, "b": 4})
+results = tuner.fit()
+
+
+
+Tip
+Do not use tune.report() within a Trainable class.
+
+In the previous example, we reported on every step, but this metric reporting frequency
+is configurable. For example, we could also report only a single time at the end with the final score:
+from ray import tune
+
+
+def trainable(config: dict):
+    final_score = 0
+    for x in range(20):
+        final_score = objective(x, config["a"], config["b"])
+
+    tune.report({"score": final_score})  # This sends the score to Tune.
+
+
+tuner = tune.Tuner(trainable, param_space={"a": 2, "b": 4})
+results = tuner.fit()
+
+
+It’s also possible to return a final set of metrics to Tune by returning them from your function:
+def trainable(config: dict):
+    final_score = 0
+    for x in range(20):
+        final_score = objective(x, config["a"], config["b"])
+
+    return {"score": final_score}  # This sends the score to Tune.
+
+
+Note that Ray Tune outputs extra values in addition to the user reported metrics,
+such as iterations_since_restore. See How to use log metrics in Tune? for an explanation of these values.
+See how to configure checkpointing for a function trainable here.
+
+
+Class Trainable API#
+
+Caution
+Do not use tune.report() within a Trainable class.
+
+The Trainable class API will require users to subclass ray.tune.Trainable. Here’s a naive example of this API:
+from ray import tune
+
+
+class Trainable(tune.Trainable):
+    def setup(self, config: dict):
+        # config (dict): A dict of hyperparameters
+        self.x = 0
+        self.a = config["a"]
+        self.b = config["b"]
+
+    def step(self):  # This is called iteratively.
+        score = objective(self.x, self.a, self.b)
+        self.x += 1
+        return {"score": score}
+
+
+tuner = tune.Tuner(
+    Trainable,
+    run_config=tune.RunConfig(
+        # Train for 20 steps
+        stop={"training_iteration": 20},
+        checkpoint_config=tune.CheckpointConfig(
+            # We haven't implemented checkpointing yet. See below!
+            checkpoint_at_end=False
+        ),
+    ),
+    param_space={"a": 2, "b": 4},
+)
+results = tuner.fit()
+
+
+As a subclass of tune.Trainable, Tune will create a Trainable object on a
+separate process (using the Ray Actor API).
+
+
+setup function is invoked once training starts.
+step is invoked multiple times.
+Each time, the Trainable object executes one logical iteration of training in the tuning process,
+which may include one or more iterations of actual training.
+cleanup is invoked when training is finished.
+
+
+The config argument in the setup method is a dictionary populated automatically by Tune and corresponding to
+the hyperparameters selected for the trial from the search space.
+
+Tip
+As a rule of thumb, the execution time of step should be large enough to avoid overheads
+(i.e. more than a few seconds), but short enough to report progress periodically (i.e. at most a few minutes).
+
+You’ll notice that Ray Tune will output extra values in addition to the user reported metrics,
+such as iterations_since_restore.
+See How to use log metrics in Tune? for an explanation/glossary of these values.
+See how to configure checkpoint for class trainable here.
+
+Advanced: Reusing Actors in Tune#
+
+Note
+This feature is only for the Trainable Class API.
+
+Your Trainable can often take a long time to start.
+To avoid this, you can do tune.TuneConfig(reuse_actors=True) (which is taken in by Tuner) to reuse the same Trainable Python process and
+object for multiple hyperparameters.
+This requires you to implement Trainable.reset_config, which provides a new set of hyperparameters.
+It is up to the user to correctly update the hyperparameters of your trainable.
+from time import sleep
+import ray
+from ray import tune
+from ray.tune.tuner import Tuner
+
+
+def expensive_setup():
+    print("EXPENSIVE SETUP")
+    sleep(1)
+
+
+class QuadraticTrainable(tune.Trainable):
+    def setup(self, config):
+        self.config = config
+        expensive_setup()  # use reuse_actors=True to only run this once
+        self.max_steps = 5
+        self.step_count = 0
+
+    def step(self):
+        # Extract hyperparameters from the config
+        h1 = self.config["hparam1"]
+        h2 = self.config["hparam2"]
+
+        # Compute a simple quadratic objective where the optimum is at hparam1=3 and hparam2=5
+        loss = (h1 - 3) ** 2 + (h2 - 5) ** 2
+
+        metrics = {"loss": loss}
+
+        self.step_count += 1
+        if self.step_count > self.max_steps:
+            metrics["done"] = True
+
+        # Return the computed loss as the metric
+        return metrics
+
+    def reset_config(self, new_config):
+        # Update the configuration for a new trial while reusing the actor
+        self.config = new_config
+        return True
+
+
+ray.init()
+
+
+tuner_with_reuse = Tuner(
+    QuadraticTrainable,
+    param_space={
+        "hparam1": tune.uniform(-10, 10),
+        "hparam2": tune.uniform(-10, 10),
+    },
+    tune_config=tune.TuneConfig(
+        num_samples=10,
+        max_concurrent_trials=1,
+        reuse_actors=True,  # Enable actor reuse and avoid expensive setup
+    ),
+    run_config=ray.tune.RunConfig(
+        verbose=0,
+        checkpoint_config=ray.tune.CheckpointConfig(checkpoint_at_end=False),
+    ),
+)
+tuner_with_reuse.fit()
+
+
+
+
+
+Comparing Tune’s Function API and Class API#
+Here are a few key concepts and what they look like for the Function and Class API’s.
+
+
+Concept
+Function API
+Class API
+
+
+
+Training Iteration
+Increments on each tune.report call
+Increments on each Trainable.step call
+
+Report  metrics
+tune.report(metrics)
+Return metrics from Trainable.step
+
+Saving a checkpoint
+tune.report(..., checkpoint=checkpoint)
+Trainable.save_checkpoint
+
+Loading a checkpoint
+tune.get_checkpoint()
+Trainable.load_checkpoint
+
+Accessing config
+Passed as an argument def train_func(config):
+Passed through Trainable.setup
+
+
+
+
+
+Advanced Resource Allocation#
+Trainables can themselves be distributed. If your trainable function / class creates further Ray actors or tasks
+that also consume CPU / GPU resources, you will want to add more bundles to the PlacementGroupFactory
+to reserve extra resource slots.
+For example, if a trainable class requires 1 GPU itself, but also launches 4 actors, each using another GPU,
+then you should use tune.with_resources like this:
+ tuner = tune.Tuner(
+     tune.with_resources(my_trainable, tune.PlacementGroupFactory([
+         {"CPU": 1, "GPU": 1},
+         {"GPU": 1},
+         {"GPU": 1},
+         {"GPU": 1},
+         {"GPU": 1}
+     ])),
+     run_config=RunConfig(name="my_trainable")
+ )
+
+
+The Trainable also provides the default_resource_requests interface to automatically
+declare the resources per trial based on the given configuration.
+It is also possible to specify memory ("memory", in bytes) and custom resource requirements.
+
+
+Function API#
+For reporting results and checkpoints with the function API,
+see the Ray Train utilities documentation.
+Classes
+
+
+Checkpoint
+A reference to data persisted as a directory in local or remote storage.
+
+TuneContext
+Context to access metadata within Ray Tune functions.
+
+
+
+Functions
+
+
+get_checkpoint
+Access the latest reported checkpoint to resume from if one exists.
+
+get_context
+Get or create a singleton Ray Tune context.
+
+report
+Report metrics and optionally save and register a checkpoint to Ray Tune.
+
+
+
+
+
+Trainable (Class API)#
+
+Constructor#
+
+
+Trainable
+Abstract class for trainable models, functions, etc.
+
+
+
+
+
+Trainable Methods to Implement#
+
+
+setup
+Subclasses should override this for custom initialization.
+
+save_checkpoint
+Subclasses should override this to implement save().
+
+load_checkpoint
+Subclasses should override this to implement restore().
+
+step
+Subclasses should override this to implement train().
+
+reset_config
+Resets configuration without restarting the trial.
+
+cleanup
+Subclasses should override this for any cleanup on stop.
+
+default_resource_request
+Provides a static resource requirement for the given configuration.
+
+
+
+
+
+
+Tune Trainable Utilities#
+
+Tune Data Ingestion Utilities#
+
+
+tune.with_parameters
+Wrapper for trainables to pass arbitrary large data objects.
+
+
+
+
+
+Tune Resource Assignment Utilities#
+
+
+tune.with_resources
+Wrapper for trainables to specify resource requests.
+
+PlacementGroupFactory
+Wrapper class that creates placement groups for trials.
+
+tune.utils.wait_for_gpu
+Checks if a given GPU has freed memory.
+
+
+
+
+
+Tune Trainable Debugging Utilities#
+
+
+tune.utils.diagnose_serialization
+Utility for detecting why your trainable function isn't serializing.
+
+tune.utils.validate_save_restore
+Helper method to check if your Trainable class will resume correctly.
+
+tune.utils.util.validate_warmstart
+Generic validation of a Searcher's warm start functionality.
+
+
+
+
+
+

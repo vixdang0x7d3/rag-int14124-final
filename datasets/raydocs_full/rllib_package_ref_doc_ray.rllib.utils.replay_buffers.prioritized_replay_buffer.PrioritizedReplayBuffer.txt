@@ -1,0 +1,49 @@
+
+
+ray.rllib.utils.replay_buffers.prioritized_replay_buffer.PrioritizedReplayBuffer#
+
+
+class ray.rllib.utils.replay_buffers.prioritized_replay_buffer.PrioritizedReplayBuffer(capacity: int = 10000, storage_unit: str = 'timesteps', alpha: float = 1.0, **kwargs)[source]#
+Bases: ReplayBuffer
+This buffer implements Prioritized Experience Replay.
+The algorithm has been described by Tom Schaul et. al. in “Prioritized
+Experience Replay”. See https://arxiv.org/pdf/1511.05952.pdf for
+the full paper.
+DeveloperAPI: This API may change across minor Ray releases.
+Methods
+
+
+__init__
+Initializes a PrioritizedReplayBuffer instance.
+
+add
+Adds a batch of experiences or other data to this buffer.
+
+apply
+Calls the given function with this Actor instance.
+
+get_host
+Returns the computer's network name.
+
+get_state
+Returns all local state.
+
+ping
+Ping the actor.
+
+sample
+Sample num_items items from this buffer, including prio.
+
+set_state
+Restores all local state to the provided state.
+
+stats
+Returns the stats of this buffer.
+
+update_priorities
+Update priorities of items at given indices.
+
+
+
+
+

@@ -1,0 +1,79 @@
+
+
+Replay Buffer API#
+
+Note
+Ray 2.40 uses RLlib’s new API stack by default.
+The Ray team has mostly completed transitioning algorithms, example scripts, and
+documentation to the new code base.
+If you’re still using the old API stack, see New API stack migration guide for details on how to migrate.
+
+The following classes don’t take into account the separation of experiences from different policies, multi-agent replay buffers will be explained further below.
+
+Replay Buffer Base Classes#
+
+
+StorageUnit
+Specifies how batches are structured in a ReplayBuffer.
+
+ReplayBuffer
+The lowest-level replay buffer interface used by RLlib.
+
+PrioritizedReplayBuffer
+This buffer implements Prioritized Experience Replay.
+
+ReservoirReplayBuffer
+This buffer implements reservoir sampling.
+
+
+
+
+
+Public Methods#
+
+
+sample
+Samples num_items items from this buffer.
+
+add
+Adds a batch of experiences or other data to this buffer.
+
+get_state
+Returns all local state in a dict.
+
+set_state
+Restores all local state to the provided state.
+
+
+
+
+
+Multi Agent Buffers#
+The following classes use the above, “single-agent”, buffers as underlying buffers to facilitate splitting up experiences between the different agents’ policies.
+In multi-agent RL, more than one agent exists in the environment and not all of these agents may utilize the same policy (mapping M agents to N policies, where M <= N).
+This leads to the need for MultiAgentReplayBuffers that store the experiences of different policies separately.
+
+
+MultiAgentReplayBuffer
+A replay buffer shard for multiagent setups.
+
+MultiAgentPrioritizedReplayBuffer
+A prioritized replay buffer shard for multiagent setups.
+
+
+
+
+
+Utility Methods#
+
+
+update_priorities_in_replay_buffer
+Updates the priorities in a prioritized replay buffer, given training results.
+
+sample_min_n_steps_from_buffer
+Samples a minimum of n timesteps from a given replay buffer.
+
+
+
+
+

@@ -1,0 +1,21 @@
+
+
+ray.rllib.callbacks.callbacks.RLlibCallback.on_train_result#
+
+
+RLlibCallback.on_train_result(*, algorithm: Algorithm, metrics_logger: MetricsLogger | None = None, result: dict, **kwargs) → None[source]#
+Called at the end of Algorithm.train().
+
+Parameters:
+
+algorithm – Current Algorithm instance.
+metrics_logger – The MetricsLogger object inside the Algorithm. Can be
+used to log custom metrics after traing results are available.
+result – Dict of results returned from Algorithm.train() call.
+You can mutate this object to add additional metrics.
+kwargs – Forward compatibility placeholder.
+
+
+
+
+

@@ -1,0 +1,18 @@
+
+
+ray.rllib.algorithms.algorithm_config.AlgorithmConfig.copy#
+
+
+AlgorithmConfig.copy(copy_frozen: bool | None = None) → AlgorithmConfig[source]#
+Creates a deep copy of this config and (un)freezes if necessary.
+
+Parameters:
+copy_frozen – Whether the created deep copy is frozen or not. If None,
+keep the same frozen status that self currently has.
+
+Returns:
+A deep copy of self that is (un)frozen.
+
+
+
+

@@ -1,0 +1,9 @@
+
+
+ray.rllib.offline.offline_prelearner.OfflinePreLearner.default_prelearner_buffer_class#
+
+
+property OfflinePreLearner.default_prelearner_buffer_class: ReplayBuffer#
+Sets the default replay buffer.
+
+

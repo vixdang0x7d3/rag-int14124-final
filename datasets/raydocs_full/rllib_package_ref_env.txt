@@ -1,0 +1,55 @@
+
+
+Environments#
+
+Note
+Ray 2.40 uses RLlib’s new API stack by default.
+The Ray team has mostly completed transitioning algorithms, example scripts, and
+documentation to the new code base.
+If you’re still using the old API stack, see New API stack migration guide for details on how to migrate.
+
+RLlib mainly supports the Farama gymnasium API for
+single-agent environments, and RLlib’s own MultiAgentEnv
+API for multi-agent setups.
+
+Env Vectorization#
+For single-agent setups, RLlib automatically vectorizes your provided
+gymnasium.Env using
+gymnasium’s own vectorization feature.
+Use the config.env_runners(num_envs_per_env_runner=..) setting to vectorize your env
+beyond 1 env copy.
+
+Note
+Unlike single-agent environments, multi-agent setups aren’t vectorizable yet.
+The Ray team is working on a solution for this restriction by using
+the gymnasium >= 1.x custom vectorization feature.
+
+
+
+External Envs#
+
+Note
+External Env support is under development on the new API stack. The recommended
+way to implement your own external env connection logic, for example through TCP or
+shared memory, is to write your own EnvRunner
+subclass.
+
+See this an end-to-end example of an external CartPole (client) env
+connecting to RLlib through a custom, TCP-capable
+EnvRunner server.
+
+
+Environment API Reference#
+
+
+EnvRunner API
+SingleAgentEnvRunner API
+SingleAgentEpisode API
+MultiAgentEnv API
+MultiAgentEnvRunner API
+MultiAgentEpisode API
+Env Utils
+
+
+
+

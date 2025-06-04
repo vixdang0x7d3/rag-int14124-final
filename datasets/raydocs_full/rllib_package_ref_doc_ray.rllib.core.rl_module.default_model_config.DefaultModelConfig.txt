@@ -1,0 +1,146 @@
+
+
+ray.rllib.core.rl_module.default_model_config.DefaultModelConfig#
+
+
+class ray.rllib.core.rl_module.default_model_config.DefaultModelConfig(fcnet_hiddens: ~typing.List[int] = <factory>, fcnet_activation: str = 'tanh', fcnet_kernel_initializer: str | ~typing.Callable | None = None, fcnet_kernel_initializer_kwargs: dict | None = None, fcnet_bias_initializer: str | ~typing.Callable | None = None, fcnet_bias_initializer_kwargs: dict | None = None, conv_filters: ~typing.List[~typing.Tuple[int, int | ~typing.Tuple[int, int], int | ~typing.Tuple[int, int]]] | None = None, conv_activation: str = 'relu', conv_kernel_initializer: str | ~typing.Callable | None = None, conv_kernel_initializer_kwargs: dict | None = None, conv_bias_initializer: str | ~typing.Callable | None = None, conv_bias_initializer_kwargs: dict | None = None, head_fcnet_hiddens: ~typing.List[int] = <factory>, head_fcnet_activation: str = 'relu', head_fcnet_kernel_initializer: str | ~typing.Callable | None = None, head_fcnet_kernel_initializer_kwargs: dict | None = None, head_fcnet_bias_initializer: str | ~typing.Callable | None = None, head_fcnet_bias_initializer_kwargs: dict | None = None, free_log_std: bool = False, log_std_clip_param: float = 20.0, vf_share_layers: bool = True, use_lstm: bool = False, max_seq_len: int = 20, lstm_cell_size: int = 256, lstm_use_prev_action: bool = False, lstm_use_prev_reward: bool = False, lstm_kernel_initializer: str | ~typing.Callable | None = None, lstm_kernel_initializer_kwargs: dict | None = None, lstm_bias_initializer: str | ~typing.Callable | None = None, lstm_bias_initializer_kwargs: dict | None = None)[source]#
+Dataclass to configure all default RLlib RLModules.
+Users should NOT use this class for configuring their own custom RLModules, but
+use a custom model_config dict with arbitrary (str) keys passed into the
+RLModuleSpec used to define the custom RLModule.
+For example:
+import gymnasium as gym
+import numpy as np
+from ray.rllib.core.rl_module.rl_module import RLModuleSpec
+from ray.rllib.examples.rl_modules.classes.tiny_atari_cnn_rlm import (
+    TinyAtariCNN
+)
+
+my_rl_module = RLModuleSpec(
+    module_class=TinyAtariCNN,
+    observation_space=gym.spaces.Box(-1.0, 1.0, (64, 64, 4), np.float32),
+    action_space=gym.spaces.Discrete(7),
+    # DreamerV3-style stack working on a 64x64, color or 4x-grayscale-stacked,
+    # normalized image.
+    model_config={
+        "conv_filters": [[16, 4, 2], [32, 4, 2], [64, 4, 2], [128, 4, 2]],
+    },
+).build()
+
+
+Only RLlib’s default RLModules (defined by the various algorithms) should use
+this dataclass. Pass an instance of it into your algorithm config like so:
+from ray.rllib.algorithms.ppo import PPOConfig
+from ray.rllib.core.rl_module.default_model_config import DefaultModelConfig
+
+config = (
+    PPOConfig()
+    .rl_module(
+        model_config=DefaultModelConfig(fcnet_hiddens=[32, 32]),
+    )
+)
+
+
+DeveloperAPI: This API may change across minor Ray releases.
+Methods
+
+
+
+
+Attributes
+
+
+conv_activation
+Activation function descriptor for the stack configured by conv_filters.
+
+conv_bias_initializer
+Initializer function or class descriptor for the bias vectors in the stack configured by conv_filters.
+
+conv_bias_initializer_kwargs
+Kwargs passed into the initializer function defined through conv_bias_initializer.
+
+conv_filters
+List of lists of format [num_out_channels, kernel, stride] defining a Conv2D stack if the input space is 2D.
+
+conv_kernel_initializer
+Initializer function or class descriptor for the weight/kernel matrices in the stack configured by conv_filters.
+
+conv_kernel_initializer_kwargs
+Kwargs passed into the initializer function defined through conv_kernel_initializer.
+
+fcnet_activation
+Activation function descriptor for the stack configured by fcnet_hiddens.
+
+fcnet_bias_initializer
+Initializer function or class descriptor for the bias vectors in the stack configured by fcnet_hiddens.
+
+fcnet_bias_initializer_kwargs
+Kwargs passed into the initializer function defined through fcnet_bias_initializer.
+
+fcnet_kernel_initializer
+Initializer function or class descriptor for the weight/kernel matrices in the stack configured by fcnet_hiddens.
+
+fcnet_kernel_initializer_kwargs
+Kwargs passed into the initializer function defined through fcnet_kernel_initializer.
+
+free_log_std
+If True, for DiagGaussian action distributions (or any other continuous control distribution), make the second half of the policy's outputs a "free" bias parameter, rather than state-/NN-dependent nodes.
+
+head_fcnet_activation
+Activation function descriptor for the stack configured by head_fcnet_hiddens.
+
+head_fcnet_bias_initializer
+Initializer function or class descriptor for the bias vectors in the stack configured by head_fcnet_hiddens.
+
+head_fcnet_bias_initializer_kwargs
+Kwargs passed into the initializer function defined through head_fcnet_bias_initializer.
+
+head_fcnet_kernel_initializer
+Initializer function or class descriptor for the weight/kernel matrices in the stack configured by head_fcnet_hiddens.
+
+head_fcnet_kernel_initializer_kwargs
+Kwargs passed into the initializer function defined through head_fcnet_kernel_initializer.
+
+log_std_clip_param
+Whether to clip the log(stddev) when using a DiagGaussian action distribution (or any other continuous control distribution).
+
+lstm_bias_initializer
+Initializer function or class descriptor for the bias vectors in the stack configured by the LSTM layer.
+
+lstm_bias_initializer_kwargs
+Kwargs passed into the initializer function defined through lstm_bias_initializer.
+
+lstm_cell_size
+The size of the LSTM cell.
+
+lstm_kernel_initializer
+Initializer function or class descriptor for the weight/kernel matrices in the LSTM layer.
+
+lstm_kernel_initializer_kwargs
+Kwargs passed into the initializer function defined through lstm_kernel_initializer.
+
+lstm_use_prev_action
+
+
+lstm_use_prev_reward
+
+
+max_seq_len
+The maximum seq len for building the train batch for an LSTM model.
+
+use_lstm
+Whether to wrap the encoder component (defined by fcnet_hiddens or conv_filters) with an LSTM.
+
+vf_share_layers
+Whether encoder layers (defined by fcnet_hiddens or conv_filters) should be shared between policy- and value function.
+
+fcnet_hiddens
+List containing the sizes (number of nodes) of a fully connected (MLP) stack.
+
+head_fcnet_hiddens
+List containing the sizes (number of nodes) of a fully connected (MLP) head (ex.
+
+
+
+
+

@@ -1,0 +1,30 @@
+
+
+ray.rllib.algorithms.algorithm_config.AlgorithmConfig.build_learner#
+
+
+AlgorithmConfig.build_learner(*, env: Any | gymnasium.Env | None = None, spaces: Dict[str, Tuple[gymnasium.Space, gymnasium.Space]] | None = None) → Learner[source]#
+Builds and returns a new Learner object based on settings in self.
+This Learner object already has its build() method called, meaning
+its RLModule is already constructed.
+
+Parameters:
+
+env – An optional EnvType object (e.g. a gym.Env) useful for extracting space
+information for the to-be-constructed RLModule inside the Learner.
+Note that if RLlib cannot infer any space information
+either from this env arg, from the optional spaces arg or from
+self, the Learner cannot be created.
+spaces – An optional dict mapping ModuleIDs to
+(observation-space, action-space)-tuples for the to-be-constructed
+RLModule inside the Learner. Note that if RLlib cannot infer any
+space information either from this spces arg, from the optional
+env arg or from self, the Learner cannot be created.
+
+
+Returns:
+The newly created (and already built) Learner object.
+
+
+
+

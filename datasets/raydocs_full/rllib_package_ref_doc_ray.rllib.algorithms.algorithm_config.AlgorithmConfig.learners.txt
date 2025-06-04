@@ -1,0 +1,58 @@
+
+
+ray.rllib.algorithms.algorithm_config.AlgorithmConfig.learners#
+
+
+AlgorithmConfig.learners(*, num_learners: int | None = <ray.rllib.utils.from_config._NotProvided object>, num_cpus_per_learner: str | float | int | None = <ray.rllib.utils.from_config._NotProvided object>, num_gpus_per_learner: float | int | None = <ray.rllib.utils.from_config._NotProvided object>, num_aggregator_actors_per_learner: int | None = <ray.rllib.utils.from_config._NotProvided object>, max_requests_in_flight_per_aggregator_actor: float | None = <ray.rllib.utils.from_config._NotProvided object>, local_gpu_idx: int | None = <ray.rllib.utils.from_config._NotProvided object>, max_requests_in_flight_per_learner: int | None = <ray.rllib.utils.from_config._NotProvided object>)[source]#
+Sets LearnerGroup and Learner worker related configurations.
+
+Parameters:
+
+num_learners – Number of Learner workers used for updating the RLModule.
+A value of 0 means training takes place on a local Learner on main
+process CPUs or 1 GPU (determined by num_gpus_per_learner).
+For multi-gpu training, you have to set num_learners to > 1 and set
+num_gpus_per_learner accordingly (e.g., 4 GPUs total and model fits on
+1 GPU: num_learners=4; num_gpus_per_learner=1 OR 4 GPUs total and
+model requires 2 GPUs: num_learners=2; num_gpus_per_learner=2).
+num_cpus_per_learner – Number of CPUs allocated per Learner worker.
+If “auto” (default), use 1 if num_gpus_per_learner=0, otherwise 0.
+Only necessary for custom processing pipeline inside each Learner
+requiring multiple CPU cores.
+If num_learners=0, RLlib creates only one local Learner instance and
+the number of CPUs on the main process is
+max(num_cpus_per_learner, num_cpus_for_main_process).
+num_gpus_per_learner – Number of GPUs allocated per Learner worker. If
+num_learners=0, any value greater than 0 runs the
+training on a single GPU on the main process, while a value of 0 runs
+the training on main process CPUs.
+num_aggregator_actors_per_learner – The number of aggregator actors per
+Learner (if num_learners=0, one local learner is created). Must be at
+least 1. Aggregator actors perform the task of a) converting episodes
+into a train batch and b) move that train batch to the same GPU that
+the corresponding learner is located on. Good values are 1 or 2, but
+this strongly depends on your setup and EnvRunner throughput.
+max_requests_in_flight_per_aggregator_actor – How many in-flight requests
+are allowed per aggregator actor before new requests are dropped?
+local_gpu_idx – If num_gpus_per_learner > 0, and
+num_learners < 2, then RLlib uses this GPU index for training. This is
+an index into the available
+CUDA devices. For example if os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+and local_gpu_idx=0, RLlib uses the GPU with ID=1 on the node.
+max_requests_in_flight_per_learner – Max number of in-flight requests
+to each Learner (actor). You normally do not have to tune this setting
+(default is 3), however, for asynchronous algorithms, this determines
+the “queue” size for incoming batches (or lists of episodes) into each
+Learner worker, thus also determining, how much off-policy’ness would be
+acceptable. The off-policy’ness is the difference between the numbers of
+updates a policy has undergone on the Learner vs the EnvRunners.
+See the ray.rllib.utils.actor_manager.FaultTolerantActorManager class
+for more details.
+
+
+Returns:
+This updated AlgorithmConfig object.
+
+
+
+

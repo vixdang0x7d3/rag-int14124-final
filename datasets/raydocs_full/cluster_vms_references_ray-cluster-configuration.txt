@@ -1,0 +1,2510 @@
+
+
+Cluster YAML Configuration Options#
+The cluster configuration is defined within a YAML file that will be used by the Cluster Launcher to launch the head node, and by the Autoscaler to launch worker nodes. Once the cluster configuration is defined, you will need to use the Ray CLI to perform any operations such as starting and stopping the cluster.
+
+Syntax#
+cluster_name: str
+max_workers: int
+upscaling_speed: float
+idle_timeout_minutes: int
+docker:
+    docker
+provider:
+    provider
+auth:
+    auth
+available_node_types:
+    node_types
+head_node_type: str
+file_mounts:
+    file_mounts
+cluster_synced_files:
+    - str
+rsync_exclude:
+    - str
+rsync_filter:
+    - str
+initialization_commands:
+    - str
+setup_commands:
+    - str
+head_setup_commands:
+    - str
+worker_setup_commands:
+    - str
+head_start_ray_commands:
+    - str
+worker_start_ray_commands:
+    - str
+
+
+Custom types#
+
+Docker#
+image: str
+head_image: str
+worker_image: str
+container_name: str
+pull_before_run: bool
+run_options:
+    - str
+head_run_options:
+    - str
+worker_run_options:
+    - str
+disable_automatic_runtime_detection: bool
+disable_shm_size_detection: bool
+
+
+Auth#
+
+
+
+AWS
+ssh_user: str
+ssh_private_key: str
+
+
+
+Azure
+ssh_user: str
+ssh_private_key: str
+ssh_public_key: str
+
+
+
+GCP
+ssh_user: str
+ssh_private_key: str
+
+
+
+vSphere
+ssh_user: str
+
+
+
+
+Provider#
+
+
+
+AWS
+type: str
+region: str
+availability_zone: str
+cache_stopped_nodes: bool
+security_group:
+    Security Group
+use_internal_ips: bool
+
+
+
+Azure
+type: str
+location: str
+resource_group: str
+subscription_id: str
+msi_name: str
+msi_resource_group: str
+cache_stopped_nodes: bool
+use_internal_ips: bool
+use_external_head_ip: bool
+
+
+
+GCP
+type: str
+region: str
+availability_zone: str
+project_id: str
+cache_stopped_nodes: bool
+use_internal_ips: bool
+
+
+
+vSphere
+type: str
+vsphere_config:
+    vSphere Config
+
+
+
+
+Security Group#
+
+
+
+AWS
+GroupName: str
+IpPermissions:
+    - IpPermission
+
+
+
+
+vSphere Config#
+
+
+
+vSphere
+credentials:
+    vSphere Credentials
+frozen_vm:
+    vSphere Frozen VM Configs
+gpu_config:
+    vSphere GPU Configs
+
+
+
+
+vSphere Credentials#
+
+
+
+vSphere
+user: str
+password: str
+server: str
+
+
+
+
+vSphere Frozen VM Configs#
+
+
+
+vSphere
+name: str
+library_item: str
+resource_pool: str
+cluster: str
+datastore: str
+
+
+
+
+vSphere GPU Configs#
+
+
+
+vSphere
+dynamic_pci_passthrough: bool
+
+
+
+
+Node types#
+The available_nodes_types object’s keys represent the names of the different node types.
+Deleting a node type from available_node_types and updating with ray up will cause the autoscaler to scale down all nodes of that type.
+In particular, changing the key of a node type object will
+result in removal of nodes corresponding to the old key; nodes with the new key name will then be
+created according to cluster configuration and Ray resource demands.
+<node_type_1_name>:
+    node_config:
+        Node config
+    resources:
+        Resources
+    min_workers: int
+    max_workers: int
+    worker_setup_commands:
+        - str
+    docker:
+        Node Docker
+<node_type_2_name>:
+    ...
+...
+
+
+Node config#
+Cloud-specific configuration for nodes of a given node type.
+Modifying the node_config and updating with ray up will cause the autoscaler to scale down all existing nodes of the node type;
+nodes with the newly applied node_config will then be created according to cluster configuration and Ray resource demands.
+
+
+
+AWS
+A YAML object which conforms to the EC2 create_instances API in the AWS docs.
+
+
+
+Azure
+A YAML object as defined in the deployment template whose resources are defined in the Azure docs.
+
+
+
+GCP
+A YAML object as defined in the GCP docs.
+
+
+
+vSphere
+# The resource pool where the head node should live, if unset, will be
+# the frozen VM's resource pool.
+resource_pool: str
+# The datastore to store the vmdk of the head node vm, if unset, will be
+# the frozen VM's datastore.
+datastore: str
+
+
+
+
+
+
+Node Docker#
+worker_image: str
+pull_before_run: bool
+worker_run_options:
+    - str
+disable_automatic_runtime_detection: bool
+disable_shm_size_detection: bool
+
+
+Resources#
+CPU: int
+GPU: int
+object_store_memory: int
+memory: int
+<custom_resource1>: int
+<custom_resource2>: int
+...
+
+
+File mounts#
+<path1_on_remote_machine>: str # Path 1 on local machine
+<path2_on_remote_machine>: str # Path 2 on local machine
+...
+
+
+
+
+
+Properties and Definitions#
+
+cluster_name#
+The name of the cluster. This is the namespace of the cluster.
+
+Required: Yes
+Importance: High
+Type: String
+Default: “default”
+Pattern: [a-zA-Z0-9_]+
+
+
+
+max_workers#
+The maximum number of workers the cluster will have at any given time.
+
+Required: No
+Importance: High
+Type: Integer
+Default: 2
+Minimum: 0
+Maximum: Unbounded
+
+
+
+upscaling_speed#
+The number of nodes allowed to be pending as a multiple of the current number of nodes. For example, if set to 1.0, the cluster can grow in size by at most 100% at any time, so if the cluster currently has 20 nodes, at most 20 pending launches are allowed. Note that although the autoscaler will scale down to min_workers (which could be 0), it will always scale up to 5 nodes at a minimum when scaling up.
+
+Required: No
+Importance: Medium
+Type: Float
+Default: 1.0
+Minimum: 0.0
+Maximum: Unbounded
+
+
+
+idle_timeout_minutes#
+The number of minutes that need to pass before an idle worker node is removed by the Autoscaler.
+
+Required: No
+Importance: Medium
+Type: Integer
+Default: 5
+Minimum: 0
+Maximum: Unbounded
+
+
+
+docker#
+Configure Ray to run in Docker containers.
+
+Required: No
+Importance: High
+Type: Docker
+Default: {}
+
+In rare cases when Docker is not available on the system by default (e.g., bad AMI), add the following commands to initialization_commands to install it.
+initialization_commands:
+    - curl -fsSL https://get.docker.com -o get-docker.sh
+    - sudo sh get-docker.sh
+    - sudo usermod -aG docker $USER
+    - sudo systemctl restart docker -f
+
+
+
+
+provider#
+The cloud provider-specific configuration properties.
+
+Required: Yes
+Importance: High
+Type: Provider
+
+
+
+auth#
+Authentication credentials that Ray will use to launch nodes.
+
+Required: Yes
+Importance: High
+Type: Auth
+
+
+
+available_node_types#
+Tells the autoscaler the allowed node types and the resources they provide.
+Each node type is identified by a user-specified key.
+
+Required: No
+Importance: High
+Type: Node types
+Default:
+
+
+
+
+AWS
+available_node_types:
+  ray.head.default:
+      node_config:
+        InstanceType: m5.large
+        BlockDeviceMappings:
+            - DeviceName: /dev/sda1
+              Ebs:
+                  VolumeSize: 140
+      resources: {"CPU": 2}
+  ray.worker.default:
+      node_config:
+        InstanceType: m5.large
+        InstanceMarketOptions:
+            MarketType: spot
+      resources: {"CPU": 2}
+      min_workers: 0
+
+
+
+
+
+
+head_node_type#
+The key for one of the node types in available_node_types. This node type will be used to launch the head node.
+If the field head_node_type is changed and an update is executed with ray up, the currently running head node will
+be considered outdated. The user will receive a prompt asking to confirm scale-down of the outdated head node, and the cluster will restart with a new
+head node. Changing the node_config of the node_type with key head_node_type will also result in cluster restart after a user prompt.
+
+Required: Yes
+Importance: High
+Type: String
+Pattern: [a-zA-Z0-9_]+
+
+
+
+file_mounts#
+The files or directories to copy to the head and worker nodes.
+
+Required: No
+Importance: High
+Type: File mounts
+Default: []
+
+
+
+cluster_synced_files#
+A list of paths to the files or directories to copy from the head node to the worker nodes. The same path on the head node will be copied to the worker node. This behavior is a subset of the file_mounts behavior, so in the vast majority of cases one should just use file_mounts.
+
+Required: No
+Importance: Low
+Type: List of String
+Default: []
+
+
+
+rsync_exclude#
+A list of patterns for files to exclude when running rsync up or rsync down. The filter is applied on the source directory only.
+Example for a pattern in the list: **/.git/**.
+
+Required: No
+Importance: Low
+Type: List of String
+Default: []
+
+
+
+rsync_filter#
+A list of patterns for files to exclude when running rsync up or rsync down. The filter is applied on the source directory and recursively through all subdirectories.
+Example for a pattern in the list: .gitignore.
+
+Required: No
+Importance: Low
+Type: List of String
+Default: []
+
+
+
+initialization_commands#
+A list of commands that will be run before the setup commands. If Docker is enabled, these commands will run outside the container and before Docker is setup.
+
+Required: No
+Importance: Medium
+Type: List of String
+Default: []
+
+
+
+setup_commands#
+A list of commands to run to set up nodes. These commands will always run on the head and worker nodes and will be merged with head setup commands for head and with worker setup commands for workers.
+
+Required: No
+Importance: Medium
+Type: List of String
+Default:
+
+
+
+
+AWS
+# Default setup_commands:
+setup_commands:
+  - echo 'export PATH="$HOME/anaconda3/envs/tensorflow_p36/bin:$PATH"' >> ~/.bashrc
+  - pip install -U https://s3-us-west-2.amazonaws.com/ray-wheels/latest/ray-3.0.0.dev0-cp37-cp37m-manylinux2014_x86_64.whl
+
+
+
+
+
+Setup commands should ideally be idempotent (i.e., can be run multiple times without changing the result); this allows Ray to safely update nodes after they have been created. You can usually make commands idempotent with small modifications, e.g. git clone foo can be rewritten as test -e foo || git clone foo which checks if the repo is already cloned first.
+Setup commands are run sequentially but separately. For example, if you are using anaconda, you need to run conda activate env && pip install -U ray because splitting the command into two setup commands will not work.
+Ideally, you should avoid using setup_commands by creating a docker image with all the dependencies preinstalled to minimize startup time.
+Tip: if you also want to run apt-get commands during setup add the following list of commands:
+
+setup_commands:
+  - sudo pkill -9 apt-get || true
+  - sudo pkill -9 dpkg || true
+  - sudo dpkg --configure -a
+
+
+
+
+
+
+
+head_setup_commands#
+A list of commands to run to set up the head node. These commands will be merged with the general setup commands.
+
+Required: No
+Importance: Low
+Type: List of String
+Default: []
+
+
+
+worker_setup_commands#
+A list of commands to run to set up the worker nodes. These commands will be merged with the general setup commands.
+
+Required: No
+Importance: Low
+Type: List of String
+Default: []
+
+
+
+head_start_ray_commands#
+Commands to start ray on the head node. You don’t need to change this.
+
+Required: No
+Importance: Low
+Type: List of String
+Default:
+
+
+
+
+AWS
+head_start_ray_commands:
+  - ray stop
+  - ulimit -n 65536; ray start --head --port=6379 --object-manager-port=8076 --autoscaling-config=~/ray_bootstrap_config.yaml
+
+
+
+
+
+
+worker_start_ray_commands#
+Command to start ray on worker nodes. You don’t need to change this.
+
+Required: No
+Importance: Low
+Type: List of String
+Default:
+
+
+
+
+AWS
+worker_start_ray_commands:
+  - ray stop
+  - ulimit -n 65536; ray start --address=$RAY_HEAD_IP:6379 --object-manager-port=8076
+
+
+
+
+
+
+docker.image#
+The default Docker image to pull in the head and worker nodes. This can be overridden by the head_image and worker_image fields. If neither image nor (head_image and worker_image) are specified, Ray will not use Docker.
+
+Required: Yes (If Docker is in use.)
+Importance: High
+Type: String
+
+The Ray project provides Docker images on DockerHub. The repository includes following images:
+
+rayproject/ray-ml:latest-gpu: CUDA support, includes ML dependencies.
+rayproject/ray:latest-gpu: CUDA support, no ML dependencies.
+rayproject/ray-ml:latest: No CUDA support, includes ML dependencies.
+rayproject/ray:latest: No CUDA support, no ML dependencies.
+
+
+
+docker.head_image#
+Docker image for the head node to override the default docker image.
+
+Required: No
+Importance: Low
+Type: String
+
+
+
+docker.worker_image#
+Docker image for the worker nodes to override the default docker image.
+
+Required: No
+Importance: Low
+Type: String
+
+
+
+docker.container_name#
+The name to use when starting the Docker container.
+
+Required: Yes (If Docker is in use.)
+Importance: Low
+Type: String
+Default: ray_container
+
+
+
+docker.pull_before_run#
+If enabled, the latest version of image will be pulled when starting Docker. If disabled, docker run will only pull the image if no cached version is present.
+
+Required: No
+Importance: Medium
+Type: Boolean
+Default: True
+
+
+
+docker.run_options#
+The extra options to pass to docker run.
+
+Required: No
+Importance: Medium
+Type: List of String
+Default: []
+
+
+
+docker.head_run_options#
+The extra options to pass to docker run for head node only.
+
+Required: No
+Importance: Low
+Type: List of String
+Default: []
+
+
+
+docker.worker_run_options#
+The extra options to pass to docker run for worker nodes only.
+
+Required: No
+Importance: Low
+Type: List of String
+Default: []
+
+
+
+docker.disable_automatic_runtime_detection#
+If enabled, Ray will not try to use the NVIDIA Container Runtime if GPUs are present.
+
+Required: No
+Importance: Low
+Type: Boolean
+Default: False
+
+
+
+docker.disable_shm_size_detection#
+If enabled, Ray will not automatically specify the size /dev/shm for the started container and the runtime’s default value (64MiB for Docker) will be used.
+If --shm-size=<> is manually added to run_options, this is automatically set to True, meaning that Ray will defer to the user-provided value.
+
+Required: No
+Importance: Low
+Type: Boolean
+Default: False
+
+
+
+auth.ssh_user#
+The user that Ray will authenticate with when launching new nodes.
+
+Required: Yes
+Importance: High
+Type: String
+
+
+
+auth.ssh_private_key#
+
+
+
+AWS
+The path to an existing private key for Ray to use. If not configured, Ray will create a new private keypair (default behavior). If configured, the key must be added to the project-wide metadata and KeyName has to be defined in the node configuration.
+
+Required: No
+Importance: Low
+Type: String
+
+
+
+
+Azure
+The path to an existing private key for Ray to use.
+
+Required: Yes
+Importance: High
+Type: String
+
+You may use ssh-keygen -t rsa -b 4096 to generate a new ssh keypair.
+
+
+
+GCP
+The path to an existing private key for Ray to use. If not configured, Ray will create a new private keypair (default behavior). If configured, the key must be added to the project-wide metadata and KeyName has to be defined in the node configuration.
+
+Required: No
+Importance: Low
+Type: String
+
+
+
+
+vSphere
+Not available. The vSphere provider expects the key to be located at a fixed path ~/ray-bootstrap-key.pem.
+
+
+
+
+auth.ssh_public_key#
+
+
+
+AWS
+Not available.
+
+
+
+Azure
+The path to an existing public key for Ray to use.
+
+Required: Yes
+Importance: High
+Type: String
+
+
+
+
+GCP
+Not available.
+
+
+
+vSphere
+Not available.
+
+
+
+
+provider.type#
+
+
+
+AWS
+The cloud service provider. For AWS, this must be set to aws.
+
+Required: Yes
+Importance: High
+Type: String
+
+
+
+
+Azure
+The cloud service provider. For Azure, this must be set to azure.
+
+Required: Yes
+Importance: High
+Type: String
+
+
+
+
+GCP
+The cloud service provider. For GCP, this must be set to gcp.
+
+Required: Yes
+Importance: High
+Type: String
+
+
+
+
+vSphere
+The cloud service provider. For vSphere and VCF, this must be set to vsphere.
+
+Required: Yes
+Importance: High
+Type: String
+
+
+
+
+
+provider.region#
+
+
+
+AWS
+The region to use for deployment of the Ray cluster.
+
+Required: Yes
+Importance: High
+Type: String
+Default: us-west-2
+
+
+
+
+Azure
+Not available.
+
+
+
+GCP
+The region to use for deployment of the Ray cluster.
+
+Required: Yes
+Importance: High
+Type: String
+Default: us-west1
+
+
+
+
+vSphere
+Not available.
+
+
+
+
+provider.availability_zone#
+
+
+
+AWS
+A string specifying a comma-separated list of availability zone(s) that nodes may be launched in.
+Nodes will be launched in the first listed availability zone and will be tried in the following availability
+zones if launching fails.
+
+Required: No
+Importance: Low
+Type: String
+Default: us-west-2a,us-west-2b
+
+
+
+
+Azure
+Not available.
+
+
+
+GCP
+A string specifying a comma-separated list of availability zone(s) that nodes may be launched in.
+
+Required: No
+Importance: Low
+Type: String
+Default: us-west1-a
+
+
+
+
+vSphere
+Not available.
+
+
+
+
+provider.location#
+
+
+
+AWS
+Not available.
+
+
+
+Azure
+The location to use for deployment of the Ray cluster.
+
+Required: Yes
+Importance: High
+Type: String
+Default: westus2
+
+
+
+
+GCP
+Not available.
+
+
+
+vSphere
+Not available.
+
+
+
+
+provider.resource_group#
+
+
+
+AWS
+Not available.
+
+
+
+Azure
+The resource group to use for deployment of the Ray cluster.
+
+Required: Yes
+Importance: High
+Type: String
+Default: ray-cluster
+
+
+
+
+GCP
+Not available.
+
+
+
+vSphere
+Not available.
+
+
+
+
+provider.subscription_id#
+
+
+
+AWS
+Not available.
+
+
+
+Azure
+The subscription ID to use for deployment of the Ray cluster. If not specified, Ray will use the default from the Azure CLI.
+
+Required: No
+Importance: High
+Type: String
+Default: ""
+
+
+
+
+GCP
+Not available.
+
+
+
+vSphere
+Not available.
+
+
+
+
+provider.msi_name#
+
+
+
+AWS
+Not available.
+
+
+
+Azure
+The name of the managed identity to use for deployment of the Ray cluster. If not specified, Ray will create a default user-assigned managed identity.
+
+Required: No
+Importance: Low
+Type: String
+Default: ray-default-msi
+
+
+
+
+GCP
+Not available.
+
+
+
+vSphere
+Not available.
+
+
+
+
+provider.msi_resource_group#
+
+
+
+AWS
+Not available.
+
+
+
+Azure
+The name of the managed identity’s resource group to use for deployment of the Ray cluster, used in conjunction with msi_name. If not specified, Ray will create a default user-assigned managed identity in resource group specified in the provider config.
+
+Required: No
+Importance: Low
+Type: String
+Default: ray-cluster
+
+
+
+
+GCP
+Not available.
+
+
+
+vSphere
+Not available.
+
+
+
+
+provider.project_id#
+
+
+
+AWS
+Not available.
+
+
+
+Azure
+Not available.
+
+
+
+GCP
+The globally unique project ID to use for deployment of the Ray cluster.
+
+Required: Yes
+Importance: Low
+Type: String
+Default: null
+
+
+
+
+vSphere
+Not available.
+
+
+
+
+provider.cache_stopped_nodes#
+If enabled, nodes will be stopped when the cluster scales down. If disabled, nodes will be terminated instead. Stopped nodes launch faster than terminated nodes.
+
+Required: No
+Importance: Low
+Type: Boolean
+Default: True
+
+
+
+provider.use_internal_ips#
+If enabled, Ray will use private IP addresses for communication between nodes.
+This should be omitted if your network interfaces use public IP addresses.
+If enabled, Ray CLI commands (e.g. ray up) will have to be run from a machine
+that is part of the same VPC as the cluster.
+This option does not affect the existence of public IP addresses for the nodes, it only
+affects which IP addresses are used by Ray. The existence of public IP addresses is
+controlled by your cloud provider’s configuration.
+
+Required: No
+Importance: Low
+Type: Boolean
+Default: False
+
+
+
+provider.use_external_head_ip#
+
+
+
+AWS
+Not available.
+
+
+
+Azure
+If enabled, Ray will provision and use a public IP address for communication with the head node,
+regardless of the value of use_internal_ips. This option can be used in combination with
+use_internal_ips to avoid provisioning excess public IPs for worker nodes (i.e., communicate
+among nodes using private IPs, but provision a public IP for head node communication only). If
+use_internal_ips is False, then this option has no effect.
+
+Required: No
+Importance: Low
+Type: Boolean
+Default: False
+
+
+
+
+GCP
+Not available.
+
+
+
+vSphere
+Not available.
+
+
+
+
+provider.security_group#
+
+
+
+AWS
+A security group that can be used to specify custom inbound rules.
+
+Required: No
+Importance: Medium
+Type: Security Group
+
+
+
+
+Azure
+Not available.
+
+
+
+GCP
+Not available.
+
+
+
+vSphere
+Not available.
+
+
+
+
+provider.vsphere_config#
+
+
+
+AWS
+Not available.
+
+
+
+Azure
+Not available.
+
+
+
+GCP
+Not available.
+
+
+
+vSphere
+vSphere configurations used to connect vCenter Server. If not configured,
+the VSPHERE_* environment variables will be used.
+
+Required: No
+Importance: Low
+Type: vSphere Config
+
+
+
+
+
+security_group.GroupName#
+The name of the security group. This name must be unique within the VPC.
+
+Required: No
+Importance: Low
+Type: String
+Default: "ray-autoscaler-{cluster-name}"
+
+
+
+security_group.IpPermissions#
+The inbound rules associated with the security group.
+
+Required: No
+Importance: Medium
+Type: IpPermission
+
+
+
+vsphere_config.credentials#
+The credential to connect to the vSphere vCenter Server.
+
+Required: No
+Importance: Low
+Type: vSphere Credentials
+
+
+
+vsphere_config.credentials.user#
+Username to connect to vCenter Server.
+
+Required: No
+Importance: Low
+Type: String
+
+
+
+vsphere_config.credentials.password#
+Password of the user to connect to vCenter Server.
+
+Required: No
+Importance: Low
+Type: String
+
+
+
+vsphere_config.credentials.server#
+The vSphere vCenter Server address.
+
+Required: No
+Importance: Low
+Type: String
+
+
+
+vsphere_config.frozen_vm#
+The frozen VM related configurations.
+If the frozen VM(s) is/are existing, then library_item should be unset. Either an existing frozen VM should be specified by name, or a resource pool name of frozen VMs on every ESXi (https://docs.vmware.com/en/VMware-vSphere/index.html) host should be specified by resource_pool.
+If the frozen VM(s) is/are to be deployed from OVF template, then library_item must be set to point to an OVF template (https://docs.vmware.com/en/VMware-vSphere/8.0/vsphere-vm-administration/GUID-AFEDC48B-C96F-4088-9C1F-4F0A30E965DE.html) in the content library. In such a case, name must be set to indicate the name or the name prefix of the frozen VM(s). Then, either resource_pool should be set to indicate that a set of frozen VMs will be created on each ESXi host of the resource pool, or cluster should be set to indicate that creating a single frozen VM in the vSphere cluster. The config datastore (https://docs.vmware.com/en/VMware-vSphere/7.0/com.vmware.vsphere.storage.doc/GUID-D5AB2BAD-C69A-4B8D-B468-25D86B8D39CE.html) is mandatory in this case.
+Valid examples:
+
+ray up on a frozen VM to be deployed from an OVF template:
+
+frozen_vm:
+    name: single-frozen-vm
+    library_item: frozen-vm-template
+    cluster: vsanCluster
+    datastore: vsanDatastore
+
+
+
+
+ray up on an existing frozen VM:
+
+frozen_vm:
+    name: existing-single-frozen-vm
+
+
+
+
+ray up on a resource pool of frozen VMs to be deployed from an OVF template:
+
+frozen_vm:
+    name: frozen-vm-prefix
+    library_item: frozen-vm-template
+    resource_pool: frozen-vm-resource-pool
+    datastore: vsanDatastore
+
+
+
+
+ray up on an existing resource pool of frozen VMs:
+
+frozen_vm:
+    resource_pool: frozen-vm-resource-pool
+
+
+
+
+
+Other cases not in above examples are invalid.
+
+Required: Yes
+Importance: High
+Type: vSphere Frozen VM Configs
+
+
+
+vsphere_config.frozen_vm.name#
+The name or the name prefix of the frozen VM.
+Can only be unset when resource_pool is set and pointing to an existing resource pool of frozen VMs.
+
+Required: No
+Importance: Medium
+Type: String
+
+
+
+vsphere_config.frozen_vm.library_item#
+The library item (https://docs.vmware.com/en/VMware-vSphere/8.0/vsphere-vm-administration/GUID-D3DD122F-16A5-4F36-8467-97994A854B16.html#GUID-D3DD122F-16A5-4F36-8467-97994A854B16) of the OVF template of the frozen VM. If set, the frozen VM or a set of frozen VMs will be deployed from an OVF template specified by library_item. Otherwise, frozen VM(s) should be existing.
+Visit the VM Packer for Ray project (vmware-ai-labs/vm-packer-for-ray) to know how to create an OVF template for frozen VMs.
+
+Required: No
+Importance: Low
+Type: String
+
+
+
+vsphere_config.frozen_vm.resource_pool#
+The resource pool name of the frozen VMs, can point to an existing resource pool of frozen VMs. Otherwise, library_item must be specified and a set of frozen VMs will be deployed on each ESXi host.
+The frozen VMs will be named as “{frozen_vm.name}-{the vm’s ip address}”
+
+Required: No
+Importance: Medium
+Type: String
+
+
+
+vsphere_config.frozen_vm.cluster#
+The vSphere cluster name, only takes effect when library_item is set and resource_pool is unset.
+Indicates to deploy a single frozen VM on the vSphere cluster from OVF template.
+
+Required: No
+Importance: Medium
+Type: String
+
+
+
+vsphere_config.frozen_vm.datastore#
+The target vSphere datastore name for storing the virtual machine files of the frozen VM to be deployed from OVF template.
+Will take effect only when library_item is set. If resource_pool is also set, this datastore must be a shared datastore among the ESXi hosts.
+
+Required: No
+Importance: Low
+Type: String
+
+
+
+vsphere_config.gpu_config#
+
+
+vsphere_config.gpu_config.dynamic_pci_passthrough#
+The switch controlling the way for binding the GPU from ESXi host to the Ray node VM.
+The default value is False, which indicates regular PCI Passthrough.
+If set to True, the Dynamic PCI passthrough (https://docs.vmware.com/en/VMware-vSphere/8.0/vsphere-esxi-host-client/GUID-2B6D43A6-9598-47C4-A2E7-5924E3367BB6.html) will be enabled for the GPU.
+The VM with Dynamic PCI passthrough GPU can still support vSphere DRS (https://www.vmware.com/products/vsphere/drs-dpm.html).
+
+Required: No
+Importance: Low
+Type: Boolean
+
+
+
+available_node_types.<node_type_name>.node_type.node_config#
+The configuration to be used to launch the nodes on the cloud service provider. Among other things, this will specify the instance type to be launched.
+
+Required: Yes
+Importance: High
+Type: Node config
+
+
+
+available_node_types.<node_type_name>.node_type.resources#
+The resources that a node type provides, which enables the autoscaler to automatically select the right type of nodes to launch given the resource demands of the application. The resources specified will be automatically passed to the ray start command for the node via an environment variable. If not provided, Autoscaler can automatically detect them only for AWS/Kubernetes cloud providers. For more information, see also the resource demand scheduler
+
+Required: Yes (except for AWS/K8s)
+Importance: High
+Type: Resources
+Default: {}
+
+In some cases, adding special nodes without any resources may be desirable. Such nodes can be used as a driver which connects to the cluster to launch jobs. In order to manually add a node to an autoscaled cluster, the ray-cluster-name tag should be set and ray-node-type tag should be set to unmanaged. Unmanaged nodes can be created by setting the resources to {} and the maximum workers to 0. The Autoscaler will not attempt to start, stop, or update unmanaged nodes. The user is responsible for properly setting up and cleaning up unmanaged nodes.
+
+
+available_node_types.<node_type_name>.node_type.min_workers#
+The minimum number of workers to maintain for this node type regardless of utilization.
+
+Required: No
+Importance: High
+Type: Integer
+Default: 0
+Minimum: 0
+Maximum: Unbounded
+
+
+
+available_node_types.<node_type_name>.node_type.max_workers#
+The maximum number of workers to have in the cluster for this node type regardless of utilization. This takes precedence over minimum workers. By default, the number of workers of a node type is unbounded, constrained only by the cluster-wide max_workers. (Prior to Ray 1.3.0, the default value for this field was 0.)
+Note, for the nodes of type head_node_type the default number of max workers is 0.
+
+Required: No
+Importance: High
+Type: Integer
+Default: cluster-wide max_workers
+Minimum: 0
+Maximum: cluster-wide max_workers
+
+
+
+available_node_types.<node_type_name>.node_type.worker_setup_commands#
+A list of commands to run to set up worker nodes of this type. These commands will replace the general worker setup commands for the node.
+
+Required: No
+Importance: low
+Type: List of String
+Default: []
+
+
+
+available_node_types.<node_type_name>.node_type.resources.CPU#
+
+
+
+AWS
+The number of CPUs made available by this node. If not configured, Autoscaler can automatically detect them only for AWS/Kubernetes cloud providers.
+
+Required: Yes (except for AWS/K8s)
+Importance: High
+Type: Integer
+
+
+
+
+Azure
+The number of CPUs made available by this node.
+
+Required: Yes
+Importance: High
+Type: Integer
+
+
+
+
+GCP
+The number of CPUs made available by this node.
+
+Required: No
+Importance: High
+Type: Integer
+
+
+
+
+vSphere
+The number of CPUs made available by this node. If not configured, the nodes will use the same settings as the frozen VM.
+
+Required: No
+Importance: High
+Type: Integer
+
+
+
+
+
+available_node_types.<node_type_name>.node_type.resources.GPU#
+
+
+
+AWS
+The number of GPUs made available by this node. If not configured, Autoscaler can automatically detect them only for AWS/Kubernetes cloud providers.
+
+Required: No
+Importance: Low
+Type: Integer
+
+
+
+
+Azure
+The number of GPUs made available by this node.
+
+Required: No
+Importance: High
+Type: Integer
+
+
+
+
+GCP
+The number of GPUs made available by this node.
+
+Required: No
+Importance: High
+Type: Integer
+
+
+
+
+vSphere
+The number of GPUs made available by this node.
+
+Required: No
+Importance: High
+Type: Integer
+
+
+
+
+
+available_node_types.<node_type_name>.node_type.resources.memory#
+
+
+
+AWS
+The memory in bytes allocated for python worker heap memory on the node.
+If not configured, Autoscaler will automatically detect the amount of RAM on
+the node for AWS/Kubernetes and allocate 70% of it for the heap.
+
+Required: No
+Importance: Low
+Type: Integer
+
+
+
+
+Azure
+The memory in bytes allocated for python worker heap memory on the node.
+
+Required: No
+Importance: High
+Type: Integer
+
+
+
+
+GCP
+The memory in bytes allocated for python worker heap memory on the node.
+
+Required: No
+Importance: High
+Type: Integer
+
+
+
+
+vSphere
+The memory in megabytes allocated for python worker heap memory on the node.
+If not configured, the node will use the same memory settings as the frozen VM.
+
+Required: No
+Importance: High
+Type: Integer
+
+
+
+
+
+available_node_types.<node_type_name>.node_type.resources.object-store-memory#
+
+
+
+AWS
+The memory in bytes allocated for the object store on the node. If not configured, Autoscaler will automatically detect the amount of RAM on the node for AWS/Kubernetes and allocate 30% of it for the object store.
+
+Required: No
+Importance: Low
+Type: Integer
+
+
+
+
+Azure
+The memory in bytes allocated for the object store on the node.
+
+Required: No
+Importance: High
+Type: Integer
+
+
+
+
+GCP
+The memory in bytes allocated for the object store on the node.
+
+Required: No
+Importance: High
+Type: Integer
+
+
+
+
+vSphere
+The memory in bytes allocated for the object store on the node.
+
+Required: No
+Importance: High
+Type: Integer
+
+
+
+
+
+available_node_types.<node_type_name>.docker#
+A set of overrides to the top-level Docker configuration.
+
+Required: No
+Importance: Low
+Type: docker
+Default: {}
+
+
+
+
+Examples#
+
+Minimal configuration#
+
+
+
+AWS
+# An unique identifier for the head node and workers of this cluster.
+cluster_name: aws-example-minimal
+
+# Cloud-provider specific configuration.
+provider:
+    type: aws
+    region: us-west-2
+
+# The maximum number of workers nodes to launch in addition to the head
+# node.
+max_workers: 3
+
+# Tell the autoscaler the allowed node types and the resources they provide.
+# The key is the name of the node type, which is for debugging purposes.
+# The node config specifies the launch config and physical instance type.
+available_node_types:
+    ray.head.default:
+        # The node type's CPU and GPU resources are auto-detected based on AWS instance type.
+        # If desired, you can override the autodetected CPU and GPU resources advertised to the autoscaler.
+        # You can also set custom resources.
+        # For example, to mark a node type as having 1 CPU, 1 GPU, and 5 units of a resource called "custom", set
+        # resources: {"CPU": 1, "GPU": 1, "custom": 5}
+        resources: {}
+        # Provider-specific config for this node type, e.g., instance type. By default
+        # Ray auto-configures unspecified fields such as SubnetId and KeyName.
+        # For more documentation on available fields, see
+        # http://boto3.readthedocs.io/en/latest/reference/services/ec2.html#EC2.ServiceResource.create_instances
+        node_config:
+            InstanceType: m5.large
+    ray.worker.default:
+        # The minimum number of worker nodes of this type to launch.
+        # This number should be >= 0.
+        min_workers: 3
+        # The maximum number of worker nodes of this type to launch.
+        # This parameter takes precedence over min_workers.
+        max_workers: 3
+        # The node type's CPU and GPU resources are auto-detected based on AWS instance type.
+        # If desired, you can override the autodetected CPU and GPU resources advertised to the autoscaler.
+        # You can also set custom resources.
+        # For example, to mark a node type as having 1 CPU, 1 GPU, and 5 units of a resource called "custom", set
+        # resources: {"CPU": 1, "GPU": 1, "custom": 5}
+        resources: {}
+        # Provider-specific config for this node type, e.g., instance type. By default
+        # Ray auto-configures unspecified fields such as SubnetId and KeyName.
+        # For more documentation on available fields, see
+        # http://boto3.readthedocs.io/en/latest/reference/services/ec2.html#EC2.ServiceResource.create_instances
+        node_config:
+            InstanceType: m5.large
+
+
+
+
+
+Azure
+# An unique identifier for the head node and workers of this cluster.
+cluster_name: minimal
+
+# The maximum number of workers nodes to launch in addition to the head
+# node. min_workers default to 0.
+max_workers: 1
+
+# Cloud-provider specific configuration.
+provider:
+    type: azure
+    location: westus2
+    resource_group: ray-cluster
+
+# How Ray will authenticate with newly launched nodes.
+auth:
+    ssh_user: ubuntu
+    # you must specify paths to matching private and public key pair files
+    # use `ssh-keygen -t rsa -b 4096` to generate a new ssh key pair
+    ssh_private_key: ~/.ssh/id_rsa
+    # changes to this should match what is specified in file_mounts
+    ssh_public_key: ~/.ssh/id_rsa.pub
+
+
+
+
+
+GCP
+auth:
+  ssh_user: ubuntu
+cluster_name: minimal
+provider:
+  availability_zone: us-west1-a
+  project_id: null # TODO: set your GCP project ID here
+  region: us-west1
+  type: gcp
+
+
+
+
+
+vSphere
+# An unique identifier for the head node and workers of this cluster.
+cluster_name: default
+
+# The maximum number of workers nodes to launch in addition to the head
+# node.
+max_workers: 5
+
+# Cloud-provider specific configuration.
+provider:
+    type: vsphere
+
+# How Ray will authenticate with newly launched nodes.
+auth:
+    ssh_user: ray
+# By default Ray creates a new private keypair, but you can also use your own.
+# If you do so, make sure to also set "KeyName" in the head and worker node
+# configurations below.
+    ssh_private_key: ~/ray-bootstrap-key.pem
+
+# Tell the autoscaler the allowed node types and the resources they provide.
+# The key is the name of the node type, which is just for debugging purposes.
+# The node config specifies the launch config and physical instance type.
+available_node_types:
+    ray.head.default:
+        # You can override the resources here. Adding GPU to the head node is not recommended.
+        # resources: { "CPU": 2, "Memory": 4096}
+        resources: {}
+    ray.worker.default:
+        # The minimum number of nodes of this type to launch.
+        # This number should be >= 0.
+        min_workers: 1
+        max_workers: 3
+        # You can override the resources here. For GPU, currently only Nvidia GPU is supported. If no ESXi host can
+        # fulfill the requirement, the Ray node creation will fail. The number of created nodes may not meet the desired
+        # minimum number. The vSphere node provider will not distinguish the GPU type. It will just count the quantity:
+        # mount the first k random available Nvidia GPU to the VM, if the user set {"GPU": k}.
+        # resources: {"CPU": 2, "Memory": 4096, "GPU": 1}
+        resources: {}
+
+# Specify the node type of the head node (as configured above).
+head_node_type: ray.head.default
+
+
+
+
+
+
+Full configuration#
+
+
+
+AWS
+# An unique identifier for the head node and workers of this cluster.
+cluster_name: default
+
+# The maximum number of workers nodes to launch in addition to the head
+# node.
+max_workers: 2
+
+# The autoscaler will scale up the cluster faster with higher upscaling speed.
+# E.g., if the task requires adding more nodes then autoscaler will gradually
+# scale up the cluster in chunks of upscaling_speed*currently_running_nodes.
+# This number should be > 0.
+upscaling_speed: 1.0
+
+# This executes all commands on all nodes in the docker container,
+# and opens all the necessary ports to support the Ray cluster.
+# Empty string means disabled.
+docker:
+    image: "rayproject/ray-ml:latest-gpu" # You can change this to latest-cpu if you don't need GPU support and want a faster startup
+    # image: rayproject/ray:latest-cpu   # use this one if you don't need ML dependencies, it's faster to pull
+    container_name: "ray_container"
+    # If true, pulls latest version of image. Otherwise, `docker run` will only pull the image
+    # if no cached version is present.
+    pull_before_run: True
+    run_options:   # Extra options to pass into "docker run"
+        - --ulimit nofile=65536:65536
+
+    # Example of running a GPU head with CPU workers
+    # head_image: "rayproject/ray-ml:latest-gpu"
+    # Allow Ray to automatically detect GPUs
+
+    # worker_image: "rayproject/ray-ml:latest-cpu"
+    # worker_run_options: []
+
+# If a node is idle for this many minutes, it will be removed.
+idle_timeout_minutes: 5
+
+# Cloud-provider specific configuration.
+provider:
+    type: aws
+    region: us-west-2
+    # Availability zone(s), comma-separated, that nodes may be launched in.
+    # Nodes will be launched in the first listed availability zone and will
+    # be tried in the subsequent availability zones if launching fails.
+    availability_zone: us-west-2a,us-west-2b
+    # Whether to allow node reuse. If set to False, nodes will be terminated
+    # instead of stopped.
+    cache_stopped_nodes: True # If not present, the default is True.
+
+# How Ray will authenticate with newly launched nodes.
+auth:
+    ssh_user: ubuntu
+# By default Ray creates a new private keypair, but you can also use your own.
+# If you do so, make sure to also set "KeyName" in the head and worker node
+# configurations below.
+#    ssh_private_key: /path/to/your/key.pem
+
+# Tell the autoscaler the allowed node types and the resources they provide.
+# The key is the name of the node type, which is just for debugging purposes.
+# The node config specifies the launch config and physical instance type.
+available_node_types:
+    ray.head.default:
+        # The node type's CPU and GPU resources are auto-detected based on AWS instance type.
+        # If desired, you can override the autodetected CPU and GPU resources advertised to the autoscaler.
+        # You can also set custom resources.
+        # For example, to mark a node type as having 1 CPU, 1 GPU, and 5 units of a resource called "custom", set
+        # resources: {"CPU": 1, "GPU": 1, "custom": 5}
+        resources: {}
+        # Provider-specific config for this node type, e.g. instance type. By default
+        # Ray will auto-configure unspecified fields such as SubnetId and KeyName.
+        # For more documentation on available fields, see:
+        # http://boto3.readthedocs.io/en/latest/reference/services/ec2.html#EC2.ServiceResource.create_instances
+        node_config:
+            InstanceType: m5.large
+            # Default AMI for us-west-2.
+            # Check https://github.com/ray-project/ray/blob/master/python/ray/autoscaler/_private/aws/config.py
+            # for default images for other zones.
+            ImageId: ami-0387d929287ab193e
+            # You can provision additional disk space with a conf as follows
+            BlockDeviceMappings:
+                - DeviceName: /dev/sda1
+                  Ebs:
+                      VolumeSize: 140
+                      VolumeType: gp3
+            # Additional options in the boto docs.
+    ray.worker.default:
+        # The minimum number of worker nodes of this type to launch.
+        # This number should be >= 0.
+        min_workers: 1
+        # The maximum number of worker nodes of this type to launch.
+        # This takes precedence over min_workers.
+        max_workers: 2
+        # The node type's CPU and GPU resources are auto-detected based on AWS instance type.
+        # If desired, you can override the autodetected CPU and GPU resources advertised to the autoscaler.
+        # You can also set custom resources.
+        # For example, to mark a node type as having 1 CPU, 1 GPU, and 5 units of a resource called "custom", set
+        # resources: {"CPU": 1, "GPU": 1, "custom": 5}
+        resources: {}
+        # Provider-specific config for this node type, e.g. instance type. By default
+        # Ray will auto-configure unspecified fields such as SubnetId and KeyName.
+        # For more documentation on available fields, see:
+        # http://boto3.readthedocs.io/en/latest/reference/services/ec2.html#EC2.ServiceResource.create_instances
+        node_config:
+            InstanceType: m5.large
+            # Default AMI for us-west-2.
+            # Check https://github.com/ray-project/ray/blob/master/python/ray/autoscaler/_private/aws/config.py
+            # for default images for other zones.
+            ImageId: ami-0387d929287ab193e
+            # Run workers on spot by default. Comment this out to use on-demand.
+            # NOTE: If relying on spot instances, it is best to specify multiple different instance
+            # types to avoid interruption when one instance type is experiencing heightened demand.
+            # Demand information can be found at https://aws.amazon.com/ec2/spot/instance-advisor/
+            InstanceMarketOptions:
+                MarketType: spot
+                # Additional options can be found in the boto docs, e.g.
+                #   SpotOptions:
+                #       MaxPrice: MAX_HOURLY_PRICE
+            # Additional options in the boto docs.
+
+# Specify the node type of the head node (as configured above).
+head_node_type: ray.head.default
+
+# Files or directories to copy to the head and worker nodes. The format is a
+# dictionary from REMOTE_PATH: LOCAL_PATH, e.g.
+file_mounts: {
+#    "/path1/on/remote/machine": "/path1/on/local/machine",
+#    "/path2/on/remote/machine": "/path2/on/local/machine",
+}
+
+# Files or directories to copy from the head node to the worker nodes. The format is a
+# list of paths. The same path on the head node will be copied to the worker node.
+# This behavior is a subset of the file_mounts behavior. In the vast majority of cases
+# you should just use file_mounts. Only use this if you know what you're doing!
+cluster_synced_files: []
+
+# Whether changes to directories in file_mounts or cluster_synced_files in the head node
+# should sync to the worker node continuously
+file_mounts_sync_continuously: False
+
+# Patterns for files to exclude when running rsync up or rsync down
+rsync_exclude:
+    - "**/.git"
+    - "**/.git/**"
+
+# Pattern files to use for filtering out files when running rsync up or rsync down. The file is searched for
+# in the source directory and recursively through all subdirectories. For example, if .gitignore is provided
+# as a value, the behavior will match git's behavior for finding and using .gitignore files.
+rsync_filter:
+    - ".gitignore"
+
+# List of commands that will be run before `setup_commands`. If docker is
+# enabled, these commands will run outside the container and before docker
+# is setup.
+initialization_commands: []
+
+# List of shell commands to run to set up nodes.
+setup_commands: []
+    # Note: if you're developing Ray, you probably want to create a Docker image that
+    # has your Ray repo pre-cloned. Then, you can replace the pip installs
+    # below with a git checkout <your_sha> (and possibly a recompile).
+    # To run the nightly version of ray (as opposed to the latest), either use a rayproject docker image
+    # that has the "nightly" (e.g. "rayproject/ray-ml:nightly-gpu") or uncomment the following line:
+    # - pip install -U "ray[default] @ https://s3-us-west-2.amazonaws.com/ray-wheels/latest/ray-3.0.0.dev0-cp37-cp37m-manylinux2014_x86_64.whl"
+
+# Custom commands that will be run on the head node after common setup.
+head_setup_commands: []
+
+# Custom commands that will be run on worker nodes after common setup.
+worker_setup_commands: []
+
+# Command to start ray on the head node. You don't need to change this.
+head_start_ray_commands:
+    - ray stop
+    - ray start --head --port=6379 --object-manager-port=8076 --autoscaling-config=~/ray_bootstrap_config.yaml --dashboard-host=0.0.0.0
+
+# Command to start ray on worker nodes. You don't need to change this.
+worker_start_ray_commands:
+    - ray stop
+    - ray start --address=$RAY_HEAD_IP:6379 --object-manager-port=8076
+
+
+
+
+
+Azure
+# An unique identifier for the head node and workers of this cluster.
+cluster_name: default
+
+# The maximum number of workers nodes to launch in addition to the head
+# node.
+max_workers: 2
+
+# The autoscaler will scale up the cluster faster with higher upscaling speed.
+# E.g., if the task requires adding more nodes then autoscaler will gradually
+# scale up the cluster in chunks of upscaling_speed*currently_running_nodes.
+# This number should be > 0.
+upscaling_speed: 1.0
+
+# This executes all commands on all nodes in the docker container,
+# and opens all the necessary ports to support the Ray cluster.
+# Empty object means disabled.
+docker:
+    image: "rayproject/ray-ml:latest-gpu" # You can change this to latest-cpu if you don't need GPU support and want a faster startup
+    # image: rayproject/ray:latest-gpu   # use this one if you don't need ML dependencies, it's faster to pull
+    container_name: "ray_container"
+    # If true, pulls latest version of image. Otherwise, `docker run` will only pull the image
+    # if no cached version is present.
+    pull_before_run: True
+    run_options:   # Extra options to pass into "docker run"
+        - --ulimit nofile=65536:65536
+
+    # Example of running a GPU head with CPU workers
+    # head_image: "rayproject/ray-ml:latest-gpu"
+    # Allow Ray to automatically detect GPUs
+
+    # worker_image: "rayproject/ray-ml:latest-cpu"
+    # worker_run_options: []
+
+# If a node is idle for this many minutes, it will be removed.
+idle_timeout_minutes: 5
+
+# Cloud-provider specific configuration.
+provider:
+    type: azure
+    # https://azure.microsoft.com/en-us/global-infrastructure/locations
+    location: westus2
+    resource_group: ray-cluster
+    # set subscription id otherwise the default from az cli will be used
+    # subscription_id: 00000000-0000-0000-0000-000000000000
+    # set unique subnet mask or a random mask will be used
+    # subnet_mask: 10.0.0.0/16
+    # set unique id for resources in this cluster
+    # if not set a default id will be generated based on the resource group and cluster name
+    # unique_id: RAY1
+    # set managed identity name and resource group
+    # if not set, a default user-assigned identity will be generated in the resource group specified above
+    # msi_name: ray-cluster-msi
+    # msi_resource_group: other-rg
+    # Set provisioning and use of public/private IPs for head and worker nodes. If both options below are true,
+    # only the head node will have a public IP address provisioned.
+    # use_internal_ips: True
+    # use_external_head_ip: True
+
+# How Ray will authenticate with newly launched nodes.
+auth:
+    ssh_user: ubuntu
+    # you must specify paths to matching private and public key pair files
+    # use `ssh-keygen -t rsa -b 4096` to generate a new ssh key pair
+    ssh_private_key: ~/.ssh/id_rsa
+    # changes to this should match what is specified in file_mounts
+    ssh_public_key: ~/.ssh/id_rsa.pub
+
+# More specific customization to node configurations can be made using the ARM template azure-vm-template.json file
+# See documentation here: https://docs.microsoft.com/en-us/azure/templates/microsoft.compute/2019-03-01/virtualmachines
+# Changes to the local file will be used during deployment of the head node, however worker nodes deployment occurs
+# on the head node, so changes to the template must be included in the wheel file used in setup_commands section below
+
+# Tell the autoscaler the allowed node types and the resources they provide.
+# The key is the name of the node type, which is just for debugging purposes.
+# The node config specifies the launch config and physical instance type.
+available_node_types:
+    ray.head.default:
+        # The resources provided by this node type.
+        resources: {"CPU": 2}
+        # Provider-specific config, e.g. instance type.
+        node_config:
+            azure_arm_parameters:
+                vmSize: Standard_D2s_v3
+                # List images https://docs.microsoft.com/en-us/azure/virtual-machines/linux/cli-ps-findimage
+                imagePublisher: microsoft-dsvm
+                imageOffer: ubuntu-1804
+                imageSku: 1804-gen2
+                imageVersion: latest
+
+    ray.worker.default:
+        # The minimum number of worker nodes of this type to launch.
+        # This number should be >= 0.
+        min_workers: 0
+        # The maximum number of worker nodes of this type to launch.
+        # This takes precedence over min_workers.
+        max_workers: 2
+        # The resources provided by this node type.
+        resources: {"CPU": 2}
+        # Provider-specific config, e.g. instance type.
+        node_config:
+            azure_arm_parameters:
+                vmSize: Standard_D2s_v3
+                # List images https://docs.microsoft.com/en-us/azure/virtual-machines/linux/cli-ps-findimage
+                imagePublisher: microsoft-dsvm
+                imageOffer: ubuntu-1804
+                imageSku: 1804-gen2
+                imageVersion: latest
+                # optionally set priority to use Spot instances
+                priority: Spot
+                # set a maximum price for spot instances if desired
+                # billingProfile:
+                #     maxPrice: -1
+
+# Specify the node type of the head node (as configured above).
+head_node_type: ray.head.default
+
+# Files or directories to copy to the head and worker nodes. The format is a
+# dictionary from REMOTE_PATH: LOCAL_PATH, e.g.
+file_mounts: {
+#    "/path1/on/remote/machine": "/path1/on/local/machine",
+#    "/path2/on/remote/machine": "/path2/on/local/machine",
+     "~/.ssh/id_rsa.pub": "~/.ssh/id_rsa.pub"
+}
+
+# Files or directories to copy from the head node to the worker nodes. The format is a
+# list of paths. The same path on the head node will be copied to the worker node.
+# This behavior is a subset of the file_mounts behavior. In the vast majority of cases
+# you should just use file_mounts. Only use this if you know what you're doing!
+cluster_synced_files: []
+
+# Whether changes to directories in file_mounts or cluster_synced_files in the head node
+# should sync to the worker node continuously
+file_mounts_sync_continuously: False
+
+# Patterns for files to exclude when running rsync up or rsync down
+rsync_exclude:
+    - "**/.git"
+    - "**/.git/**"
+
+# Pattern files to use for filtering out files when running rsync up or rsync down. The file is searched for
+# in the source directory and recursively through all subdirectories. For example, if .gitignore is provided
+# as a value, the behavior will match git's behavior for finding and using .gitignore files.
+rsync_filter:
+    - ".gitignore"
+
+# List of commands that will be run before `setup_commands`. If docker is
+# enabled, these commands will run outside the container and before docker
+# is setup.
+initialization_commands:
+    # enable docker setup
+    - sudo usermod -aG docker $USER || true
+    - sleep 10  # delay to avoid docker permission denied errors
+    # get rid of annoying Ubuntu message
+    - touch ~/.sudo_as_admin_successful
+
+# List of shell commands to run to set up nodes.
+# NOTE: rayproject/ray-ml:latest has ray latest bundled
+setup_commands: []
+    # Note: if you're developing Ray, you probably want to create a Docker image that
+    # has your Ray repo pre-cloned. Then, you can replace the pip installs
+    # below with a git checkout <your_sha> (and possibly a recompile).
+    # To run the nightly version of ray (as opposed to the latest), either use a rayproject docker image
+    # that has the "nightly" (e.g. "rayproject/ray-ml:nightly-gpu") or uncomment the following line:
+    # - pip install -U "ray[default] @ https://s3-us-west-2.amazonaws.com/ray-wheels/latest/ray-3.0.0.dev0-cp38-cp38-manylinux2014_x86_64.whl"
+
+# Custom commands that will be run on the head node after common setup.
+head_setup_commands:
+    - pip install -U azure-cli-core==2.29.1 azure-identity==1.7.0 azure-mgmt-compute==23.1.0 azure-mgmt-network==19.0.0 azure-mgmt-resource==20.0.0 msrestazure==0.6.4
+
+# Custom commands that will be run on worker nodes after common setup.
+worker_setup_commands: []
+
+# Command to start ray on the head node. You don't need to change this.
+head_start_ray_commands:
+    - ray stop
+    - ray start --head --port=6379 --object-manager-port=8076 --autoscaling-config=~/ray_bootstrap_config.yaml
+
+# Command to start ray on worker nodes. You don't need to change this.
+worker_start_ray_commands:
+    - ray stop
+    - ray start --address=$RAY_HEAD_IP:6379 --object-manager-port=8076
+
+
+
+
+
+GCP
+# An unique identifier for the head node and workers of this cluster.
+cluster_name: default
+
+# The maximum number of workers nodes to launch in addition to the head
+# node.
+max_workers: 2
+
+# The autoscaler will scale up the cluster faster with higher upscaling speed.
+# E.g., if the task requires adding more nodes then autoscaler will gradually
+# scale up the cluster in chunks of upscaling_speed*currently_running_nodes.
+# This number should be > 0.
+upscaling_speed: 1.0
+
+# This executes all commands on all nodes in the docker container,
+# and opens all the necessary ports to support the Ray cluster.
+# Empty string means disabled.
+docker:
+  image: "rayproject/ray-ml:latest-gpu" # You can change this to latest-cpu if you don't need GPU support and want a faster startup
+    # image: rayproject/ray:latest-gpu   # use this one if you don't need ML dependencies, it's faster to pull
+  container_name: "ray_container"
+  # If true, pulls latest version of image. Otherwise, `docker run` will only pull the image
+  # if no cached version is present.
+  pull_before_run: True
+  run_options:  # Extra options to pass into "docker run"
+    - --ulimit nofile=65536:65536
+
+  # Example of running a GPU head with CPU workers
+  # head_image: "rayproject/ray-ml:latest-gpu"
+  # Allow Ray to automatically detect GPUs
+
+  # worker_image: "rayproject/ray-ml:latest-cpu"
+  # worker_run_options: []
+
+# If a node is idle for this many minutes, it will be removed.
+idle_timeout_minutes: 5
+
+# Cloud-provider specific configuration.
+provider:
+    type: gcp
+    region: us-west1
+    availability_zone: us-west1-a
+    project_id: null # Globally unique project id
+
+# How Ray will authenticate with newly launched nodes.
+auth:
+    ssh_user: ubuntu
+# By default Ray creates a new private keypair, but you can also use your own.
+# If you do so, make sure to also set "KeyName" in the head and worker node
+# configurations below. This requires that you have added the key into the
+# project wide meta-data.
+#    ssh_private_key: /path/to/your/key.pem
+
+# Tell the autoscaler the allowed node types and the resources they provide.
+# The key is the name of the node type, which is just for debugging purposes.
+# The node config specifies the launch config and physical instance type.
+available_node_types:
+    ray_head_default:
+        # The resources provided by this node type.
+        resources: {"CPU": 2}
+        # Provider-specific config for the head node, e.g. instance type. By default
+        # Ray will auto-configure unspecified fields such as subnets and ssh-keys.
+        # For more documentation on available fields, see:
+        # https://cloud.google.com/compute/docs/reference/rest/v1/instances/insert
+        node_config:
+            machineType: n1-standard-2
+            disks:
+              - boot: true
+                autoDelete: true
+                type: PERSISTENT
+                initializeParams:
+                  diskSizeGb: 50
+                  # See https://cloud.google.com/compute/docs/images for more images
+                  sourceImage: projects/deeplearning-platform-release/global/images/common-cpu-v20240922
+
+            # Additional options can be found in in the compute docs at
+            # https://cloud.google.com/compute/docs/reference/rest/v1/instances/insert
+
+            # If the network interface is specified as below in both head and worker
+            # nodes, the manual network config is used.  Otherwise an existing subnet is
+            # used.  To use a shared subnet, ask the subnet owner to grant permission
+            # for 'compute.subnetworks.use' to the ray autoscaler account...
+            # networkInterfaces:
+            #   - kind: compute#networkInterface
+            #     subnetwork: path/to/subnet
+            #     aliasIpRanges: []
+    ray_worker_small:
+        # The minimum number of worker nodes of this type to launch.
+        # This number should be >= 0.
+        min_workers: 1
+        # The maximum number of worker nodes of this type to launch.
+        # This takes precedence over min_workers.
+        max_workers: 2
+        # The resources provided by this node type.
+        resources: {"CPU": 2}
+        # Provider-specific config for the head node, e.g. instance type. By default
+        # Ray will auto-configure unspecified fields such as subnets and ssh-keys.
+        # For more documentation on available fields, see:
+        # https://cloud.google.com/compute/docs/reference/rest/v1/instances/insert
+        node_config:
+            machineType: n1-standard-2
+            disks:
+              - boot: true
+                autoDelete: true
+                type: PERSISTENT
+                initializeParams:
+                  diskSizeGb: 50
+                  # See https://cloud.google.com/compute/docs/images for more images
+                  sourceImage: projects/deeplearning-platform-release/global/images/common-cpu-v20240922
+            # Run workers on preemtible instance by default.
+            # Comment this out to use on-demand.
+            scheduling:
+              - preemptible: true
+            # Un-Comment this to launch workers with the Service Account of the Head Node
+            # serviceAccounts:
+            # - email: ray-autoscaler-sa-v1@<project_id>.iam.gserviceaccount.com
+            #   scopes:
+            #   - https://www.googleapis.com/auth/cloud-platform
+
+    # Additional options can be found in in the compute docs at
+    # https://cloud.google.com/compute/docs/reference/rest/v1/instances/insert
+
+# Specify the node type of the head node (as configured above).
+head_node_type: ray_head_default
+
+# Files or directories to copy to the head and worker nodes. The format is a
+# dictionary from REMOTE_PATH: LOCAL_PATH, e.g.
+file_mounts: {
+#    "/path1/on/remote/machine": "/path1/on/local/machine",
+#    "/path2/on/remote/machine": "/path2/on/local/machine",
+}
+
+# Files or directories to copy from the head node to the worker nodes. The format is a
+# list of paths. The same path on the head node will be copied to the worker node.
+# This behavior is a subset of the file_mounts behavior. In the vast majority of cases
+# you should just use file_mounts. Only use this if you know what you're doing!
+cluster_synced_files: []
+
+# Whether changes to directories in file_mounts or cluster_synced_files in the head node
+# should sync to the worker node continuously
+file_mounts_sync_continuously: False
+
+# Patterns for files to exclude when running rsync up or rsync down
+rsync_exclude:
+    - "**/.git"
+    - "**/.git/**"
+
+# Pattern files to use for filtering out files when running rsync up or rsync down. The file is searched for
+# in the source directory and recursively through all subdirectories. For example, if .gitignore is provided
+# as a value, the behavior will match git's behavior for finding and using .gitignore files.
+rsync_filter:
+    - ".gitignore"
+
+# List of commands that will be run before `setup_commands`. If docker is
+# enabled, these commands will run outside the container and before docker
+# is setup.
+initialization_commands: []
+
+# List of shell commands to run to set up nodes.
+setup_commands: []
+    # Note: if you're developing Ray, you probably want to create a Docker image that
+    # has your Ray repo pre-cloned. Then, you can replace the pip installs
+    # below with a git checkout <your_sha> (and possibly a recompile).
+    # To run the nightly version of ray (as opposed to the latest), either use a rayproject docker image
+    # that has the "nightly" (e.g. "rayproject/ray-ml:nightly-gpu") or uncomment the following line:
+    # - pip install -U "ray[default] @ https://s3-us-west-2.amazonaws.com/ray-wheels/latest/ray-3.0.0.dev0-cp37-cp37m-manylinux2014_x86_64.whl"
+
+
+# Custom commands that will be run on the head node after common setup.
+head_setup_commands:
+  - pip install google-api-python-client==1.7.8
+
+# Custom commands that will be run on worker nodes after common setup.
+worker_setup_commands: []
+
+# Command to start ray on the head node. You don't need to change this.
+head_start_ray_commands:
+    - ray stop
+    - >-
+      ray start
+      --head
+      --port=6379
+      --object-manager-port=8076
+      --autoscaling-config=~/ray_bootstrap_config.yaml
+
+# Command to start ray on worker nodes. You don't need to change this.
+worker_start_ray_commands:
+    - ray stop
+    - >-
+      ray start
+      --address=$RAY_HEAD_IP:6379
+      --object-manager-port=8076
+
+
+
+
+
+vSphere
+# An unique identifier for the head node and workers of this cluster.
+cluster_name: default
+
+# The maximum number of workers nodes to launch in addition to the head
+# node.
+max_workers: 5
+
+# The autoscaler will scale up the cluster faster with higher upscaling speed.
+# E.g., if the task requires adding more nodes then autoscaler will gradually
+# scale up the cluster in chunks of upscaling_speed*currently_running_nodes.
+# This number should be > 0.
+upscaling_speed: 1.0
+
+# This executes all commands on all nodes in the docker container,
+# and opens all the necessary ports to support the Ray cluster.
+# Empty string means disabled.
+docker:
+    image: "rayproject/ray-ml:latest"
+    # image: rayproject/ray:latest   # use this one if you don't need ML dependencies, it's faster to pull
+    container_name: "ray_container"
+    # If true, pulls latest version of image. Otherwise, `docker run` will only pull the image
+    # if no cached version is present.
+    pull_before_run: True
+    run_options:   # Extra options to pass into "docker run"
+        - --ulimit nofile=65536:65536
+
+# If a node is idle for this many minutes, it will be removed.
+idle_timeout_minutes: 5
+
+# Cloud-provider specific configuration.
+provider:
+    type: vsphere
+
+# How Ray will authenticate with newly launched nodes.
+auth:
+    ssh_user: ray
+# By default Ray creates a new private keypair, but you can also use your own.
+# If you do so, make sure to also set "KeyName" in the head and worker node
+# configurations below.
+    ssh_private_key: ~/ray-bootstrap-key.pem
+
+# Tell the autoscaler the allowed node types and the resources they provide.
+# The key is the name of the node type, which is just for debugging purposes.
+# The node config specifies the launch config and physical instance type.
+available_node_types:
+    ray.head.default:
+        # You can override the resources here. Adding GPU to the head node is not recommended.
+        # resources: { "CPU": 2, "Memory": 4096}
+        resources: {}
+        node_config: {"vm_class": "best-effort-xlarge"}
+    worker:
+        # The minimum number of nodes of this type to launch.
+        # This number should be >= 0.
+        min_workers: 1
+        max_workers: 3
+        # You can override the resources here. For GPU, currently only Nvidia GPU is supported. If no ESXi host can
+        # fulfill the requirement, the Ray node creation will fail. The number of created nodes may not meet the desired
+        # minimum number. The vSphere node provider will not distinguish the GPU type. It will just count the quantity:
+        # mount the first k random available Nvidia GPU to the VM, if the user set {"GPU": k}.
+        # resources: {"CPU": 2, "Memory": 4096, "GPU": 1}
+        resources: {}
+        node_config: {"vm_class": "best-effort-xlarge"}
+    worker_2:
+         # The minimum number of nodes of this type to launch.
+         # This number should be >= 0.
+         min_workers: 1
+         max_workers: 2
+         # You can override the resources here. For GPU, currently only Nvidia GPU is supported. If no ESXi host can
+         # fulfill the requirement, the Ray node creation will fail. The number of created nodes may not meet the desired
+         # minimum number. The vSphere node provider will not distinguish the GPU type. It will just count the quantity:
+         # mount the first k random available Nvidia GPU to the VM, if the user set {"GPU": k}.
+         # resources: {"CPU": 2, "Memory": 4096, "GPU": 1}
+         resources: {}
+         node_config: {"vm_class": "best-effort-xlarge"}
+
+# Specify the node type of the head node (as configured above).
+head_node_type: ray.head.default
+
+# Files or directories to copy to the head and worker nodes. The format is a
+# dictionary from REMOTE_PATH: LOCAL_PATH, e.g.
+file_mounts: {
+#    "/path1/on/remote/machine": "/path1/on/local/machine",
+#    "/path2/on/remote/machine": "/path2/on/local/machine",
+}
+
+# Files or directories to copy from the head node to the worker nodes. The format is a
+# list of paths. The same path on the head node will be copied to the worker node.
+# This behavior is a subset of the file_mounts behavior. In the vast majority of cases
+# you should just use file_mounts. Only use this if you know what you're doing!
+cluster_synced_files: []
+
+# Whether changes to directories in file_mounts or cluster_synced_files in the head node
+# should sync to the worker node continuously
+file_mounts_sync_continuously: False
+
+# Patterns for files to exclude when running rsync up or rsync down
+rsync_exclude: []
+
+# Pattern files to use for filtering out files when running rsync up or rsync down. The file is searched for
+# in the source directory and recursively through all subdirectories. For example, if .gitignore is provided
+# as a value, the behavior will match git's behavior for finding and using .gitignore files.
+rsync_filter: []
+
+# List of commands that will be run before `setup_commands`. If docker is
+# enabled, these commands will run outside the container and before docker
+# is setup.
+initialization_commands: []
+
+# List of shell commands to run to set up nodes.
+setup_commands: []
+
+# Custom commands that will be run on the head node after common setup.
+head_setup_commands:
+    - pip install 'git+https://github.com/vmware/vsphere-automation-sdk-python.git'
+
+# Custom commands that will be run on worker nodes after common setup.
+worker_setup_commands: []
+
+# Command to start ray on the head node. You don't need to change this.
+head_start_ray_commands:
+    - ray stop
+    - ulimit -n 65536; ray start --head --port=6379 --autoscaling-config=~/ray_bootstrap_config.yaml --dashboard-host=0.0.0.0
+
+# Command to start ray on worker nodes. You don't need to change this.
+worker_start_ray_commands:
+    - ray stop
+    - ulimit -n 65536; ray start --address=$RAY_HEAD_IP:6379
+
+
+
+
+
+
+TPU Configuration#
+It is possible to use TPU VMs on GCP. Currently, TPU pods (TPUs other than v2-8, v3-8 and v4-8) are not supported.
+Before using a config with TPUs, ensure that the TPU API is enabled for your GCP project.
+
+
+
+GCP
+# A unique identifier for the head node and workers of this cluster.
+cluster_name: tputest
+
+# The maximum number of worker nodes to launch in addition to the head node.
+max_workers: 7
+
+available_node_types:
+    ray_head_default:
+        resources: {"TPU": 1}  # use TPU custom resource in your code
+        node_config:
+            # Only v2-8, v3-8 and v4-8 accelerator types are currently supported.
+            # Support for TPU pods will be added in the future.
+            acceleratorType: v2-8
+            runtimeVersion: v2-alpha
+            schedulingConfig:
+                # Set to false to use non-preemptible TPUs
+                preemptible: false
+    ray_tpu:
+        min_workers: 1
+        resources: {"TPU": 1}  # use TPU custom resource in your code
+        node_config:
+            acceleratorType: v2-8
+            runtimeVersion: v2-alpha
+            schedulingConfig:
+                preemptible: true
+
+provider:
+    type: gcp
+    region: us-central1
+    availability_zone: us-central1-b
+    project_id: null # Replace this with your GCP project ID.
+
+setup_commands:
+  - sudo apt install python-is-python3 -y
+  - pip3 install --upgrade pip
+  - pip3 install -U "ray[default]"
+
+# Specify the node type of the head node (as configured above).
+head_node_type: ray_head_default
+
+
+
+
+
+
+

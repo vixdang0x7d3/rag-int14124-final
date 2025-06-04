@@ -1,0 +1,29 @@
+
+
+ray.rllib.utils.numpy.lstm#
+
+
+ray.rllib.utils.numpy.lstm(x, weights: numpy.ndarray, biases: numpy.ndarray | None = None, initial_internal_states: numpy.ndarray | None = None, time_major: bool = False, forget_bias: float = 1.0)[source]#
+Calculates LSTM layer output given weights/biases, states, and input.
+
+Parameters:
+
+x – The inputs to the LSTM layer including time-rank
+(0th if time-major, else 1st) and the batch-rank
+(1st if time-major, else 0th).
+weights – The weights matrix.
+biases – The biases vector. All 0s if None.
+initial_internal_states – The initial internal
+states to pass into the layer. All 0s if None.
+time_major – Whether to use time-major or not. Default: False.
+forget_bias – Gets added to first sigmoid (forget gate) output.
+Default: 1.0.
+
+
+Returns:
+Tuple consisting of 1) The LSTM layer’s output and
+2) Tuple: Last (c-state, h-state).
+
+
+
+

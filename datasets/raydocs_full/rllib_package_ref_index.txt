@@ -1,0 +1,99 @@
+
+
+Ray RLlib API#
+
+Note
+Ray 2.40 uses RLlib’s new API stack by default.
+The Ray team has mostly completed transitioning algorithms, example scripts, and
+documentation to the new code base.
+If you’re still using the old API stack, see New API stack migration guide for details on how to migrate.
+
+
+Tip
+We’d love to hear your feedback on using RLlib - sign up to our forum and start asking questions!
+
+This section contains an overview of RLlib’s package- and API reference.
+If you think there is anything missing, please open an issue on Github.
+
+
+Algorithm Configuration API
+Constructor
+Builder methods
+Properties
+Getter methods
+Public methods
+Configuration methods
+
+
+Algorithms
+Building Custom Algorithm Classes
+Algorithm API
+
+
+Callback APIs
+Methods to implement for custom behavior
+RLlibCallback
+Callbacks invoked in Algorithm
+Callbacks invoked in EnvRunner
+
+
+Environments
+Env Vectorization
+External Envs
+Environment API Reference
+
+
+RLModule APIs
+RLModule specifications and configurations
+RLModule API
+MultiRLModule API
+Additional RLModule APIs
+
+
+Distribution API
+Base Distribution class
+
+
+LearnerGroup API
+Configuring a LearnerGroup and Learner actors
+Constructing a LearnerGroup
+
+
+Learner API
+Constructing a Learner
+Implementing a custom RLModule to fit a Learner
+Performing updates
+Computing losses
+Configuring optimizers
+Gradient computation
+Saving and restoring
+Adding and removing modules
+
+
+Offline RL API
+Configuring Offline RL
+Configuring Offline Recording EnvRunners
+Constructing a Recording EnvRunner
+Constructing OfflineData
+Sampling from Offline Data
+Constructing an OfflinePreLearner
+Transforming Data with an OfflinePreLearner
+
+
+Replay Buffer API
+Replay Buffer Base Classes
+Public Methods
+Multi Agent Buffers
+Utility Methods
+
+
+RLlib Utilities
+MetricsLogger API
+Scheduler API
+Framework Utilities
+Checkpoint utilities
+
+
+
+
+

@@ -1,0 +1,22 @@
+
+
+ray.rllib.utils.torch_utils.explained_variance#
+
+
+ray.rllib.utils.torch_utils.explained_variance(y: numpy.array | jnp.ndarray | tf.Tensor | torch.Tensor, pred: numpy.array | jnp.ndarray | tf.Tensor | torch.Tensor) → numpy.array | jnp.ndarray | tf.Tensor | torch.Tensor[source]#
+Computes the explained variance for a pair of labels and predictions.
+The formula used is:
+max(-1.0, 1.0 - (std(y - pred)^2 / std(y)^2))
+
+Parameters:
+
+y – The labels.
+pred – The predictions.
+
+
+Returns:
+The explained variance given a pair of labels and predictions.
+
+
+
+

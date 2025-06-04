@@ -1,0 +1,715 @@
+
+
+Tuning XGBoost hyperparameters with Ray Tune#
+
+
+
+
+This tutorial demonstrates how to optimize XGBoost models using Ray Tune. You’ll learn:
+
+The basics of XGBoost and its key hyperparameters
+How to train a simple XGBoost classifier (without hyperparameter tuning)
+How to use Ray Tune to find optimal hyperparameters
+Advanced techniques like early stopping and GPU acceleration
+
+XGBoost is currently one of the most popular machine learning algorithms. It performs
+very well on a large selection of tasks, and was the key to success in many Kaggle
+competitions.
+
+
+Contents
+
+Tuning XGBoost hyperparameters with Ray Tune
+
+What is XGBoost
+Training a simple XGBoost classifier
+Scaling XGBoost Training with Ray Train
+XGBoost Hyperparameters
+Tuning the configuration parameters
+Early stopping
+Using fractional GPUs
+Conclusion
+More XGBoost Examples
+Learn More
+
+
+
+
+
+Note
+To run this tutorial, you will need to install the following:
+$ pip install -q "ray[tune]" scikit-learn xgboost
+
+
+
+
+What is XGBoost#
+XGBoost (eXtreme Gradient Boosting) is a powerful and efficient implementation of gradient boosted decision trees. It has become one of the most popular machine learning algorithms due to its:
+
+Performance: Consistently strong results across many types of problems
+Speed: Highly optimized implementation that can leverage GPU acceleration
+Flexibility: Works with many types of prediction problems (classification, regression, ranking)
+
+Key Concepts:
+
+Uses an ensemble of simple decision trees
+Trees are built sequentially, with each tree correcting errors from previous trees
+Employs gradient descent to minimize a loss function
+Even though single trees can have high bias, using a boosted ensemble can result in better predictions and reduced bias
+
+
+
+A single decision tree (left) might be able to get to an accuracy of 70%
+for a binary classification task. By combining the output of several small
+decision trees, an ensemble learner (right) might end up with a higher accuracy
+of 90%.#
+
+
+Boosting algorithms start with a single small decision tree and evaluate how well
+it predicts the given examples. When building the next tree, those samples that have
+been misclassified before have a higher chance of being used to generate the tree.
+This is useful because it avoids overfitting to samples that can be easily classified
+and instead tries to come up with models that are able to classify hard examples, too.
+Please see here for a more thorough introduction to bagging and boosting algorithms.
+There are many boosting algorithms. In their core, they are all very similar. XGBoost
+uses second-level derivatives to find splits that maximize the gain (the inverse of
+the loss) - hence the name. In practice, XGBoost usually shows the best performance
+against other boosting algorithms, although LightGBM tends to be faster and more
+memory efficient, especially for large datasets.
+
+
+Training a simple XGBoost classifier#
+Let’s first see how a simple XGBoost classifier can be trained. We’ll use the
+breast_cancer-Dataset included in the sklearn dataset collection. This is
+a binary classification dataset. Given 30 different input features, our task is to
+learn to identify subjects with breast cancer and those without.
+Here is the full code to train a simple XGBoost model:
+
+
+SMOKE_TEST = False
+
+
+
+
+
+
+
+Show code cell content
+Hide code cell content
+
+
+SMOKE_TEST = True
+
+
+
+
+
+
+
+import sklearn.datasets
+import sklearn.metrics
+from sklearn.model_selection import train_test_split
+import xgboost as xgb
+
+
+def train_breast_cancer(config):
+    # Load dataset
+    data, labels = sklearn.datasets.load_breast_cancer(return_X_y=True)
+    # Split into train and test set
+    train_x, test_x, train_y, test_y = train_test_split(data, labels, test_size=0.25)
+    # Build input matrices for XGBoost
+    train_set = xgb.DMatrix(train_x, label=train_y)
+    test_set = xgb.DMatrix(test_x, label=test_y)
+    # Train the classifier
+    results = {}
+    bst = xgb.train(
+        config,
+        train_set,
+        evals=[(test_set, "eval")],
+        evals_result=results,
+        verbose_eval=False,
+    )
+    return results
+
+
+results = train_breast_cancer(
+    {"objective": "binary:logistic", "eval_metric": ["logloss", "error"]}
+)
+accuracy = 1.0 - results["eval"]["error"][-1]
+print(f"Accuracy: {accuracy:.4f}")
+
+
+
+
+Accuracy: 0.9650
+
+
+
+
+As you can see, the code is quite simple. First, the dataset is loaded and split
+into a test and train set. The XGBoost model is trained with xgb.train().
+XGBoost automatically evaluates metrics we specified on the test set. In our case
+it calculates the logloss and the prediction error, which is the percentage of
+misclassified examples. To calculate the accuracy, we just have to subtract the error
+from 1.0. Even in this simple example, most runs result
+in a good accuracy of over 0.90.
+Maybe you have noticed the config parameter we pass to the XGBoost algorithm. This
+is a dict in which you can specify parameters for the XGBoost algorithm. In this
+simple example, the only parameters we passed are the objective and eval_metric parameters.
+The value binary:logistic tells XGBoost that we aim to train a logistic regression model for
+a binary classification task. You can find an overview over all valid objectives
+here in the XGBoost documentation.
+
+
+Scaling XGBoost Training with Ray Train#
+In Distributed Training and Inference with XGBoost and LightGBM on Ray, we covered how to scale XGBoost single-model training with Ray Train.
+For the rest of this tutorial, we will focus on how to optimize the hyperparameters of the XGBoost model using Ray Tune.
+
+
+XGBoost Hyperparameters#
+Even with the default settings, XGBoost was able to get to a good accuracy on the
+breast cancer dataset. However, as in many machine learning algorithms, there are
+many knobs to tune which might lead to even better performance. Let’s explore some of
+them below.
+
+Maximum tree depth#
+Remember that XGBoost internally uses many decision tree models to come up with
+predictions. When training a decision tree, we need to tell the algorithm how
+large the tree may get. The parameter for this is called the tree depth.
+
+
+In this image, the left tree has a depth of 2, and the right tree a depth of 3.
+Note that with each level, \(2^{(d-1)}\) splits are added, where d is the depth
+of the tree.#
+
+
+Tree depth is a property that concerns the model complexity. If you only allow short
+trees, the models are likely not very precise - they underfit the data. If you allow
+very large trees, the single models are likely to overfit to the data. In practice,
+a number between 2 and 6 is often a good starting point for this parameter.
+XGBoost’s default value is 3.
+
+
+Minimum child weight#
+When a decision tree creates new leaves, it splits up the remaining data at one node
+into two groups. If there are only few samples in one of these groups, it often
+doesn’t make sense to split it further. One of the reasons for this is that the
+model is harder to train when we have fewer samples.
+
+
+In this example, we start with 100 examples. At the first node, they are split
+into 4 and 96 samples, respectively. In the next step, our model might find
+that it doesn’t make sense to split the 4 examples more. It thus only continues
+to add leaves on the right side.#
+
+
+The parameter used by the model to decide if it makes sense to split a node is called
+the minimum child weight. In the case of linear regression, this is just the absolute
+number of nodes requried in each child. In other objectives, this value is determined
+using the weights of the examples, hence the name.
+The larger the value, the more constrained the trees are and the less deep they will be.
+This parameter thus also affects the model complexity. Thus, for noisy or small datasets,
+smaller values are preferred. Values can range between 0 and infinity and are dependent on
+the sample size. For our case with only 500 examples in the breast cancer dataset, values
+between 0 and 10 should be sensible.
+XGBoost’s default value is 1.
+
+
+Subsample size#
+Each decision tree we add is trained on a subsample of the total training dataset.
+The probabilities for the samples are weighted according to the XGBoost algorithm,
+but we can decide on which fraction of the samples we want to train each decision
+tree on.
+Setting this value to 0.7 would mean that we randomly sample 70% of the
+training dataset before each training iteration. Lower values lead to more
+diverse trees and higher values to more similar trees. Lower values help
+prevent overfitting.
+XGBoost’s default value is 1.
+
+
+Learning rate / Eta#
+Remember that XGBoost sequentially trains many decision trees, and that later trees
+are more likely trained on data that has been misclassified by prior trees. In effect
+this means that earlier trees make decisions for easy samples (i.e. those samples that
+can easily be classified) and later trees make decisions for harder samples. It is then
+sensible to assume that the later trees are less accurate than earlier trees.
+To address this fact, XGBoost uses a parameter called Eta, which is sometimes called
+the learning rate. Don’t confuse this with learning rates from gradient descent!
+The original paper on stochastic gradient boosting
+introduces this parameter like so:
+
+\[
+F_m(x) = F_{m-1}(x) + \eta \cdot \gamma_{lm} \textbf{1}(x \in R_{lm})
+\]
+This is just a complicated way to say that when we train we new decision tree,
+represented by \(\gamma_{lm} \textbf{1}(x \in R_{lm})\), we want to dampen
+its effect on the previous prediction \(F_{m-1}(x)\) with a factor
+\(\eta\).
+Typical values for this parameter are between 0.01 and 0.3`.
+XGBoost’s default value is 0.3.
+
+
+Number of boost rounds#
+Lastly, we can decide on how many boosting rounds we perform, which means how
+many decision trees we ultimately train. When we do heavy subsampling or use small
+learning rate, it might make sense to increase the number of boosting rounds.
+XGBoost’s default value is 10.
+
+
+Putting it together#
+Let’s see how this looks like in code! We just need to adjust our config dict:
+
+
+config = {
+    "objective": "binary:logistic",
+    "eval_metric": ["logloss", "error"],
+    "max_depth": 2,
+    "min_child_weight": 0,
+    "subsample": 0.8,
+    "eta": 0.2,
+}
+results = train_breast_cancer(config)
+accuracy = 1.0 - results["eval"]["error"][-1]
+print(f"Accuracy: {accuracy:.4f}")
+
+
+
+
+Accuracy: 0.9231
+
+
+
+
+The rest stays the same. Please note that we do not adjust the num_boost_rounds here.
+The result should also show a high accuracy of over 90%.
+
+
+
+Tuning the configuration parameters#
+XGBoosts default parameters already lead to a good accuracy, and even our guesses in the
+last section should result in accuracies well above 90%. However, our guesses were
+just that: guesses. Often we do not know what combination of parameters would actually
+lead to the best results on a machine learning task.
+Unfortunately, there are infinitely many combinations of hyperparameters we could try
+out. Should we combine max_depth=3 with subsample=0.8 or with subsample=0.9?
+What about the other parameters?
+This is where hyperparameter tuning comes into play. By using tuning libraries such as
+Ray Tune we can try out combinations of hyperparameters. Using sophisticated search
+strategies, these parameters can be selected so that they are likely to lead to good
+results (avoiding an expensive exhaustive search). Also, trials that do not perform
+well can be preemptively stopped to reduce waste of computing resources. Lastly, Ray Tune
+also takes care of training these runs in parallel, greatly increasing search speed.
+Let’s start with a basic example on how to use Tune for this. We just need to make
+a few changes to our code-block:
+
+
+import sklearn.datasets
+import sklearn.metrics
+
+from ray import tune
+
+
+def train_breast_cancer(config):
+    # Load dataset
+    data, labels = sklearn.datasets.load_breast_cancer(return_X_y=True)
+    # Split into train and test set
+    train_x, test_x, train_y, test_y = train_test_split(data, labels, test_size=0.25)
+    # Build input matrices for XGBoost
+    train_set = xgb.DMatrix(train_x, label=train_y)
+    test_set = xgb.DMatrix(test_x, label=test_y)
+    # Train the classifier
+    results = {}
+    xgb.train(
+        config,
+        train_set,
+        evals=[(test_set, "eval")],
+        evals_result=results,
+        verbose_eval=False,
+    )
+    # Return prediction accuracy
+    accuracy = 1.0 - results["eval"]["error"][-1]
+    tune.report({"mean_accuracy": accuracy, "done": True})
+
+
+config = {
+    "objective": "binary:logistic",
+    "eval_metric": ["logloss", "error"],
+    "max_depth": tune.randint(1, 9),
+    "min_child_weight": tune.choice([1, 2, 3]),
+    "subsample": tune.uniform(0.5, 1.0),
+    "eta": tune.loguniform(1e-4, 1e-1),
+}
+tuner = tune.Tuner(
+    train_breast_cancer,
+    tune_config=tune.TuneConfig(num_samples=10),
+    param_space=config,
+)
+results = tuner.fit()
+
+
+
+
+
+Show code cell output
+Hide code cell output
+
+
+
+
+
+Tune Status
+
+
+Current time:2025-02-11 16:13:34
+Running for: 00:00:01.87        
+Memory:      22.5/36.0 GiB      
+
+
+
+
+
+System Info
+      Using FIFO scheduling algorithm.Logical resource usage: 1.0/12 CPUs, 0/0 GPUs
+    
+
+
+
+Trial Status
+
+
+Trial name                     status    loc                    eta  max_depth  min_child_weight  subsample     acc  iter  total time (s)
+
+
+train_breast_cancer_31c9f_00000TERMINATED127.0.0.1:897350.0434196            8                 1   0.5303510.909091     1      0.0114911 
+train_breast_cancer_31c9f_00001TERMINATED127.0.0.1:897340.0115669            6                 2   0.9965190.615385     1      0.01138   
+train_breast_cancer_31c9f_00002TERMINATED127.0.0.1:897400.00124339           7                 3   0.5360780.629371     1      0.0096581 
+train_breast_cancer_31c9f_00003TERMINATED127.0.0.1:897420.000400434          6                 3   0.90014 0.601399     1      0.0103199 
+train_breast_cancer_31c9f_00004TERMINATED127.0.0.1:897380.0121308            6                 3   0.8431560.629371     1      0.00843   
+train_breast_cancer_31c9f_00005TERMINATED127.0.0.1:897330.0344144            2                 3   0.5130710.895105     1      0.00800109
+train_breast_cancer_31c9f_00006TERMINATED127.0.0.1:897370.0530037            7                 2   0.9208010.965035     1      0.0117419 
+train_breast_cancer_31c9f_00007TERMINATED127.0.0.1:897410.000230442          3                 3   0.9468520.608392     1      0.00917387
+train_breast_cancer_31c9f_00008TERMINATED127.0.0.1:897390.00166323           4                 1   0.5888790.636364     1      0.011095  
+train_breast_cancer_31c9f_00009TERMINATED127.0.0.1:897360.0753618            3                 3   0.55103 0.909091     1      0.00776482
+
+
+
+
+
+2025-02-11 16:13:34,649	INFO tune.py:1009 -- Wrote the latest version of all result files and experiment state to '/Users/rdecal/ray_results/train_breast_cancer_2025-02-11_16-13-31' in 0.0057s.
+2025-02-11 16:13:34,652	INFO tune.py:1041 -- Total run time: 1.88 seconds (1.86 seconds for the tuning loop).
+
+
+(train_breast_cancer pid=90413) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/Users/rdecal/ray_results/train_breast_cancer_2025-02-11_16-17-11/train_breast_cancer_b412c_00000_0_eta=0.0200,max_depth=4,min_child_weight=2,subsample=0.7395_2025-02-11_16-17-11/checkpoint_000000)
+(train_breast_cancer pid=90413) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/Users/rdecal/ray_results/train_breast_cancer_2025-02-11_16-17-11/train_breast_cancer_b412c_00000_0_eta=0.0200,max_depth=4,min_child_weight=2,subsample=0.7395_2025-02-11_16-17-11/checkpoint_000001)
+(train_breast_cancer pid=90413) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/Users/rdecal/ray_results/train_breast_cancer_2025-02-11_16-17-11/train_breast_cancer_b412c_00000_0_eta=0.0200,max_depth=4,min_child_weight=2,subsample=0.7395_2025-02-11_16-17-11/checkpoint_000002)
+(train_breast_cancer pid=90413) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/Users/rdecal/ray_results/train_breast_cancer_2025-02-11_16-17-11/train_breast_cancer_b412c_00000_0_eta=0.0200,max_depth=4,min_child_weight=2,subsample=0.7395_2025-02-11_16-17-11/checkpoint_000003)
+(train_breast_cancer pid=90413) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/Users/rdecal/ray_results/train_breast_cancer_2025-02-11_16-17-11/train_breast_cancer_b412c_00000_0_eta=0.0200,max_depth=4,min_child_weight=2,subsample=0.7395_2025-02-11_16-17-11/checkpoint_000004)
+(train_breast_cancer pid=90413) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/Users/rdecal/ray_results/train_breast_cancer_2025-02-11_16-17-11/train_breast_cancer_b412c_00000_0_eta=0.0200,max_depth=4,min_child_weight=2,subsample=0.7395_2025-02-11_16-17-11/checkpoint_000005)
+(train_breast_cancer pid=90413) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/Users/rdecal/ray_results/train_breast_cancer_2025-02-11_16-17-11/train_breast_cancer_b412c_00000_0_eta=0.0200,max_depth=4,min_child_weight=2,subsample=0.7395_2025-02-11_16-17-11/checkpoint_000006)
+(train_breast_cancer pid=90413) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/Users/rdecal/ray_results/train_breast_cancer_2025-02-11_16-17-11/train_breast_cancer_b412c_00000_0_eta=0.0200,max_depth=4,min_child_weight=2,subsample=0.7395_2025-02-11_16-17-11/checkpoint_000007)
+(train_breast_cancer pid=90413) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/Users/rdecal/ray_results/train_breast_cancer_2025-02-11_16-17-11/train_breast_cancer_b412c_00000_0_eta=0.0200,max_depth=4,min_child_weight=2,subsample=0.7395_2025-02-11_16-17-11/checkpoint_000008)
+(train_breast_cancer pid=90413) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/Users/rdecal/ray_results/train_breast_cancer_2025-02-11_16-17-11/train_breast_cancer_b412c_00000_0_eta=0.0200,max_depth=4,min_child_weight=2,subsample=0.7395_2025-02-11_16-17-11/checkpoint_000009)
+
+
+
+
+
+As you can see, the changes in the actual training function are minimal. Instead of
+returning the accuracy value, we report it back to Tune using session.report().
+Our config dictionary only changed slightly. Instead of passing hard-coded
+parameters, we tell Tune to choose values from a range of valid options. There are
+a number of options we have here, all of which are explained in
+the Tune docs.
+For a brief explanation, this is what they do:
+
+tune.randint(min, max) chooses a random integer value between min and max.
+Note that max is exclusive, so it will not be sampled.
+tune.choice([a, b, c]) chooses one of the items of the list at random. Each item
+has the same chance to be sampled.
+tune.uniform(min, max) samples a floating point number between min and max.
+Note that max is exclusive here, too.
+tune.loguniform(min, max, base=10) samples a floating point number between min and max,
+but applies a logarithmic transformation to these boundaries first. Thus, this makes
+it easy to sample values from different orders of magnitude.
+
+The num_samples=10 option we pass to the TuneConfig() means that we sample 10 different
+hyperparameter configurations from this search space.
+The output of our training run coud look like this:
+ Number of trials: 10/10 (10 TERMINATED)
+ +---------------------------------+------------+-------+-------------+-------------+--------------------+-------------+----------+--------+------------------+
+ | Trial name                      | status     | loc   |         eta |   max_depth |   min_child_weight |   subsample |      acc |   iter |   total time (s) |
+ |---------------------------------+------------+-------+-------------+-------------+--------------------+-------------+----------+--------+------------------|
+ | train_breast_cancer_b63aa_00000 | TERMINATED |       | 0.000117625 |           2 |                  2 |    0.616347 | 0.916084 |      1 |        0.0306492 |
+ | train_breast_cancer_b63aa_00001 | TERMINATED |       | 0.0382954   |           8 |                  2 |    0.581549 | 0.937063 |      1 |        0.0357082 |
+ | train_breast_cancer_b63aa_00002 | TERMINATED |       | 0.000217926 |           1 |                  3 |    0.528428 | 0.874126 |      1 |        0.0264609 |
+ | train_breast_cancer_b63aa_00003 | TERMINATED |       | 0.000120929 |           8 |                  1 |    0.634508 | 0.958042 |      1 |        0.036406  |
+ | train_breast_cancer_b63aa_00004 | TERMINATED |       | 0.00839715  |           5 |                  1 |    0.730624 | 0.958042 |      1 |        0.0389378 |
+ | train_breast_cancer_b63aa_00005 | TERMINATED |       | 0.000732948 |           8 |                  2 |    0.915863 | 0.958042 |      1 |        0.0382841 |
+ | train_breast_cancer_b63aa_00006 | TERMINATED |       | 0.000856226 |           4 |                  1 |    0.645209 | 0.916084 |      1 |        0.0357089 |
+ | train_breast_cancer_b63aa_00007 | TERMINATED |       | 0.00769908  |           7 |                  1 |    0.729443 | 0.909091 |      1 |        0.0390737 |
+ | train_breast_cancer_b63aa_00008 | TERMINATED |       | 0.00186339  |           5 |                  3 |    0.595744 | 0.944056 |      1 |        0.0343912 |
+ | train_breast_cancer_b63aa_00009 | TERMINATED |       | 0.000950272 |           3 |                  2 |    0.835504 | 0.965035 |      1 |        0.0348201 |
+ +---------------------------------+------------+-------+-------------+-------------+--------------------+-------------+----------+--------+------------------+
+
+
+The best configuration we found used eta=0.000950272, max_depth=3,
+min_child_weight=2, subsample=0.835504 and reached an accuracy of
+0.965035.
+
+
+Early stopping#
+Currently, Tune samples 10 different hyperparameter configurations and trains a full
+XGBoost on all of them. In our small example, training is very fast. However,
+if training takes longer, a significant amount of computer resources is spent on trials
+that will eventually show a bad performance, e.g. a low accuracy. It would be good
+if we could identify these trials early and stop them, so we don’t waste any resources.
+This is where Tune’s Schedulers shine. A Tune TrialScheduler is responsible
+for starting and stopping trials. Tune implements a number of different schedulers, each
+described in the Tune documentation.
+For our example, we will use the AsyncHyperBandScheduler or ASHAScheduler.
+The basic idea of this scheduler: We sample a number of hyperparameter configurations.
+Each of these configurations is trained for a specific number of iterations.
+After these iterations, only the best performing hyperparameters are retained. These
+are selected according to some loss metric, usually an evaluation loss. This cycle is
+repeated until we end up with the best configuration.
+The ASHAScheduler needs to know three things:
+
+Which metric should be used to identify badly performing trials?
+Should this metric be maximized or minimized?
+How many iterations does each trial train for?
+
+There are more parameters, which are explained in the
+documentation.
+Lastly, we have to report the loss metric to Tune. We do this with a Callback that
+XGBoost accepts and calls after each evaluation round. Ray Tune comes
+with two XGBoost callbacks
+we can use for this. The TuneReportCallback just reports the evaluation
+metrics back to Tune. The TuneReportCheckpointCallback also saves
+checkpoints after each evaluation round. We will just use the latter in this
+example so that we can retrieve the saved model later.
+These parameters from the eval_metrics configuration setting are then automatically
+reported to Tune via the callback. Here, the raw error will be reported, not the accuracy.
+To display the best reached accuracy, we will inverse it later.
+We will also load the best checkpointed model so that we can use it for predictions.
+The best model is selected with respect to the metric and mode parameters we
+pass to the TunerConfig().
+
+
+import sklearn.datasets
+import sklearn.metrics
+from ray.tune.schedulers import ASHAScheduler
+from sklearn.model_selection import train_test_split
+import xgboost as xgb
+
+from ray import tune
+from ray.tune.integration.xgboost import TuneReportCheckpointCallback
+
+
+def train_breast_cancer(config: dict):
+    # This is a simple training function to be passed into Tune
+    # Load dataset
+    data, labels = sklearn.datasets.load_breast_cancer(return_X_y=True)
+    # Split into train and test set
+    train_x, test_x, train_y, test_y = train_test_split(data, labels, test_size=0.25)
+    # Build input matrices for XGBoost
+    train_set = xgb.DMatrix(train_x, label=train_y)
+    test_set = xgb.DMatrix(test_x, label=test_y)
+    # Train the classifier, using the Tune callback
+    xgb.train(
+        config,
+        train_set,
+        evals=[(test_set, "eval")],
+        verbose_eval=False,
+        # `TuneReportCheckpointCallback` defines the checkpointing frequency and format.
+        callbacks=[TuneReportCheckpointCallback(frequency=1)],
+    )
+
+
+def get_best_model_checkpoint(results):
+    best_result = results.get_best_result()
+
+    # `TuneReportCheckpointCallback` provides a helper method to retrieve the
+    # model from a checkpoint.
+    best_bst = TuneReportCheckpointCallback.get_model(best_result.checkpoint)
+
+    accuracy = 1.0 - best_result.metrics["eval-error"]
+    print(f"Best model parameters: {best_result.config}")
+    print(f"Best model total accuracy: {accuracy:.4f}")
+    return best_bst
+
+
+def tune_xgboost(smoke_test=False):
+    search_space = {
+        # You can mix constants with search space objects.
+        "objective": "binary:logistic",
+        "eval_metric": ["logloss", "error"],
+        "max_depth": tune.randint(1, 9),
+        "min_child_weight": tune.choice([1, 2, 3]),
+        "subsample": tune.uniform(0.5, 1.0),
+        "eta": tune.loguniform(1e-4, 1e-1),
+    }
+    # This will enable aggressive early stopping of bad trials.
+    scheduler = ASHAScheduler(
+        max_t=10, grace_period=1, reduction_factor=2  # 10 training iterations
+    )
+
+    tuner = tune.Tuner(
+        train_breast_cancer,
+        tune_config=tune.TuneConfig(
+            metric="eval-logloss",
+            mode="min",
+            scheduler=scheduler,
+            num_samples=1 if smoke_test else 10,
+        ),
+        param_space=search_space,
+    )
+    results = tuner.fit()
+    return results
+
+
+results = tune_xgboost(smoke_test=SMOKE_TEST)
+
+# Load the best model checkpoint.
+best_bst = get_best_model_checkpoint(results)
+
+# You could now do further predictions with
+# best_bst.predict(...)
+
+
+
+
+
+Show code cell output
+Hide code cell output
+
+
+
+
+
+Tune Status
+
+
+Current time:2025-02-11 16:13:35
+Running for: 00:00:01.05        
+Memory:      22.5/36.0 GiB      
+
+
+
+
+
+System Info
+      Using AsyncHyperBand: num_stopped=1Bracket: Iter 8.000: -0.6414526407118444 | Iter 4.000: -0.6439705872452343 | Iter 2.000: -0.6452721030145259 | Iter 1.000: -0.6459394399519567Logical resource usage: 1.0/12 CPUs, 0/0 GPUs
+    
+
+
+
+Trial Status
+
+
+Trial name                     status    loc                    eta  max_depth  min_child_weight  subsample  iter  total time (s)  eval-logloss  eval-error
+
+
+train_breast_cancer_32eb5_00000TERMINATED127.0.0.1:897630.000830475          5                 1   0.675899    10       0.0169384      0.640195    0.342657
+
+
+
+
+
+2025-02-11 16:13:35,717	INFO tune.py:1009 -- Wrote the latest version of all result files and experiment state to '/Users/rdecal/ray_results/train_breast_cancer_2025-02-11_16-13-34' in 0.0018s.
+2025-02-11 16:13:35,719	INFO tune.py:1041 -- Total run time: 1.05 seconds (1.04 seconds for the tuning loop).
+
+
+Best model parameters: {'objective': 'binary:logistic', 'eval_metric': ['logloss', 'error'], 'max_depth': 5, 'min_child_weight': 1, 'subsample': 0.675899175238225, 'eta': 0.0008304750981897656}
+Best model total accuracy: 0.6573
+
+
+
+
+
+The output of our run could look like this:
+ Number of trials: 10/10 (10 TERMINATED)
+ +---------------------------------+------------+-------+-------------+-------------+--------------------+-------------+--------+------------------+----------------+--------------+
+ | Trial name                      | status     | loc   |         eta |   max_depth |   min_child_weight |   subsample |   iter |   total time (s) |   eval-logloss |   eval-error |
+ |---------------------------------+------------+-------+-------------+-------------+--------------------+-------------+--------+------------------+----------------+--------------|
+ | train_breast_cancer_ba275_00000 | TERMINATED |       | 0.00205087  |           2 |                  1 |    0.898391 |     10 |        0.380619  |       0.678039 |     0.090909 |
+ | train_breast_cancer_ba275_00001 | TERMINATED |       | 0.000183834 |           4 |                  3 |    0.924939 |      1 |        0.0228798 |       0.693009 |     0.111888 |
+ | train_breast_cancer_ba275_00002 | TERMINATED |       | 0.0242721   |           7 |                  2 |    0.501551 |     10 |        0.376154  |       0.54472  |     0.06993  |
+ | train_breast_cancer_ba275_00003 | TERMINATED |       | 0.000449692 |           5 |                  3 |    0.890212 |      1 |        0.0234981 |       0.692811 |     0.090909 |
+ | train_breast_cancer_ba275_00004 | TERMINATED |       | 0.000376393 |           7 |                  2 |    0.883609 |      1 |        0.0231569 |       0.692847 |     0.062937 |
+ | train_breast_cancer_ba275_00005 | TERMINATED |       | 0.00231942  |           3 |                  3 |    0.877464 |      2 |        0.104867  |       0.689541 |     0.083916 |
+ | train_breast_cancer_ba275_00006 | TERMINATED |       | 0.000542326 |           1 |                  2 |    0.578584 |      1 |        0.0213971 |       0.692765 |     0.083916 |
+ | train_breast_cancer_ba275_00007 | TERMINATED |       | 0.0016801   |           1 |                  2 |    0.975302 |      1 |        0.02226   |       0.691999 |     0.083916 |
+ | train_breast_cancer_ba275_00008 | TERMINATED |       | 0.000595756 |           8 |                  3 |    0.58429  |      1 |        0.0221152 |       0.692657 |     0.06993  |
+ | train_breast_cancer_ba275_00009 | TERMINATED |       | 0.000357845 |           8 |                  1 |    0.637776 |      1 |        0.022635  |       0.692859 |     0.090909 |
+ +---------------------------------+------------+-------+-------------+-------------+--------------------+-------------+--------+------------------+----------------+--------------+
+
+
+ Best model parameters: {'objective': 'binary:logistic', 'eval_metric': ['logloss', 'error'], 'max_depth': 7, 'min_child_weight': 2, 'subsample': 0.5015513240240503, 'eta': 0.024272050872920895}
+ Best model total accuracy: 0.9301
+
+
+As you can see, most trials have been stopped only after a few iterations. Only the
+two most promising trials were run for the full 10 iterations.
+You can also ensure that all available resources are being used as the scheduler
+terminates trials, freeing them up. This can be done through the
+ResourceChangingScheduler. An example of this can be found here:
+XGBoost Dynamic Resources Example.
+
+
+Using fractional GPUs#
+You can often accelerate your training by using GPUs in addition to CPUs. However,
+you usually don’t have as many GPUs as you have trials to run. For instance, if you
+run 10 Tune trials in parallel, you usually don’t have access to 10 separate GPUs.
+Tune supports fractional GPUs. This means that each task is assigned a fraction
+of the GPU memory for training. For 10 tasks, this could look like this:
+
+
+config = {
+    "objective": "binary:logistic",
+    "eval_metric": ["logloss", "error"],
+    "tree_method": "gpu_hist",
+    "max_depth": tune.randint(1, 9),
+    "min_child_weight": tune.choice([1, 2, 3]),
+    "subsample": tune.uniform(0.5, 1.0),
+    "eta": tune.loguniform(1e-4, 1e-1),
+}
+
+tuner = tune.Tuner(
+    tune.with_resources(train_breast_cancer, resources={"cpu": 1, "gpu": 0.1}),
+    tune_config=tune.TuneConfig(num_samples=1 if SMOKE_TEST else 10),
+    param_space=config,
+)
+results = tuner.fit()
+
+
+
+
+Each task thus works with 10% of the available GPU memory. You also have to tell
+XGBoost to use the gpu_hist tree method, so it knows it should use the GPU.
+
+
+Conclusion#
+You should now have a basic understanding on how to train XGBoost models and on how
+to tune the hyperparameters to yield the best results. In our simple example,
+Tuning the parameters didn’t make a huge difference for the accuracy.
+But in larger applications, intelligent hyperparameter tuning can make the
+difference between a model that doesn’t seem to learn at all, and a model
+that outperforms all the other ones.
+
+
+More XGBoost Examples#
+
+XGBoost Dynamic Resources Example:
+Trains a basic XGBoost model with Tune with the class-based API and a ResourceChangingScheduler, ensuring all resources are being used at all time.
+Distributed Training and Inference with XGBoost and LightGBM on Ray: Shows how to scale XGBoost single-model training with Ray Train (as opposed to hyperparameter tuning with Ray Tune).
+
+
+
+Learn More#
+
+XGBoost Hyperparameter Tuning - A Visual Guide
+Notes on XGBoost Parameter Tuning
+Doing XGBoost Hyperparameter Tuning the smart way
+
+
+

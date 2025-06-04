@@ -1,0 +1,20 @@
+
+
+ray.rllib.utils.torch_utils.softmax_cross_entropy_with_logits#
+
+
+ray.rllib.utils.torch_utils.softmax_cross_entropy_with_logits(logits: numpy.array | jnp.ndarray | tf.Tensor | torch.Tensor, labels: numpy.array | jnp.ndarray | tf.Tensor | torch.Tensor) → numpy.array | jnp.ndarray | tf.Tensor | torch.Tensor[source]#
+Same behavior as tf.nn.softmax_cross_entropy_with_logits.
+
+Parameters:
+
+x – The input predictions.
+labels – The labels corresponding to x.
+
+
+Returns:
+The resulting softmax cross-entropy given predictions and labels.
+
+
+
+

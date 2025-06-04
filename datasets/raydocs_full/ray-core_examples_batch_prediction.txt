@@ -1,0 +1,241 @@
+
+
+Batch Prediction with Ray Core#
+
+
+
+
+
+Note
+For a higher level API for batch inference on large datasets, see batch inference with Ray Data. This example is for users who want more control over data sharding and execution.
+
+The batch prediction is the process of using a trained model to generate predictions for a collection of observations. It has the following elements:
+
+Input dataset: this is a collection of observations to generate predictions for. The data is usually stored in an external storage system like S3, HDFS or database, and can be large.
+ML model: this is a trained ML model which is usually also stored in an external storage system.
+Predictions: these are the outputs when applying the ML model on observations. The predictions are usually written back to the storage system.
+
+With Ray, you can build scalable batch prediction for large datasets at high prediction throughput. Ray Data provides a higher-level API for offline batch inference, with built-in optimizations. However, for more control, you can use the lower-level Ray Core APIs. This example demonstrates batch inference with Ray Core by splitting the dataset into disjoint shards and executing them in parallel, with either Ray Tasks or Ray Actors across a Ray Cluster.
+
+Task-based batch prediction#
+With Ray tasks, you can build a batch prediction program in this way:
+
+Loads the model
+Launches Ray tasks, with each taking in the model and a shard of input dataset
+Each worker executes predictions on the assigned shard, and writes out results
+
+Let’s take NYC taxi data in 2009 for example. Suppose we have this simple model:
+
+
+import pandas as pd
+import numpy as np
+
+def load_model():
+    # A dummy model.
+    def model(batch: pd.DataFrame) -> pd.DataFrame:
+        # Dummy payload so copying the model will actually copy some data
+        # across nodes.
+        model.payload = np.zeros(100_000_000)
+        return pd.DataFrame({"score": batch["passenger_count"] % 2 == 0})
+    
+    return model
+
+
+
+
+The dataset has 12 files (one for each month) so we can naturally have each Ray task to take one file. By taking the model and a shard of input dataset (i.e. a single file), we can define a Ray remote task for prediction:
+
+
+import pyarrow.parquet as pq
+import ray
+
+@ray.remote
+def make_prediction(model, shard_path):
+    df = pq.read_table(shard_path).to_pandas()
+    result = model(df)
+
+    # Write out the prediction result.
+    # NOTE: unless the driver will have to further process the
+    # result (other than simply writing out to storage system),
+    # writing out at remote task is recommended, as it can avoid
+    # congesting or overloading the driver.
+    # ...
+
+    # Here we just return the size about the result in this example.
+    return len(result)
+
+
+
+
+The driver launches all tasks for the entire input dataset.
+
+
+# 12 files, one for each remote task.
+input_files = [
+        f"s3://anonymous@air-example-data/ursa-labs-taxi-data/downsampled_2009_full_year_data.parquet"
+        f"/fe41422b01c04169af2a65a83b753e0f_{i:06d}.parquet"
+        for i in range(12)
+]
+
+# ray.put() the model just once to local object store, and then pass the
+# reference to the remote tasks.
+model = load_model()
+model_ref = ray.put(model)
+
+result_refs = []
+
+# Launch all prediction tasks.
+for file in input_files:
+    # Launch a prediction task by passing model reference and shard file to it.
+    # NOTE: it would be highly inefficient if you are passing the model itself
+    # like make_prediction.remote(model, file), which in order to pass the model
+    # to remote node will ray.put(model) for each task, potentially overwhelming
+    # the local object store and causing out-of-disk error.
+    result_refs.append(make_prediction.remote(model_ref, file))
+
+results = ray.get(result_refs)
+
+# Let's check prediction output size.
+for r in results:
+    print("Prediction output size:", r)
+
+
+
+
+In order to not overload the cluster and cause OOM, we can control the parallelism by setting the proper resource requirement for tasks, see details about this design pattern in Pattern: Using resources to limit the number of concurrently running tasks.
+For example, if it’s easy for your to get a good estimate of the in-memory size for data loaded from external storage, you can control the parallelism by specifying the amount of memory needed for each task, e.g. launching tasks with make_prediction.options(memory=100*1023*1025).remote(model_ref, file). Ray will then do the right thing and make sure tasks scheduled to a node will not exceed its total memory.
+
+Tip
+To avoid repeatedly storing the same model into object store (this can cause Out-of-disk for driver node), use ray.put() to store the model once, and then pass the reference around.
+
+
+Tip
+To avoid congest or overload the driver node, it’s preferable to have each task to write out the predictions (instead of returning results back to driver which actualy does nothing but write out to storage system).
+
+
+
+Actor-based batch prediction#
+In the above solution, each Ray task will have to fetch the model from the driver node before it can start performing the prediction. This is an overhead cost that can be significant if the model size is large. We can optimize it by using Ray actors, which will fetch the model just once and reuse it for all tasks assigned to the actor.
+First, we define a callable class that’s structured with an interface (i.e. constructor) to load/cache the model, and the other to take in a file and perform prediction.
+
+
+import pandas as pd
+import pyarrow.parquet as pq
+import ray
+
+@ray.remote
+class BatchPredictor:
+    def __init__(self, model):
+        self.model = model
+        
+    def predict(self, shard_path):
+        df = pq.read_table(shard_path).to_pandas()
+        result =self.model(df)
+
+        # Write out the prediction result.
+        # NOTE: unless the driver will have to further process the
+        # result (other than simply writing out to storage system),
+        # writing out at remote task is recommended, as it can avoid
+        # congesting or overloading the driver.
+        # ...
+
+        # Here we just return the size about the result in this example.
+        return len(result)
+
+
+
+
+The constructor is called only once per actor worker. We use ActorPool to manage a set of actors that can receive prediction requests.
+
+
+from ray.util.actor_pool import ActorPool
+
+model = load_model()
+model_ref = ray.put(model)
+num_actors = 4
+actors = [BatchPredictor.remote(model_ref) for _ in range(num_actors)]
+pool = ActorPool(actors)
+input_files = [
+        f"s3://anonymous@air-example-data/ursa-labs-taxi-data/downsampled_2009_full_year_data.parquet"
+        f"/fe41422b01c04169af2a65a83b753e0f_{i:06d}.parquet"
+        for i in range(12)
+]
+for file in input_files:
+    pool.submit(lambda a, v: a.predict.remote(v), file)
+while pool.has_next():
+    print("Prediction output size:", pool.get_next())
+
+
+
+
+Note that the ActorPool is fixed in size, unlike task-based approach where the number of parallel tasks can be dynamic (as long as it’s not exceeding max_in_flight_tasks). To have autoscaling actor pool, you will need to use the Ray Data batch prediction.
+
+
+Batch prediction with GPUs#
+If your cluster has GPU nodes and your predictor can utilize the GPUs, you can direct the tasks or actors to those GPU nodes by specifying num_gpus. Ray will schedule them onto GPU nodes accordingly. On the node, you will need to move the model to GPU. The following is an example for Torch model.
+
+
+import torch
+
+@ray.remote(num_gpus=1)
+def make_torch_prediction(model: torch.nn.Module, shard_path):
+    # Move model to GPU.
+    model.to(torch.device("cuda"))
+    inputs = pq.read_table(shard_path).to_pandas().to_numpy()
+
+    results = []
+    # for each tensor in inputs:
+    #   results.append(model(tensor))
+    #
+    # Write out the results right in task instead of returning back
+    # to the driver node (unless you have to), to avoid congest/overload
+    # driver node.
+    # ...
+
+    # Here we just return simple/light meta information.
+    return len(results)
+
+
+
+
+
+
+FAQs#
+
+How to load and pass model efficiently in Ray cluster if the model is large?#
+The recommended way is to (taking task-based batch prediction for example, the actor-based is the same):
+
+let the driver load the model (e.g. from storage system)
+let the driver ray.put(model) to store the model into object store; and
+pass the same reference of the model to each remote tasks when launching them.
+The remote task will fetch the model (from driver’s object store) to its local object store before start performing prediction.
+
+Note it’s highly inefficient if you skip the step 2 and pass the model (instead of reference) to remote tasks. If the model is large and there are many tasks, it’ll likely cause out-of-disk crash for the driver node.
+
+
+# GOOD: the model will be stored to driver's object store only once
+model = load_model()
+model_ref = ray.put(model)
+for file in input_files:
+    make_prediction.remote(model_ref, file)
+
+# BAD: the same model will be stored to driver's object store repeatedly for each task
+model = load_model()
+for file in input_files:
+    make_prediction.remote(model, file)
+
+
+
+
+For more details, check out Anti-pattern: Passing the same large argument by value repeatedly harms performance.
+
+
+How to improve the GPU utilization rate?#
+To keep GPUs busy, there are following things to look at:
+
+Schedule multiple tasks on the same GPU node if it has multiple GPUs: If there are multiple GPUs on same node and a single task cannot use them all, you can direct multiple tasks to the node. This is automatically handled by Ray, e.g. if you specify num_gpus=1 and there are 4 GPUs, Ray will schedule 4 tasks to the node, provided there are enough tasks and no other resource constraints.
+Use actor-based approach: as mentioned above, actor-based approach is more efficient because it reuses model initialization for many tasks, so the node will spend more time on the actual workload.
+
+
+
+

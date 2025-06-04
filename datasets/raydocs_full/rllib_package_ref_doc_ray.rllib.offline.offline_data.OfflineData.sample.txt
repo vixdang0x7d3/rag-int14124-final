@@ -1,0 +1,8 @@
+
+
+ray.rllib.offline.offline_data.OfflineData.sample#
+
+
+OfflineData.sample(num_samples: int, return_iterator: bool = False, num_shards: int = 1, module_state: Dict[str, Any] = None)[source]#
+
+

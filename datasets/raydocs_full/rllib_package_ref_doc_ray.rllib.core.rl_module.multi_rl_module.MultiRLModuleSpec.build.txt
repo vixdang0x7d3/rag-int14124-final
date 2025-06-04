@@ -1,0 +1,19 @@
+
+
+ray.rllib.core.rl_module.multi_rl_module.MultiRLModuleSpec.build#
+
+
+MultiRLModuleSpec.build(module_id: str | None = None) → RLModule[source]#
+Builds either the MultiRLModule or a (single) sub-RLModule under module_id.
+
+Parameters:
+module_id – Optional ModuleID of a single RLModule to be built. If None
+(default), builds the MultiRLModule.
+
+Returns:
+The built RLModule if module_id is provided, otherwise the built
+MultiRLModule.
+
+
+
+

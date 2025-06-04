@@ -1,0 +1,60 @@
+
+
+ray.rllib.utils.metrics.metrics_logger.MetricsLogger.peek#
+
+
+MetricsLogger.peek(key: str | Tuple[str, ...], *, default: Any | None = None, throughput: bool = False) → Any[source]#
+Returns the (reduced) value(s) found under the given key or key sequence.
+If key only reaches to a nested dict deeper in self, that
+sub-dictionary’s entire values are returned as a (nested) dict with its leafs
+being the reduced peek values.
+Note that calling this method does NOT cause an actual underlying value list
+reduction, even though reduced values are being returned. It’ll keep all
+internal structures as-is.
+logger = MetricsLogger()
+ema = 0.01
+
+# Log some (EMA reduced) values.
+key = ("some", "nested", "key", "sequence")
+logger.log_value(key, 2.0, ema_coeff=ema)
+logger.log_value(key, 3.0)
+
+# Expected reduced value:
+expected_reduced = (1.0 - ema) * 2.0 + ema * 3.0
+
+# Peek at the (reduced) value under `key`.
+check(logger.peek(key), expected_reduced)
+
+# Peek at the (reduced) nested struct under ("some", "nested").
+check(
+    logger.peek(("some", "nested")),
+    {"key": {"sequence": expected_reduced}},
+)
+
+# Log some more, check again.
+logger.log_value(key, 4.0)
+expected_reduced = (1.0 - ema) * expected_reduced + ema * 4.0
+check(logger.peek(key), expected_reduced)
+
+
+
+Parameters:
+
+key – The key/key sequence of the sub-structure of self, whose (reduced)
+values to return.
+default – An optional default value in case key cannot be found in self.
+If default is not provided and key cannot be found, throws a KeyError.
+throughput – Whether to return the current throughput estimate instead of the
+actual (reduced) value.
+
+
+Returns:
+The (reduced) values of the (possibly nested) sub-structure found under
+the given key or key sequence.
+
+Raises:
+KeyError – If key cannot be found AND default is not provided.
+
+
+
+

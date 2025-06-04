@@ -1,0 +1,78 @@
+
+
+ray.rllib.callbacks.callbacks.RLlibCallback#
+
+
+class ray.rllib.callbacks.callbacks.RLlibCallback[source]#
+Abstract base class for RLlib callbacks (similar to Keras callbacks).
+These callbacks can be used for custom metrics and custom postprocessing.
+By default, all of these callbacks are no-ops. To configure custom training
+callbacks, subclass RLlibCallback and then set
+{“callbacks”: YourCallbacksClass} in the algo config.
+Methods
+
+
+__init__
+
+
+on_algorithm_init
+Callback run when a new Algorithm instance has finished setup.
+
+on_checkpoint_loaded
+Callback run when an Algorithm has loaded a new state from a checkpoint.
+
+on_create_policy
+Callback run whenever a new policy is added to an algorithm.
+
+on_env_runners_recreated
+Callback run after one or more EnvRunner actors have been recreated.
+
+on_environment_created
+Callback run when a new environment object has been created.
+
+on_episode_created
+Callback run when a new episode is created (but has not started yet!).
+
+on_episode_end
+Called when an episode is done (after terminated/truncated have been logged).
+
+on_episode_start
+Callback run right after an Episode has been started.
+
+on_episode_step
+Called on each episode step (after the action(s) has/have been logged).
+
+on_evaluate_end
+Runs when the evaluation is done.
+
+on_evaluate_offline_end
+Runs when the offline evaluation is done.
+
+on_evaluate_offline_start
+Callback before offline evaluation starts.
+
+on_evaluate_start
+Callback before evaluation starts.
+
+on_learn_on_batch
+Called at the beginning of Policy.learn_on_batch().
+
+on_offline_eval_runners_recreated
+Callback run after one or more OfflineEvaluationRunner actors have been recreated.
+
+on_postprocess_trajectory
+Called immediately after a policy's postprocess_fn is called.
+
+on_sample_end
+Called at the end of EnvRunner.sample().
+
+on_sub_environment_created
+Callback run when a new sub-environment has been created.
+
+on_train_result
+Called at the end of Algorithm.train().
+
+
+
+
+

@@ -1,0 +1,537 @@
+
+
+Running Tune experiments with Optuna#
+
+
+
+
+In this tutorial we introduce Optuna, while running a simple Ray Tune experiment. Tune’s Search Algorithms integrate with Optuna and, as a result, allow you to seamlessly scale up a Optuna optimization process - without sacrificing performance.
+Similar to Ray Tune, Optuna is an automatic hyperparameter optimization software framework, particularly designed for machine learning. It features an imperative (“how” over “what” emphasis), define-by-run style user API. With Optuna, a user has the ability to dynamically construct the search spaces for the hyperparameters. Optuna falls in the domain of “derivative-free optimization” and “black-box optimization”.
+In this example we minimize a simple objective to briefly demonstrate the usage of Optuna with Ray Tune via OptunaSearch, including examples of conditional search spaces (string together relationships between hyperparameters), and the multi-objective problem (measure trade-offs among all important metrics). It’s useful to keep in mind that despite the emphasis on machine learning experiments, Ray Tune optimizes any implicit or explicit objective. Here we assume optuna>=3.0.0 library is installed. To learn more, please refer to Optuna website.
+Please note that sophisticated schedulers, such as AsyncHyperBandScheduler, may not work correctly with multi-objective optimization, since they typically expect a scalar score to compare fitness among trials.
+
+Prerequisites#
+
+
+# !pip install "ray[tune]"
+!pip install -q "optuna>=3.0.0"
+
+
+
+
+Next, import the necessary libraries:
+
+
+import time
+from typing import Dict, Optional, Any
+
+import ray
+from ray import tune
+from ray.tune.search import ConcurrencyLimiter
+from ray.tune.search.optuna import OptunaSearch
+
+
+
+
+
+
+ray.init(configure_logging=False)  # initialize Ray
+
+
+
+
+
+Show code cell output
+Hide code cell output
+
+
+
+
+
+Let’s start by defining a simple evaluation function.
+An explicit math formula is queried here for demonstration, yet in practice this is typically a black-box function– e.g. the performance results after training an ML model.
+We artificially sleep for a bit (0.1 seconds) to simulate a long-running ML experiment.
+This setup assumes that we’re running multiple steps of an experiment while tuning three hyperparameters,
+namely width, height, and activation.
+
+
+def evaluate(step, width, height, activation):
+    time.sleep(0.1)
+    activation_boost = 10 if activation=="relu" else 0
+    return (0.1 + width * step / 100) ** (-1) + height * 0.1 + activation_boost
+
+
+
+
+Next, our objective function to be optimized takes a Tune config, evaluates the score of your experiment in a training loop,
+and uses tune.report to report the score back to Tune.
+
+
+def objective(config):
+    for step in range(config["steps"]):
+        score = evaluate(step, config["width"], config["height"], config["activation"])
+        tune.report({"iterations": step, "mean_loss": score})
+
+
+
+
+Next we define a search space. The critical assumption is that the optimal hyperparamters live within this space. Yet, if the space is very large, then those hyperparamters may be difficult to find in a short amount of time.
+The simplest case is a search space with independent dimensions. In this case, a config dictionary will suffice.
+
+
+search_space = {
+    "steps": 100,
+    "width": tune.uniform(0, 20),
+    "height": tune.uniform(-100, 100),
+    "activation": tune.choice(["relu", "tanh"]),
+}
+
+
+
+
+Here we define the Optuna search algorithm:
+
+
+algo = OptunaSearch()
+
+
+
+
+We also constrain the number of concurrent trials to 4 with a ConcurrencyLimiter.
+
+
+algo = ConcurrencyLimiter(algo, max_concurrent=4)
+
+
+
+
+The number of samples is the number of hyperparameter combinations that will be tried out. This Tune run is set to 1000 samples.
+(you can decrease this if it takes too long on your machine).
+
+
+num_samples = 1000
+
+
+
+
+Finally, we run the experiment to "min"imize the “mean_loss” of the objective by searching search_space via algo, num_samples times. This previous sentence is fully characterizes the search problem we aim to solve. With this in mind, notice how efficient it is to execute tuner.fit().
+
+
+tuner = tune.Tuner(
+    objective,
+    tune_config=tune.TuneConfig(
+        metric="mean_loss",
+        mode="min",
+        search_alg=algo,
+        num_samples=num_samples,
+    ),
+    param_space=search_space,
+)
+results = tuner.fit()
+
+
+
+
+
+Show code cell output
+Hide code cell output
+
+
+
+
+
+Tune Status
+
+
+Current time:2025-02-10 18:06:12
+Running for: 00:00:35.68        
+Memory:      22.7/36.0 GiB      
+
+
+
+
+
+System Info
+      Using FIFO scheduling algorithm.Logical resource usage: 1.0/12 CPUs, 0/0 GPUs
+    
+
+
+
+Trial Status
+
+
+Trial name        status    loc            activation     height   width    loss  iter  total time (s)  iterations
+
+
+objective_989a402cTERMINATED127.0.0.1:42307relu          6.57558 8.6631310.7728    100         10.3642          99
+objective_d99d28c6TERMINATED127.0.0.1:42321tanh         51.2103 19.2804  5.17314   100         10.3775          99
+objective_ce34b92bTERMINATED127.0.0.1:42323tanh        -49.4554 17.2683 -4.88739   100         10.3741          99
+objective_f650ea5fTERMINATED127.0.0.1:42332tanh         20.6147  3.19539 2.3679    100         10.3804          99
+objective_e72e976eTERMINATED127.0.0.1:42356relu        -12.5302  3.45152 9.03132   100         10.372           99
+objective_d00b4e1aTERMINATED127.0.0.1:42362tanh         65.8592  3.14335 6.89726   100         10.3776          99
+objective_30c6ec86TERMINATED127.0.0.1:42367tanh        -82.0713 14.2595 -8.13679   100         10.3755          99
+objective_691ce63cTERMINATED127.0.0.1:42368tanh         29.406   2.21881 3.37602   100         10.3653          99
+objective_3051162cTERMINATED127.0.0.1:42404relu         61.1787 12.9673 16.1952    100         10.3885          99
+objective_04a38992TERMINATED127.0.0.1:42405relu          6.2868811.4537 10.7161    100         10.4051          99
+
+
+
+
+
+
+
+
+And now we have the hyperparameters found to minimize the mean loss.
+
+
+print("Best hyperparameters found were: ", results.get_best_result().config)
+
+
+
+
+Best hyperparameters found were:  {'steps': 100, 'width': 14.259467682064852, 'height': -82.07132174642958, 'activation': 'tanh'}
+
+
+
+
+
+
+Providing an initial set of hyperparameters#
+While defining the search algorithm, we may choose to provide an initial set of hyperparameters that we believe are especially promising or informative, and
+pass this information as a helpful starting point for the OptunaSearch object.
+
+
+initial_params = [
+    {"width": 1, "height": 2, "activation": "relu"},
+    {"width": 4, "height": 2, "activation": "relu"},
+]
+
+
+
+
+Now the search_alg built using OptunaSearch takes points_to_evaluate.
+
+
+searcher = OptunaSearch(points_to_evaluate=initial_params)
+algo = ConcurrencyLimiter(searcher, max_concurrent=4)
+
+
+
+
+And run the experiment with initial hyperparameter evaluations:
+
+
+tuner = tune.Tuner(
+    objective,
+    tune_config=tune.TuneConfig(
+        metric="mean_loss",
+        mode="min",
+        search_alg=algo,
+        num_samples=num_samples,
+    ),
+    param_space=search_space,
+)
+results = tuner.fit()
+
+
+
+
+
+Show code cell output
+Hide code cell output
+
+
+
+
+
+Tune Status
+
+
+Current time:2025-02-10 18:06:47
+Running for: 00:00:35.44        
+Memory:      22.7/36.0 GiB      
+
+
+
+
+
+System Info
+      Using FIFO scheduling algorithm.Logical resource usage: 1.0/12 CPUs, 0/0 GPUs
+    
+
+
+
+Trial Status
+
+
+Trial name        status    loc            activation     height   width     loss  iter  total time (s)  iterations
+
+
+objective_1d2e715fTERMINATED127.0.0.1:42435relu          2       1      11.1174     100         10.3556          99
+objective_f7c2aed0TERMINATED127.0.0.1:42436relu          2       4      10.4463     100         10.3702          99
+objective_09dcce33TERMINATED127.0.0.1:42438tanh         28.5547 17.4195  2.91312    100         10.3483          99
+objective_b9955517TERMINATED127.0.0.1:42443tanh        -73.0995 13.8859 -7.23773    100         10.3682          99
+objective_d81ebd5cTERMINATED127.0.0.1:42464relu         -1.86597 1.4609310.4601     100         10.3969          99
+objective_3f0030e7TERMINATED127.0.0.1:42465relu         38.7166  1.3696 14.5585     100         10.3741          99
+objective_86bf6402TERMINATED127.0.0.1:42470tanh         40.269   5.13015 4.21999    100         10.3769          99
+objective_75d06a83TERMINATED127.0.0.1:42471tanh        -11.2824  3.10251-0.812933   100         10.3695          99
+objective_0d197811TERMINATED127.0.0.1:42496tanh         91.7076 15.1032  9.2372     100         10.3631          99
+objective_5156451fTERMINATED127.0.0.1:42497tanh         58.9282  3.96315 6.14136    100         10.4732          99
+
+
+
+
+
+
+
+
+We take another look at the optimal hyperparamters.
+
+
+print("Best hyperparameters found were: ", results.get_best_result().config)
+
+
+
+
+Best hyperparameters found were:  {'steps': 100, 'width': 13.885889617119432, 'height': -73.09947583621019, 'activation': 'tanh'}
+
+
+
+
+
+
+Conditional search spaces#
+Sometimes we may want to build a more complicated search space that has conditional dependencies on other hyperparameters. In this case, we pass a define-by-run function to the search_alg argument in ray.tune().
+
+
+def define_by_run_func(trial) -> Optional[Dict[str, Any]]:
+    """Define-by-run function to construct a conditional search space.
+
+    Ensure no actual computation takes place here. That should go into
+    the trainable passed to ``Tuner()`` (in this example, that's
+    ``objective``).
+
+    For more information, see https://optuna.readthedocs.io/en/stable\
+    /tutorial/10_key_features/002_configurations.html
+
+    Args:
+        trial: Optuna Trial object
+        
+    Returns:
+        Dict containing constant parameters or None
+    """
+
+    activation = trial.suggest_categorical("activation", ["relu", "tanh"])
+
+    # Define-by-run allows for conditional search spaces.
+    if activation == "relu":
+        trial.suggest_float("width", 0, 20)
+        trial.suggest_float("height", -100, 100)
+    else:
+        trial.suggest_float("width", -1, 21)
+        trial.suggest_float("height", -101, 101)
+        
+    # Return all constants in a dictionary.
+    return {"steps": 100}
+
+
+
+
+As before, we create the search_alg from OptunaSearch and ConcurrencyLimiter, this time we define the scope of search via the space argument and provide no initialization. We also must specific metric and mode when using space.
+
+
+searcher = OptunaSearch(space=define_by_run_func, metric="mean_loss", mode="min")
+algo = ConcurrencyLimiter(searcher, max_concurrent=4)
+
+
+
+
+[I 2025-02-10 18:06:47,670] A new study created in memory with name: optuna
+
+
+
+
+Running the experiment with a define-by-run search space:
+
+
+tuner = tune.Tuner(
+    objective,
+    tune_config=tune.TuneConfig(
+        search_alg=algo,
+        num_samples=num_samples,
+    ),
+)
+results = tuner.fit()
+
+
+
+
+
+Show code cell output
+Hide code cell output
+
+
+
+
+
+Tune Status
+
+
+Current time:2025-02-10 18:07:23
+Running for: 00:00:35.58        
+Memory:      22.9/36.0 GiB      
+
+
+
+
+
+System Info
+      Using FIFO scheduling algorithm.Logical resource usage: 1.0/12 CPUs, 0/0 GPUs
+    
+
+
+
+Trial Status
+
+
+Trial name        status    loc            activation     height  steps    width    loss  iter  total time (s)  iterations
+
+
+objective_48aa8fedTERMINATED127.0.0.1:42529relu        -76.595      100 9.90896  2.44141   100         10.3957          99
+objective_5f395194TERMINATED127.0.0.1:42531relu        -34.1447     10012.9999   6.66263   100         10.3823          99
+objective_e64a7441TERMINATED127.0.0.1:42532relu        -50.3172     100 3.95399  5.21738   100         10.3839          99
+objective_8e668790TERMINATED127.0.0.1:42537tanh         30.9768     10016.22     3.15957   100         10.3818          99
+objective_78ca576bTERMINATED127.0.0.1:42559relu         80.5037     100 0.90613919.0533    100         10.3731          99
+objective_4cd9e37aTERMINATED127.0.0.1:42560relu         77.0988     100 8.43807 17.8282    100         10.3881          99
+objective_a40498d5TERMINATED127.0.0.1:42565tanh        -24.0393     10012.7274  -2.32519   100         10.4031          99
+objective_43e7ea7eTERMINATED127.0.0.1:42566tanh        -92.349      10015.8595  -9.17161   100         10.4602          99
+objective_cb92227eTERMINATED127.0.0.1:42591relu          3.58988    10017.3259  10.417     100         10.3817          99
+objective_abed5125TERMINATED127.0.0.1:42608tanh         86.0127     10011.2746   8.69007   100         10.3995          99
+
+
+
+
+
+
+
+
+We take a look again at the optimal hyperparameters.
+
+
+print("Best hyperparameters for loss found were: ", results.get_best_result("mean_loss", "min").config)
+
+
+
+
+Best hyperparameters for loss found were:  {'activation': 'tanh', 'width': 15.859495323836288, 'height': -92.34898015005697, 'steps': 100}
+
+
+
+
+
+
+Multi-objective optimization#
+Finally, let’s take a look at the multi-objective case. This permits us to optimize multiple metrics at once, and organize our results based on the different objectives.
+
+
+def multi_objective(config):
+    # Hyperparameters
+    width, height = config["width"], config["height"]
+
+    for step in range(config["steps"]):
+        # Iterative training function - can be any arbitrary training procedure
+        intermediate_score = evaluate(step, config["width"], config["height"], config["activation"])
+        # Feed the score back back to Tune.
+        tune.report({
+           "iterations": step, "loss": intermediate_score, "gain": intermediate_score * width
+        })
+
+
+
+
+We define the OptunaSearch object this time with metric and mode as list arguments.
+
+
+searcher = OptunaSearch(metric=["loss", "gain"], mode=["min", "max"])
+algo = ConcurrencyLimiter(searcher, max_concurrent=4)
+
+tuner = tune.Tuner(
+    multi_objective,
+    tune_config=tune.TuneConfig(
+        search_alg=algo,
+        num_samples=num_samples,
+    ),
+    param_space=search_space
+)
+results = tuner.fit();
+
+
+
+
+
+Show code cell output
+Hide code cell output
+
+
+
+
+
+Tune Status
+
+
+Current time:2025-02-10 18:07:58
+Running for: 00:00:35.27        
+Memory:      22.7/36.0 GiB      
+
+
+
+
+
+System Info
+      Using FIFO scheduling algorithm.Logical resource usage: 1.0/12 CPUs, 0/0 GPUs
+    
+
+
+
+Trial Status
+
+
+Trial name              status    loc            activation    height   width  iter  total time (s)  iterations    loss     gain
+
+
+multi_objective_0534ec01TERMINATED127.0.0.1:42659tanh         18.3209 8.1091    100         10.3653          99 1.95513 15.8543 
+multi_objective_d3a487a7TERMINATED127.0.0.1:42660relu        -67.8896 2.58816   100         10.3682          99 3.58666  9.28286
+multi_objective_f481c3dbTERMINATED127.0.0.1:42665relu         46.643919.5326    100         10.3677          9914.7158 287.438  
+multi_objective_74a41d72TERMINATED127.0.0.1:42666tanh        -31.950811.413     100         10.3685          99-3.10735-35.4643 
+multi_objective_d673b1aeTERMINATED127.0.0.1:42695relu         83.6004 5.04972   100         10.3494          9918.5561  93.7034 
+multi_objective_25ddc340TERMINATED127.0.0.1:42701relu        -81.7161 4.45303   100         10.382           99 2.05019  9.12955
+multi_objective_f8554c17TERMINATED127.0.0.1:42702tanh         43.5854 6.84585   100         10.3638          99 4.50394 30.8333 
+multi_objective_a144e315TERMINATED127.0.0.1:42707tanh         39.807519.1985    100         10.3706          99 4.03309 77.4292 
+multi_objective_50540842TERMINATED127.0.0.1:42739relu         75.280511.4041    100         10.3529          9917.6158 200.893  
+multi_objective_f322a9e3TERMINATED127.0.0.1:42740relu        -51.3587 5.31683   100         10.3756          99 5.05057 26.853  
+
+
+
+
+
+
+
+
+Now there are two hyperparameter sets for the two objectives.
+
+
+print("Best hyperparameters for loss found were: ", results.get_best_result("loss", "min").config)
+print("Best hyperparameters for gain found were: ", results.get_best_result("gain", "max").config)
+
+
+
+
+Best hyperparameters for loss found were:  {'steps': 100, 'width': 11.41302483988651, 'height': -31.950786209072476, 'activation': 'tanh'}
+Best hyperparameters for gain found were:  {'steps': 100, 'width': 19.532566002677832, 'height': 46.643925051045784, 'activation': 'relu'}
+
+
+
+
+We can mix-and-match the use of initial hyperparameter evaluations, conditional search spaces via define-by-run functions, and multi-objective tasks. This is also true of scheduler usage, with the exception of multi-objective optimization– schedulers typically rely on a single scalar score, rather than the two scores we use here: loss, gain.
+
+

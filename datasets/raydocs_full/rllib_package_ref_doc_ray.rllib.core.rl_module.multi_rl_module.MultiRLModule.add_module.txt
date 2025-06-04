@@ -1,0 +1,25 @@
+
+
+ray.rllib.core.rl_module.multi_rl_module.MultiRLModule.add_module#
+
+
+MultiRLModule.add_module(module_id: str, module: RLModule, *, override: bool = False) → None[source]#
+Adds a module at run time to the multi-agent module.
+
+Parameters:
+
+module_id – The module ID to add. If the module ID already exists and
+override is False, an error is raised. If override is True, the module
+is replaced.
+module – The module to add.
+override – Whether to override the module if it already exists.
+
+
+Raises:
+ValueError – If the module ID already exists and override is False.
+    Warnings are raised if the module id is not valid according to the
+    logic of validate_module_id().
+
+
+
+

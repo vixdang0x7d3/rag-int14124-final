@@ -1,0 +1,121 @@
+
+
+API Guide for Users from Other Data Libraries#
+Ray Data is a data loading and preprocessing library for ML. It shares certain
+similarities with other ETL data processing libraries, but also has its own focus.
+This guide provides API mappings for users who come from those data
+libraries, so you can quickly map what you may already know to Ray Data APIs.
+
+Note
+
+This is meant to map APIs that perform comparable but not necessarily identical operations.
+Select the API reference for exact semantics and usage.
+This list may not be exhaustive: It focuses on common APIs or APIs that are less obvious to see a connection.
+
+
+
+For Pandas Users#
+
+Pandas DataFrame vs. Ray Data APIs#
+
+Pandas DataFrame API
+Ray Data API
+
+
+
+df.head()
+ds.show(), ds.take(), or ds.take_batch()
+
+df.dtypes
+ds.schema()
+
+len(df) or df.shape[0]
+ds.count()
+
+df.truncate()
+ds.limit()
+
+df.iterrows()
+ds.iter_rows()
+
+df.drop()
+ds.drop_columns()
+
+df.transform()
+ds.map_batches() or ds.map()
+
+df.groupby()
+ds.groupby()
+
+df.groupby().apply()
+ds.groupby().map_groups()
+
+df.sample()
+ds.random_sample()
+
+df.sort_values()
+ds.sort()
+
+df.append()
+ds.union()
+
+df.aggregate()
+ds.aggregate()
+
+df.min()
+ds.min()
+
+df.max()
+ds.max()
+
+df.sum()
+ds.sum()
+
+df.mean()
+ds.mean()
+
+df.std()
+ds.std()
+
+
+
+
+
+For PyArrow Users#
+
+PyArrow Table vs. Ray Data APIs#
+
+PyArrow Table API
+Ray Data API
+
+
+
+pa.Table.schema
+ds.schema()
+
+pa.Table.num_rows
+ds.count()
+
+pa.Table.filter()
+ds.filter()
+
+pa.Table.drop()
+ds.drop_columns()
+
+pa.Table.add_column()
+ds.add_column()
+
+pa.Table.groupby()
+ds.groupby()
+
+pa.Table.sort_by()
+ds.sort()
+
+
+
+
+
+For PyTorch Dataset & DataLoader Users#
+For more details, see the Migrating from PyTorch to Ray Data.
+
+

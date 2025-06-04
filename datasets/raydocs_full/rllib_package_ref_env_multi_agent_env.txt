@@ -1,0 +1,203 @@
+
+
+MultiAgentEnv API#
+
+Note
+Ray 2.40 uses RLlib’s new API stack by default.
+The Ray team has mostly completed transitioning algorithms, example scripts, and
+documentation to the new code base.
+If you’re still using the old API stack, see New API stack migration guide for details on how to migrate.
+
+
+rllib.env.multi_agent_env.MultiAgentEnv#
+
+
+class ray.rllib.env.multi_agent_env.MultiAgentEnv(*args: Any, **kwargs: Any)[source]#
+An environment that hosts multiple independent agents.
+Agents are identified by AgentIDs (string).
+PublicAPI (beta): This API is in beta and may change before becoming stable.
+
+
+__init__()[source]#
+
+
+
+reset(*, seed: int | None = None, options: dict | None = None) → Tuple[Dict[Any, Any], Dict[Any, Any]][source]#
+Resets the env and returns observations from ready agents.
+
+Parameters:
+seed – An optional seed to use for the new episode.
+
+Returns:
+New observations for each ready agent.
+
+
+from ray.rllib.env.multi_agent_env import MultiAgentEnv
+class MyMultiAgentEnv(MultiAgentEnv):
+    # Define your env here.
+env = MyMultiAgentEnv()
+obs, infos = env.reset(seed=42, options={})
+print(obs)
+
+
+{
+    "car_0": [2.4, 1.6],
+    "car_1": [3.4, -3.2],
+    "traffic_light_1": [0, 3, 5, 1],
+}
+
+
+
+
+
+step(action_dict: Dict[Any, Any]) → Tuple[Dict[Any, Any], Dict[Any, Any], Dict[Any, Any], Dict[Any, Any], Dict[Any, Any]][source]#
+Returns observations from ready agents.
+The returns are dicts mapping from agent_id strings to values. The
+number of agents in the env can vary over time.
+
+Returns:
+Tuple containing 1) new observations for
+each ready agent, 2) reward values for each ready agent. If
+the episode is just started, the value will be None.
+3) Terminated values for each ready agent. The special key
+“__all__” (required) is used to indicate env termination.
+4) Truncated values for each ready agent.
+5) Info values for each agent id (may be empty dicts).
+
+
+env = ...
+obs, rewards, terminateds, truncateds, infos = env.step(action_dict={
+    "car_0": 1, "car_1": 0, "traffic_light_1": 2,
+})
+print(rewards)
+
+print(terminateds)
+
+print(infos)
+
+
+{
+    "car_0": 3,
+    "car_1": -1,
+    "traffic_light_1": 0,
+}
+{
+    "car_0": False,    # car_0 is still running
+    "car_1": True,     # car_1 is terminated
+    "__all__": False,  # the env is not terminated
+}
+{
+    "car_0": {},  # info for car_0
+    "car_1": {},  # info for car_1
+}
+
+
+
+
+
+get_observation_space(agent_id: Any) → gymnasium.Space[source]#
+
+
+
+get_action_space(agent_id: Any) → gymnasium.Space[source]#
+
+
+
+with_agent_groups(groups: Dict[str, List[Any]], obs_space: gymnasium.Space = None, act_space: gymnasium.Space = None) → MultiAgentEnv[source]#
+Convenience method for grouping together agents in this env.
+An agent group is a list of agent IDs that are mapped to a single
+logical agent. All agents of the group must act at the same time in the
+environment. The grouped agent exposes Tuple action and observation
+spaces that are the concatenated action and obs spaces of the
+individual agents.
+The rewards of all the agents in a group are summed. The individual
+agent rewards are available under the “individual_rewards” key of the
+group info return.
+Agent grouping is required to leverage algorithms such as Q-Mix.
+
+Parameters:
+
+groups – Mapping from group id to a list of the agent ids
+of group members. If an agent id is not present in any group
+value, it will be left ungrouped. The group id becomes a new agent ID
+in the final environment.
+obs_space – Optional observation space for the grouped
+env. Must be a tuple space. If not provided, will infer this to be a
+Tuple of n individual agents spaces (n=num agents in a group).
+act_space – Optional action space for the grouped env.
+Must be a tuple space. If not provided, will infer this to be a Tuple
+of n individual agents spaces (n=num agents in a group).
+
+
+
+from ray.rllib.env.multi_agent_env import MultiAgentEnv
+class MyMultiAgentEnv(MultiAgentEnv):
+    # define your env here
+    ...
+env = MyMultiAgentEnv(...)
+grouped_env = env.with_agent_groups(env, {
+  "group1": ["agent1", "agent2", "agent3"],
+  "group2": ["agent4", "agent5"],
+})
+
+
+
+
+
+render() → None[source]#
+Tries to render the environment.
+
+
+
+
+Convert gymnasium.Env into MultiAgentEnv#
+
+
+ray.rllib.env.multi_agent_env.make_multi_agent(env_name_or_creator: str | Callable[[EnvContext], Any | gymnasium.Env | None]) → Type[MultiAgentEnv][source]#
+Convenience wrapper for any single-agent env to be converted into MA.
+Allows you to convert a simple (single-agent) gym.Env class
+into a MultiAgentEnv class. This function simply stacks n instances
+of the given `gym.Env` class into one unified MultiAgentEnv class
+and returns this class, thus pretending the agents act together in the
+same environment, whereas - under the hood - they live separately from
+each other in n parallel single-agent envs.
+Agent IDs in the resulting and are int numbers starting from 0
+(first agent).
+
+Parameters:
+env_name_or_creator – String specifier or env_maker function taking
+an EnvContext object as only arg and returning a gym.Env.
+
+Returns:
+New MultiAgentEnv class to be used as env.
+The constructor takes a config dict with num_agents key
+(default=1). The rest of the config dict will be passed on to the
+underlying single-agent env’s constructor.
+
+
+from ray.rllib.env.multi_agent_env import make_multi_agent
+# By gym string:
+ma_cartpole_cls = make_multi_agent("CartPole-v1")
+# Create a 2 agent multi-agent cartpole.
+ma_cartpole = ma_cartpole_cls({"num_agents": 2})
+obs = ma_cartpole.reset()
+print(obs)
+
+# By env-maker callable:
+from ray.rllib.examples.envs.classes.stateless_cartpole import StatelessCartPole
+ma_stateless_cartpole_cls = make_multi_agent(
+   lambda config: StatelessCartPole(config))
+# Create a 3 agent multi-agent stateless cartpole.
+ma_stateless_cartpole = ma_stateless_cartpole_cls(
+   {"num_agents": 3})
+print(obs)
+
+
+{0: [...], 1: [...]}
+{0: [...], 1: [...], 2: [...]}
+
+
+DeveloperAPI: This API may change across minor Ray releases.
+
+
+

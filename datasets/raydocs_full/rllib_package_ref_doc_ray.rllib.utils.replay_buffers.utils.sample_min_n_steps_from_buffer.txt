@@ -1,0 +1,27 @@
+
+
+ray.rllib.utils.replay_buffers.utils.sample_min_n_steps_from_buffer#
+
+
+ray.rllib.utils.replay_buffers.utils.sample_min_n_steps_from_buffer(replay_buffer: ReplayBuffer, min_steps: int, count_by_agent_steps: bool) → SampleBatch | MultiAgentBatch | Dict[str, Any] | None[source]#
+Samples a minimum of n timesteps from a given replay buffer.
+This utility method is primarily used by the QMIX algorithm and helps with
+sampling a given number of time steps which has stored samples in units
+of sequences or complete episodes. Samples n batches from replay buffer
+until the total number of timesteps reaches train_batch_size.
+
+Parameters:
+
+replay_buffer – The replay buffer to sample from
+num_timesteps – The number of timesteps to sample
+count_by_agent_steps – Whether to count agent steps or env steps
+
+
+Returns:
+A concatenated SampleBatch or MultiAgentBatch with samples from the
+buffer.
+
+
+DeveloperAPI: This API may change across minor Ray releases.
+
+

@@ -1,0 +1,28 @@
+
+
+Managed Kubernetes services#
+
+
+Most KubeRay documentation examples only require a local Kubernetes cluster such as Kind.
+Some KubeRay examples require GPU nodes, which can be provided by a managed Kubernetes service.
+We collect a few helpful links for users who are getting started with a managed Kubernetes service to launch a Kubernetes cluster equipped with GPUs.
+
+
+Set up a GKE cluster (Google Cloud)#
+
+Start Google Cloud GKE Cluster with GPUs for KubeRay
+Start Google Cloud GKE Cluster with TPUs for KubeRay
+
+
+
+Set up an EKS cluster (AWS)#
+
+Start Amazon EKS Cluster with GPUs for KubeRay
+
+
+
+Set up an AKS cluster (Microsoft Azure)#
+
+Start Azure AKS Cluster with GPUs for KubeRay
+
+

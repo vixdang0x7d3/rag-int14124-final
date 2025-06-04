@@ -1,0 +1,9 @@
+
+
+ray.rllib.algorithms.algorithm_config.AlgorithmConfig.is_offline#
+
+
+property AlgorithmConfig.is_offline: bool#
+Defines, if this config is for offline RL.
+
+

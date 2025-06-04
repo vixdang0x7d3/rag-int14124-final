@@ -1,0 +1,36 @@
+
+
+Distribution API#
+
+Note
+Ray 2.40 uses RLlib’s new API stack by default.
+The Ray team has mostly completed transitioning algorithms, example scripts, and
+documentation to the new code base.
+If you’re still using the old API stack, see New API stack migration guide for details on how to migrate.
+
+
+Base Distribution class#
+
+
+Distribution
+The base class for distribution over a random variable.
+
+from_logits
+Creates a Distribution from logits.
+
+sample
+Draw a sample from the distribution.
+
+rsample
+Draw a re-parameterized sample from the action distribution.
+
+logp
+The log-likelihood of the distribution computed at value
+
+kl
+The KL-divergence between two distributions.
+
+
+
+
+

@@ -1,0 +1,34 @@
+
+
+ray.rllib.callbacks.callbacks.RLlibCallback.on_episode_step#
+
+
+RLlibCallback.on_episode_step(*, episode: SingleAgentEpisode | MultiAgentEpisode | EpisodeV2, env_runner: EnvRunner | None = None, metrics_logger: MetricsLogger | None = None, env: gymnasium.Env | None = None, env_index: int, rl_module: RLModule | None = None, worker: EnvRunner | None = None, base_env: BaseEnv | None = None, policies: Dict[str, Policy] | None = None, **kwargs) → None[source]#
+Called on each episode step (after the action(s) has/have been logged).
+Note that on the new API stack, this callback is also called after the final
+step of an episode, meaning when terminated/truncated are returned as True
+from the env.step() call, but is still provided with the non-numpy’ized
+episode object (meaning the data has NOT been converted to numpy arrays yet).
+The exact time of the call of this callback is after env.step([action]) and
+also after the results of this step (observation, reward, terminated, truncated,
+infos) have been logged to the given episode object.
+
+Parameters:
+
+episode – The just stepped SingleAgentEpisode or MultiAgentEpisode object
+(after env.step() and after returned obs, rewards, etc.. have been
+logged to the episode object).
+env_runner – Reference to the EnvRunner running the env and episode.
+metrics_logger – The MetricsLogger object inside the env_runner. Can be
+used to log custom metrics during env/episode stepping.
+env – The gym.Env or gym.vector.Env object running the started episode.
+env_index – The index of the sub-environment that has just been stepped.
+rl_module – The RLModule used to compute actions for stepping the env. In
+single-agent mode, this is a simple RLModule, in multi-agent mode, this
+is a MultiRLModule.
+kwargs – Forward compatibility placeholder.
+
+
+
+
+

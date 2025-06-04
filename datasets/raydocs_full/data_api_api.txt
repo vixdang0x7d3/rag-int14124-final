@@ -1,0 +1,105 @@
+
+
+Ray Data API#
+
+
+Input/Output
+Synthetic Data
+Python Objects
+Parquet
+CSV
+JSON
+Text
+Audio
+Avro
+Images
+Binary
+TFRecords
+Pandas
+NumPy
+Arrow
+MongoDB
+BigQuery
+SQL Databases
+Databricks
+Delta Sharing
+Hudi
+Iceberg
+Lance
+ClickHouse
+Daft
+Dask
+Spark
+Modin
+Mars
+Torch
+Hugging Face
+TensorFlow
+Video
+WebDataset
+Datasource API
+Datasink API
+Partitioning API
+MetadataProvider API
+Shuffling API
+
+
+Dataset API
+Dataset
+Basic Transformations
+Consuming Data
+Execution
+Grouped and Global aggregations
+I/O and Conversion
+Inspecting Metadata
+Sorting, Shuffling and Repartitioning
+Splitting, Merging, Joining datasets
+Schema
+Developer API
+Deprecated API
+
+
+DataIterator API
+DataIterator
+
+
+ExecutionOptions API
+Constructor
+Resource Options
+
+
+Aggregation API
+
+
+GroupedData API
+Computations or Descriptive Stats
+Function Application
+
+
+Global configuration
+DataContext
+
+
+Preprocessor
+Preprocessor Interface
+Generic Preprocessors
+Categorical Encoders
+Feature Scalers
+K-Bins Discretizers
+
+
+Large Language Model (LLM) API
+LLM processor builder
+Processor
+Processor configs
+
+
+API Guide for Users from Other Data Libraries
+For Pandas Users
+For PyArrow Users
+For PyTorch Dataset & DataLoader Users
+
+
+
+
+

@@ -1,0 +1,18 @@
+
+
+ray.rllib.callbacks.callbacks.RLlibCallback.on_checkpoint_loaded#
+
+
+RLlibCallback.on_checkpoint_loaded(*, algorithm: Algorithm, **kwargs) → None[source]#
+Callback run when an Algorithm has loaded a new state from a checkpoint.
+This method gets called at the end of Algorithm.load_checkpoint().
+
+Parameters:
+
+algorithm – Reference to the Algorithm instance.
+kwargs – Forward compatibility placeholder.
+
+
+
+
+

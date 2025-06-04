@@ -1,0 +1,9 @@
+
+
+ray.rllib.offline.offline_prelearner.OfflinePreLearner._should_module_be_updated#
+
+
+OfflinePreLearner._should_module_be_updated(module_id, multi_agent_batch=None) → bool[source]#
+Checks which modules in a MultiRLModule should be updated.
+
+

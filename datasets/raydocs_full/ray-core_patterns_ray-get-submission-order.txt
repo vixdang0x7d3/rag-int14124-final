@@ -1,0 +1,55 @@
+
+
+Anti-pattern: Processing results in submission order using ray.get increases runtime#
+TLDR: Avoid processing independent results in submission order using ray.get() since results may be ready in a different order than the submission order.
+A batch of tasks is submitted, and we need to process their results individually once they’re done.
+If each task takes a different amount of time to finish and we process results in submission order, we may waste time waiting for all of the slower (straggler) tasks that were submitted earlier to finish while later faster tasks have already finished.
+Instead, we want to process the tasks in the order that they finish using ray.wait() to speed up total time to completion.
+
+
+Processing results in submission order vs completion order#
+
+
+
+Code example#
+import random
+import time
+import ray
+
+ray.init()
+
+
+@ray.remote
+def f(i):
+    time.sleep(random.random())
+    return i
+
+
+# Anti-pattern: process results in the submission order.
+sum_in_submission_order = 0
+refs = [f.remote(i) for i in range(100)]
+for ref in refs:
+    # Blocks until this ObjectRef is ready.
+    result = ray.get(ref)
+    # process result
+    sum_in_submission_order = sum_in_submission_order + result
+
+# Better approach: process results in the completion order.
+sum_in_completion_order = 0
+refs = [f.remote(i) for i in range(100)]
+unfinished = refs
+while unfinished:
+    # Returns the first ObjectRef that is ready.
+    finished, unfinished = ray.wait(unfinished, num_returns=1)
+    result = ray.get(finished[0])
+    # process result
+    sum_in_completion_order = sum_in_completion_order + result
+
+
+Other ray.get() related anti-patterns are:
+
+Anti-pattern: Calling ray.get unnecessarily harms performance
+Anti-pattern: Calling ray.get in a loop harms parallelism
+
+
+

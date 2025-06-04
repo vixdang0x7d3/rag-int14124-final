@@ -1,0 +1,17 @@
+
+
+ray.rllib.algorithms.algorithm_config.AlgorithmConfig.get_default_rl_module_spec#
+
+
+AlgorithmConfig.get_default_rl_module_spec() → RLModuleSpec | MultiRLModuleSpec[source]#
+Returns the RLModule spec to use for this algorithm.
+Override this method in the subclass to return the RLModule spec, given
+the input framework.
+
+Returns:
+The RLModuleSpec (or MultiRLModuleSpec) to
+use for this algorithm’s RLModule.
+
+
+
+

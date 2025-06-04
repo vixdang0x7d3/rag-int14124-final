@@ -1,0 +1,463 @@
+
+
+User Guides#
+This section explains how to use Ray’s key concepts to build distributed applications.
+If you’re brand new to Ray, we recommend starting with the walkthrough.
+
+
+Tasks
+Specifying required resources
+Passing object refs to Ray tasks
+Waiting for Partial Results
+Generators
+Multiple returns
+Cancelling tasks
+Scheduling
+Fault Tolerance
+Task Events
+More about Ray Tasks
+Nested Remote Functions
+Yielding Resources While Blocked
+
+
+Dynamic generators
+num_returns set by the task caller
+num_returns set by the task executor
+Exception handling
+Limitations
+
+
+
+
+
+
+Actors
+Specifying required resources
+Calling the actor
+Passing around actor handles
+Generators
+Cancelling actor tasks
+Scheduling
+Fault Tolerance
+FAQ: Actors, Workers and Resources
+Task Events
+More about Ray Actors
+Named Actors
+Get-Or-Create a Named Actor
+Actor Lifetimes
+
+
+Terminating Actors
+Manual termination via an actor handle
+Manual termination within the actor
+
+
+AsyncIO / Concurrency for Actors
+AsyncIO for Actors
+Threaded Actors
+AsyncIO for Remote Tasks
+
+
+Limiting Concurrency Per-Method with Concurrency Groups
+Defining Concurrency Groups
+Default Concurrency Group
+Setting the Concurrency Group at Runtime
+
+
+Utility Classes
+Actor Pool
+Message passing using Ray Queue
+
+
+Out-of-band Communication
+Wrapping Library Processes
+Ray Collective
+HTTP Server
+Limitations
+
+
+Actor Task Execution Order
+Synchronous, Single-Threaded Actor
+Asynchronous or Threaded Actor
+
+
+
+
+
+
+Objects
+Fetching Object Data
+Passing Object Arguments
+Closure Capture of Objects
+Nested Objects
+Fault Tolerance
+More about Ray Objects
+Serialization
+Overview
+Serialization notes
+Customized Serialization
+Troubleshooting
+Known Issues
+
+
+Object Spilling
+Spilling to a custom directory
+Stats
+
+
+
+
+
+
+Environment Dependencies
+Concepts
+Preparing an environment using the Ray Cluster launcher
+Runtime environments
+Specifying a Runtime Environment Per-Job
+Specifying a Runtime Environment Per-Task or Per-Actor
+Common Workflows
+Using Local Files
+Using conda or pip packages
+Using uv for package management
+Library Development
+
+
+API Reference
+Caching and Garbage Collection
+Runtime Environment Specified by Both Job and Driver
+Inheritance
+
+
+Frequently Asked Questions
+Are environments installed on every node?
+When is the environment installed?
+Where are the environments cached?
+How long does it take to install or to load from cache?
+What is the relationship between runtime environments and Docker?
+My runtime_env was installed, but when I log into the node I can’t import the packages.
+
+
+
+
+Remote URIs
+Hosting a Dependency on a Remote Git Provider: Step-by-Step Guide
+Option 1: Download Zip (quicker to implement, but not recommended for production environments)
+Option 2: Manually Create URL (slower to implement, but recommended for production environments)
+
+
+Debugging
+
+
+Scheduling
+Resources
+Scheduling Strategies
+“DEFAULT”
+“SPREAD”
+PlacementGroupSchedulingStrategy
+NodeAffinitySchedulingStrategy
+
+
+Locality-Aware Scheduling
+More about Ray Scheduling
+Resources
+Physical Resources and Logical Resources
+Custom Resources
+Specifying Node Resources
+Specifying Task or Actor Resource Requirements
+
+
+Accelerator Support
+Starting Ray nodes with accelerators
+Using accelerators in Tasks and Actors
+Fractional Accelerators
+Workers not Releasing GPU Resources
+Accelerator Types
+
+
+Placement Groups
+Key Concepts
+Create a Placement Group (Reserve Resources)
+Schedule Tasks and Actors to Placement Groups (Use Reserved Resources)
+Placement Strategy
+Remove Placement Groups (Free Reserved Resources)
+Observe and Debug Placement Groups
+[Advanced] Child Tasks and Actors
+[Advanced] Named Placement Group
+[Advanced] Detached Placement Group
+[Advanced] Fault Tolerance
+API Reference
+
+
+Memory Management
+Concepts
+Debugging using ‘ray memory’
+Memory Aware Scheduling
+
+
+Out-Of-Memory Prevention
+What is the memory monitor?
+How do I disable the memory monitor?
+How do I configure the memory monitor?
+Using the Memory Monitor
+Addressing memory issues
+Questions or Issues?
+
+
+
+
+
+
+Fault tolerance
+How to write fault tolerant Ray applications
+More about Ray fault tolerance
+Task Fault Tolerance
+Catching application-level failures
+Retrying failed tasks
+Cancelling misbehaving tasks
+
+
+Actor Fault Tolerance
+Actor process failure
+Actor creator failure
+Force-killing a misbehaving actor
+Unavailable actors
+Actor method exceptions
+
+
+Object Fault Tolerance
+Recovering from data loss
+Recovering from owner failure
+Understanding ObjectLostErrors
+
+
+Node Fault Tolerance
+Worker node failure
+Head node failure
+Raylet failure
+
+
+GCS Fault Tolerance
+Setting up Redis
+
+
+
+
+
+
+Design Patterns & Anti-patterns
+Pattern: Using nested tasks to achieve nested parallelism
+Example use case
+Code example
+
+
+Pattern: Using generators to reduce heap memory usage
+Example use case
+Code example
+
+
+Pattern: Using ray.wait to limit the number of pending tasks
+Example use case
+Code example
+
+
+Pattern: Using resources to limit the number of concurrently running tasks
+Example use case
+Code example
+
+
+Pattern: Using asyncio to run actor methods concurrently
+Example use case
+
+
+Pattern: Using an actor to synchronize other tasks and actors
+Example use case
+Code example
+
+
+Pattern: Using a supervisor actor to manage a tree of actors
+Example use case
+Code example
+
+
+Pattern: Using pipelining to increase throughput
+Example use case
+Code example
+
+
+Anti-pattern: Returning ray.put() ObjectRefs from a task harms performance and fault tolerance
+Code example
+
+
+Anti-pattern: Calling ray.get in a loop harms parallelism
+Code example
+
+
+Anti-pattern: Calling ray.get unnecessarily harms performance
+Code example
+
+
+Anti-pattern: Processing results in submission order using ray.get increases runtime
+Code example
+
+
+Anti-pattern: Fetching too many objects at once with ray.get causes failure
+Code example
+
+
+Anti-pattern: Over-parallelizing with too fine-grained tasks harms speedup
+Code example
+
+
+Anti-pattern: Redefining the same remote function or class harms performance
+Code example
+
+
+Anti-pattern: Passing the same large argument by value repeatedly harms performance
+Code example
+
+
+Anti-pattern: Closure capturing large objects harms performance
+Code example
+
+
+Anti-pattern: Using global variables to share state between tasks and actors
+Code example
+
+
+Anti-pattern: Serialize ray.ObjectRef out of band
+Code example
+
+
+Anti-pattern: Forking new processes in application code
+Code example
+
+
+
+
+Ray Compiled Graph (beta)
+Use Cases
+More Resources
+Table of Contents
+Quickstart
+Hello World
+Specifying data dependencies
+asyncio support
+Execution and failure semantics
+Execution Timeouts
+CPU to GPU communication
+GPU to GPU communication
+
+
+Profiling
+PyTorch profiler
+Nsight system profiler
+Visualization
+
+
+Experimental: Overlapping communication and computation
+Troubleshooting
+Limitations
+Returning NumPy arrays
+Explicitly teardown before reusing the same actors
+
+
+Compiled Graph API
+Input and Output Nodes
+DAG Construction
+Compiled Graph Operations
+Configurations
+
+
+
+
+
+
+Advanced topics
+Tips for first-time users
+Tip 1: Delay ray.get()
+Tip 2: Avoid tiny tasks
+Tip 3: Avoid passing same object repeatedly to remote tasks
+Tip 4: Pipeline data processing
+
+
+Starting Ray
+What is the Ray runtime?
+Starting Ray on a single machine
+Starting Ray via the CLI (ray start)
+Launching a Ray cluster (ray up)
+What’s next?
+
+
+Ray Generators
+Getting started
+Error handling
+Generator from Actor Tasks
+Using the Ray generator with asyncio
+Garbage collection of object references
+Fault tolerance
+Cancellation
+How to wait for generator without blocking a thread (compatibility to ray.wait and ray.get)
+Thread safety
+Limitation
+
+
+Using Namespaces
+Specifying namespace for named actors
+Anonymous namespaces
+Getting the current namespace
+
+
+Cross-language programming
+Setup the driver
+Python calling Java
+Java calling Python
+Cross-language data serialization
+Cross-language exception stacks
+
+
+Working with Jupyter Notebooks & JupyterLab
+Setting Up Notebook
+
+
+Lazy Computation Graphs with the Ray DAG API
+Ray DAG with functions
+Ray DAG with classes and class methods
+Ray DAG with custom InputNode
+Ray DAG with multiple MultiOutputNode
+Reuse Ray Actors in DAGs
+More resources
+
+
+Miscellaneous Topics
+Dynamic Remote Parameters
+Overloaded Functions
+Inspecting Cluster State
+Node Information
+Resource Information
+
+
+Running Large Ray Clusters
+Tuning Operating System Settings
+Benchmark
+
+
+
+
+Authenticating Remote URIs in runtime_env
+Authenticating Remote URIs
+Running on VMs: the netrc File
+Running on KubeRay: Secrets with netrc
+
+
+Lifetimes of a User-Spawn Process
+User-Spawned Process Killed on Worker Exit
+Enabling the feature
+⚠️ Caution: Core worker now reaps zombies, toggle back if you wait to waitpid
+Under the hood
+
+
+
+
+
+
+

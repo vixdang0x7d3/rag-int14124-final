@@ -1,0 +1,19 @@
+
+
+ray.rllib.algorithms.algorithm.Algorithm.get_module#
+
+
+Algorithm.get_module(module_id: str = 'default_policy') → RLModule | None[source]#
+Returns the (single-agent) RLModule with model_id (None if ID not found).
+
+Parameters:
+module_id – ID of the (single-agent) RLModule to return from the MARLModule
+used by the local EnvRunner.
+
+Returns:
+The RLModule found under the ModuleID key inside the local EnvRunner’s
+MultiRLModule. None if module_id doesn’t exist.
+
+
+
+

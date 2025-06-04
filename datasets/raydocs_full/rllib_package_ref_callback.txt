@@ -1,0 +1,126 @@
+
+
+Callback APIs#
+
+Note
+Ray 2.40 uses RLlib’s new API stack by default.
+The Ray team has mostly completed transitioning algorithms, example scripts, and
+documentation to the new code base.
+If you’re still using the old API stack, see New API stack migration guide for details on how to migrate.
+
+Callback APIs enable you to inject code into an experiment, an Algorithm,
+and the subcomponents of an Algorithm.
+You can either subclass RLlibCallback and implement
+one or more of its methods, like on_algorithm_init(),
+or pass respective arguments to the callbacks()
+method of an Algorithm’s config, like
+config.callbacks(on_algorithm_init=lambda algorithm, **kw: print('algo initialized!')).
+
+
+
+Subclass RLlibCallback
+from ray.rllib.algorithms.dqn import DQNConfig
+from ray.rllib.callbacks.callbacks import RLlibCallback
+
+class MyCallback(RLlibCallback):
+    def on_algorithm_init(self, *, algorithm, metrics_logger, **kwargs):
+        print(f"Algorithm {algorithm} has been initialized!")
+
+config = (
+    DQNConfig()
+    .callbacks(MyCallback)
+)
+
+
+
+
+
+Pass individual callables to config.callbacks()
+from ray.rllib.algorithms.dqn import DQNConfig
+
+config = (
+    DQNConfig()
+    .callbacks(
+        on_algorithm_init=(
+            lambda algorithm, **kwargs: print(f"Algorithm {algorithm} has been initialized!")
+        )
+    )
+)
+
+
+
+
+See Callbacks for more details on how to write and configure callbacks.
+
+Methods to implement for custom behavior#
+
+Note
+RLlib only invokes callbacks in Algorithm
+and EnvRunner actors.
+The Ray team is considering expanding callbacks onto Learner
+actors and possibly RLModule instances as well.
+
+
+
+RLlibCallback#
+
+
+RLlibCallback
+Abstract base class for RLlib callbacks (similar to Keras callbacks).
+
+
+
+
+
+Callbacks invoked in Algorithm#
+The main Algorithm process always executes the following callback methods:
+
+
+on_algorithm_init
+Callback run when a new Algorithm instance has finished setup.
+
+on_sample_end
+Called at the end of EnvRunner.sample().
+
+on_train_result
+Called at the end of Algorithm.train().
+
+on_evaluate_start
+Callback before evaluation starts.
+
+on_evaluate_end
+Runs when the evaluation is done.
+
+on_env_runners_recreated
+Callback run after one or more EnvRunner actors have been recreated.
+
+on_checkpoint_loaded
+Callback run when an Algorithm has loaded a new state from a checkpoint.
+
+
+
+
+
+Callbacks invoked in EnvRunner#
+The EnvRunner actors always execute the following callback methods:
+
+
+on_environment_created
+Callback run when a new environment object has been created.
+
+on_episode_created
+Callback run when a new episode is created (but has not started yet!).
+
+on_episode_start
+Callback run right after an Episode has been started.
+
+on_episode_step
+Called on each episode step (after the action(s) has/have been logged).
+
+on_episode_end
+Called when an episode is done (after terminated/truncated have been logged).
+
+
+
+
+

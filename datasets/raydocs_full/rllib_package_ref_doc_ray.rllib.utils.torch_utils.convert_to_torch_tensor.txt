@@ -1,0 +1,24 @@
+
+
+ray.rllib.utils.torch_utils.convert_to_torch_tensor#
+
+
+ray.rllib.utils.torch_utils.convert_to_torch_tensor(x, device: str | None = None, pin_memory: bool = False, use_stream: bool = False, stream: torch.cuda.Stream | torch.cuda.classes.Stream | None = None)[source]#
+Converts any (possibly nested) structure to torch.Tensors.
+
+Parameters:
+
+x – The input structure whose leaves will be converted.
+device – The device to create the tensor on (e.g. “cuda:0” or “cpu”).
+pin_memory – If True, calls pin_memory() on the created tensors.
+use_stream – If True, uses a separate CUDA stream for Tensor.to().
+stream – An optional CUDA stream for the host-to-device copy in Tensor.to().
+
+
+Returns:
+A new structure with the same layout as x but with all leaves converted
+to torch.Tensors. Leaves that are None are left unchanged.
+
+
+
+

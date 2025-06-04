@@ -1,0 +1,15 @@
+
+
+ray.rllib.core.rl_module.multi_rl_module.MultiRLModule.as_multi_rl_module#
+
+
+MultiRLModule.as_multi_rl_module() → MultiRLModule[source]#
+Returns self in order to match RLModule.as_multi_rl_module() behavior.
+This method is overridden to avoid double wrapping.
+
+Returns:
+The instance itself.
+
+
+
+

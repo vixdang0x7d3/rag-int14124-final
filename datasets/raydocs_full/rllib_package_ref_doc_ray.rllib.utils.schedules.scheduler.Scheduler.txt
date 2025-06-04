@@ -1,0 +1,28 @@
+
+
+ray.rllib.utils.schedules.scheduler.Scheduler#
+
+
+class ray.rllib.utils.schedules.scheduler.Scheduler(fixed_value_or_schedule: float | List[List[int | float]] | List[Tuple[int, int | float]], *, framework: str = 'torch', device: str | None = None)[source]#
+Class to manage a scheduled (framework-dependent) tensor variable.
+Uses the PiecewiseSchedule (for maximum configuration flexibility)
+DeveloperAPI: This API may change across minor Ray releases.
+Methods
+
+
+__init__
+Initializes a Scheduler instance.
+
+get_current_value
+Returns the current value (as a tensor variable).
+
+update
+Updates the underlying (framework specific) tensor variable.
+
+validate
+Performs checking of a certain schedule configuration.
+
+
+
+
+

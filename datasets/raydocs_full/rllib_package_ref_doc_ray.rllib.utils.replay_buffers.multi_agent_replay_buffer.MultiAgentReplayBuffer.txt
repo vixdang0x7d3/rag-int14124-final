@@ -1,0 +1,49 @@
+
+
+ray.rllib.utils.replay_buffers.multi_agent_replay_buffer.MultiAgentReplayBuffer#
+
+
+class ray.rllib.utils.replay_buffers.multi_agent_replay_buffer.MultiAgentReplayBuffer(capacity: int = 10000, storage_unit: str = 'timesteps', num_shards: int = 1, replay_mode: str = 'independent', replay_sequence_override: bool = True, replay_sequence_length: int = 1, replay_burn_in: int = 0, replay_zero_init_states: bool = True, underlying_buffer_config: dict = None, **kwargs)[source]#
+Bases: ReplayBuffer
+A replay buffer shard for multiagent setups.
+This buffer is meant to be run in parallel to distribute experiences
+across num_shards shards. Unlike simpler buffers, it holds a set of
+buffers - one for each policy ID.
+DeveloperAPI: This API may change across minor Ray releases.
+Methods
+
+
+__init__
+Initializes a MultiAgentReplayBuffer instance.
+
+add
+Adds a batch to the appropriate policy's replay buffer.
+
+apply
+Calls the given function with this Actor instance.
+
+get_host
+Returns the computer's network name.
+
+get_state
+Returns all local state.
+
+ping
+Ping the actor.
+
+replay
+DeveloperAPI: This API may change across minor Ray releases.
+
+sample
+Samples a MultiAgentBatch of num_items per one policy's buffer.
+
+set_state
+Restores all local state to the provided state.
+
+stats
+Returns the stats of this buffer and all underlying buffers.
+
+
+
+
+

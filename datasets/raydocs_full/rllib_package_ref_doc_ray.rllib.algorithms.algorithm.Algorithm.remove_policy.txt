@@ -1,0 +1,30 @@
+
+
+ray.rllib.algorithms.algorithm.Algorithm.remove_policy#
+
+
+Algorithm.remove_policy(policy_id: str = 'default_policy', *, policy_mapping_fn: Callable[[Any], str] | None = None, policies_to_train: Collection[str] | Callable[[str, SampleBatch | MultiAgentBatch | Dict[str, Any] | None], bool] | None = None, remove_from_env_runners: bool = True, remove_from_eval_env_runners: bool = True, evaluation_workers=-1, remove_from_learners=-1) → None[source]#
+Removes a policy from this Algorithm.
+
+Parameters:
+
+policy_id – ID of the policy to be removed.
+policy_mapping_fn – An optional (updated) policy mapping function
+to use from here on. Note that already ongoing episodes will
+not change their mapping but will use the old mapping till
+the end of the episode.
+policies_to_train – An optional list of policy IDs to be trained
+or a callable taking PolicyID and SampleBatchType and
+returning a bool (trainable or not?).
+If None, will keep the existing setup in place. Policies,
+whose IDs are not in the list (or for which the callable
+returns False) will not be updated.
+remove_from_env_runners – Whether to remove the Policy from the
+EnvRunnerGroup (with its m EnvRunners plus the local one).
+remove_from_eval_env_runners – Whether to remove the RLModule from the eval
+EnvRunnerGroup (with its o EnvRunners plus the local one).
+
+
+
+
+

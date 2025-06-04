@@ -1,0 +1,24 @@
+
+
+ExecutionOptions API#
+
+Constructor#
+
+
+ExecutionOptions
+Common options for execution.
+
+
+
+
+
+Resource Options#
+
+
+ExecutionResources
+Specifies resources usage or resource limits for execution.
+
+
+
+
+

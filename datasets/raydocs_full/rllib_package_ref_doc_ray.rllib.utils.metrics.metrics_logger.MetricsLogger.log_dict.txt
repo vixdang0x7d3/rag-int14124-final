@@ -1,0 +1,81 @@
+
+
+ray.rllib.utils.metrics.metrics_logger.MetricsLogger.log_dict#
+
+
+MetricsLogger.log_dict(stats_dict, *, key: str | Tuple[str, ...] | None = None, reduce: str | None = 'mean', window: int | float | None = None, ema_coeff: float | None = None, clear_on_reduce: bool = False) → None[source]#
+Logs all leafs (Stats or simple values) of a (nested) dict to this logger.
+Traverses through all leafs of stats_dict and - if a path cannot be found in
+this logger yet, will add the Stats found at the leaf under that new key.
+If a path already exists, will merge the found leaf (Stats) with the ones
+already logged before. This way, stats_dict does NOT have to have
+the same structure as what has already been logged to self, but can be used to
+log values under new keys or nested key paths.
+logger = MetricsLogger()
+
+# Log n dicts with keys "a" and (some) "b". By default, all logged values
+# under that key are averaged, once `reduce()` is called.
+logger.log_dict(
+    {
+        "a": 0.1,
+        "b": -0.1,
+    },
+    window=10,
+)
+logger.log_dict({
+    "b": -0.2,
+})  # don't have to repeat `window` arg if key already exists
+logger.log_dict({
+    "a": 0.2,
+    "c": {"d": 5.0},  # can also introduce an entirely new (nested) key
+})
+
+# Peek at the current (reduced) values under "a" and "b".
+check(logger.peek("a"), 0.15)
+check(logger.peek("b"), -0.15)
+check(logger.peek(("c", "d")), 5.0)
+
+# Reduced all stats.
+results = logger.reduce(return_stats_obj=False)
+check(results, {
+    "a": 0.15,
+    "b": -0.15,
+    "c": {"d": 5.0},
+})
+
+
+
+Parameters:
+
+stats_dict – The (possibly nested) dict with Stats or individual values as
+leafs to be logged to this logger.
+key – An additional key (or tuple of keys) to prepend to all the keys
+(or tuples of keys in case of nesting) found inside stats_dict.
+Useful to log the entire contents of stats_dict in a more organized
+fashion under one new key, for example logging the results returned by
+an EnvRunner under key
+reduce – The reduction method to apply, once self.reduce() is called.
+If None, will collect all logged values under key in a list (and
+also return that list upon calling self.reduce()).
+window – An optional window size to reduce over.
+If not None, then the reduction operation is only applied to the most
+recent window items, and - after reduction - the internal values list
+under key is shortened to hold at most window items (the most
+recent ones).
+Must be None if ema_coeff is provided.
+If None (and ema_coeff is None), reduction must not be “mean”.
+ema_coeff – An optional EMA coefficient to use if reduce is “mean”
+and no window is provided. Note that if both window and ema_coeff
+are provided, an error is thrown. Also, if ema_coeff is provided,
+reduce must be “mean”.
+The reduction formula for EMA is:
+EMA(t1) = (1.0 - ema_coeff) * EMA(t0) + ema_coeff * new_value
+clear_on_reduce – If True, all values under key will be emptied after
+self.reduce() is called. Setting this to True is useful for cases,
+in which the internal values list would otherwise grow indefinitely,
+for example if reduce is None and there is no window provided.
+
+
+
+
+

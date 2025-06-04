@@ -1,0 +1,24 @@
+
+
+ray.rllib.models.distributions.Distribution.rsample#
+
+
+abstract Distribution.rsample(*, sample_shape: Tuple[int, ...] = None, return_logp: bool = False, **kwargs) → numpy.array | jnp.ndarray | tf.Tensor | torch.Tensor | Tuple[numpy.array | jnp.ndarray | tf.Tensor | torch.Tensor, numpy.array | jnp.ndarray | tf.Tensor | torch.Tensor][source]#
+Draw a re-parameterized sample from the action distribution.
+If this method is implemented, we can take gradients of samples w.r.t. the
+distribution parameters.
+
+Parameters:
+
+sample_shape – The shape of the sample to draw.
+return_logp – Whether to return the logp of the sampled values.
+**kwargs – Forward compatibility placeholder.
+
+
+Returns:
+The sampled values. If return_logp is True, returns a tuple of the
+sampled values and its logp.
+
+
+
+

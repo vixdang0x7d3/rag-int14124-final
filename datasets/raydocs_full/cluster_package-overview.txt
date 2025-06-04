@@ -1,0 +1,44 @@
+
+
+Ray Cluster Management API#
+This section contains a reference for the cluster management API. If there is anything missing, please open an issue
+on Github.
+
+
+Cluster Management CLI
+ray start
+ray stop
+ray up
+ray down
+ray exec
+ray submit
+ray attach
+ray get_head_ip
+ray monitor
+
+
+Python SDK API Reference
+JobSubmissionClient
+JobStatus
+JobInfo
+JobDetails
+JobType
+DriverInfo
+
+
+Ray Jobs CLI API Reference
+ray job submit
+ray job status
+ray job stop
+ray job logs
+ray job list
+ray job delete
+
+
+Programmatic Cluster Scaling
+ray.autoscaler.sdk.request_resources
+
+
+
+
+

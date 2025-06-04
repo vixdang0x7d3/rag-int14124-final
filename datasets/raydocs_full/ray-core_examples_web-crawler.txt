@@ -1,0 +1,134 @@
+
+
+Speed up your web crawler by parallelizing it with Ray#
+
+
+
+In this example we’ll quickly demonstrate how to build a simple web scraper in Python and
+parallelize it with Ray Tasks with minimal code changes.
+To run this example locally on your machine, please first install ray and beautifulsoup with
+pip install "beautifulsoup4==4.11.1" "ray>=2.2.0"
+
+
+First, we’ll define a function called find_links which takes a starting page (start_url) to crawl,
+and we’ll take the Ray documentation as example of such a starting point.
+Our crawler simply extracts all available links from the starting URL that contain a given base_url
+(e.g. in our example we only want to follow links on http://docs.ray.io, not any external links).
+The find_links function is then called recursively with all the links we found this way, until a
+certain depth is reached.
+To extract the links from HTML elements on a site, we define a little helper function called
+extract_links, which takes care of handling relative URLs properly and sets a limit on the
+number of links returned from a site (max_results) to control the runtime of the crawler more easily.
+Here’s the full implementation:
+
+
+import requests
+from bs4 import BeautifulSoup
+
+def extract_links(elements, base_url, max_results=100):
+    links = []
+    for e in elements:
+        url = e["href"]
+        if "https://" not in url:
+            url = base_url + url
+        if base_url in url:
+            links.append(url)
+    return set(links[:max_results])
+
+
+def find_links(start_url, base_url, depth=2):
+    if depth == 0:
+        return set()
+
+    page = requests.get(start_url)
+    soup = BeautifulSoup(page.content, "html.parser")
+    elements = soup.find_all("a", href=True)
+    links = extract_links(elements, base_url)
+
+    for url in links:
+        new_links = find_links(url, base_url, depth-1)
+        links = links.union(new_links)
+    return links
+
+
+
+
+Let’s define a starting and base URL and crawl the Ray docs to a depth of 2.
+
+
+base = "https://docs.ray.io/en/latest/"
+docs = base + "index.html"
+
+
+
+
+
+
+%time len(find_links(docs, base))
+
+
+
+
+CPU times: user 19.3 s, sys: 340 ms, total: 19.7 s
+Wall time: 25.8 s
+
+
+591
+
+
+
+
+As you can see, crawling the documentation root recursively like this returns a
+total of 591 pages and the wall time comes in at around 25 seconds.
+Crawling pages can be parallelized in many ways.
+Probably the simplest way is to simple start with multiple starting URLs and call
+find_links in parallel for each of them.
+We can do this with Ray Tasks in a straightforward way.
+We simply use the ray.remote decorator to wrap the find_links function in a task called find_links_task like this:
+
+
+import ray
+
+@ray.remote
+def find_links_task(start_url, base_url, depth=2):
+    return find_links(start_url, base_url, depth)
+
+
+
+
+To use this task to kick off a parallel call, the only thing you have to do is use
+find_links_tasks.remote(...) instead of calling the underlying Python function directly.
+Here’s how you run six crawlers in parallel, the first three (redundantly) crawl
+docs.ray.io again, the other three crawl the main entry points of the Ray RLlib,
+Tune, and Serve libraries, respectively:
+
+
+links = [find_links_task.remote(f"{base}{lib}/index.html", base)
+         for lib in ["", "", "", "rllib", "tune", "serve"]]
+
+
+
+
+
+
+%time for res in ray.get(links): print(len(res))
+
+
+
+
+591
+591
+105
+204
+105
+CPU times: user 65.5 ms, sys: 47.8 ms, total: 113 ms
+Wall time: 27.2 s
+
+
+
+
+This parallel run crawls around four times the number of pages in roughly the same time as the initial, sequential run.
+Note the use of ray.get in the timed run to retrieve the results from Ray (the remote call promise gets resolved with get).
+Of course, there are much smarter ways to create a crawler and efficiently parallelize it, and this example
+gives you a starting point to work from.
+

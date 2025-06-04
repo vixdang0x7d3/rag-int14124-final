@@ -1,0 +1,131 @@
+
+
+MultiAgentEpisode API#
+
+Note
+Ray 2.40 uses RLlib’s new API stack by default.
+The Ray team has mostly completed transitioning algorithms, example scripts, and
+documentation to the new code base.
+If you’re still using the old API stack, see New API stack migration guide for details on how to migrate.
+
+
+rllib.env.multi_agent_episode.MultiAgentEpisode#
+
+Constructor#
+
+
+MultiAgentEpisode
+Stores multi-agent episode data.
+
+validate
+Validates the episode's data.
+
+
+
+
+
+Getting basic information#
+
+
+__len__
+Returns the length of an MultiAgentEpisode.
+
+get_return
+Returns all-agent return.
+
+get_duration_s
+Returns the duration of this Episode (chunk) in seconds.
+
+is_done
+Whether the episode is actually done (terminated or truncated).
+
+is_numpy
+True, if the data in this episode is already stored as numpy arrays.
+
+env_steps
+Returns the number of environment steps.
+
+agent_steps
+Number of agent steps.
+
+
+
+
+
+Multi-agent information#
+
+
+module_for
+Returns the ModuleID for a given AgentID.
+
+get_agents_to_act
+Returns a set of agent IDs required to send an action to env.step() next.
+
+get_agents_that_stepped
+Returns a set of agent IDs of those agents that just finished stepping.
+
+
+
+
+
+Getting environment data#
+
+
+get_observations
+Returns agents' observations or batched ranges thereof from this episode.
+
+get_infos
+Returns agents' info dicts or list (ranges) thereof from this episode.
+
+get_actions
+Returns agents' actions or batched ranges thereof from this episode.
+
+get_rewards
+Returns agents' rewards or batched ranges thereof from this episode.
+
+get_extra_model_outputs
+Returns agents' actions or batched ranges thereof from this episode.
+
+get_terminateds
+Gets the terminateds at given indices.
+
+get_truncateds
+
+
+
+
+
+
+Adding data#
+
+
+add_env_reset
+Stores initial observation.
+
+add_env_step
+Adds a timestep to the episode.
+
+
+
+
+
+Creating and handling episode chunks#
+
+
+cut
+Returns a successor episode chunk (of len=0) continuing from this Episode.
+
+slice
+Returns a slice of this episode with the given slice object.
+
+concat_episode
+Adds the given other MultiAgentEpisode to the right side of self.
+
+to_numpy
+Converts this Episode's list attributes to numpy arrays.
+
+
+
+
+
+

@@ -1,0 +1,22 @@
+
+
+Examples#
+
+
+This section presents example Ray workloads to try out on your Kubernetes cluster.
+
+Ray Train XGBoostTrainer on Kubernetes (CPU-only)
+Train PyTorch ResNet model with GPUs on Kubernetes
+Train a PyTorch model on Fashion MNIST with CPUs on Kubernetes (CPU-only)
+Serve a MobileNet image classifier on Kubernetes (CPU-only)
+Serve a StableDiffusion text-to-image model on Kubernetes
+Serve a Stable Diffusion model on GKE with TPUs
+Serve a text summarizer on Kubernetes
+RayJob Batch Inference Example
+Priority Scheduling with RayJob and Kueue
+Gang Scheduling with RayJob and Kueue
+Distributed checkpointing with KubeRay and GCSFuse
+Use Modin with Ray on Kubernetes
+Serve a Large Language Model with vLLM on Kubernetes
+
+

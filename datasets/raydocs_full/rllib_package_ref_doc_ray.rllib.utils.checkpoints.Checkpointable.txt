@@ -1,0 +1,66 @@
+
+
+ray.rllib.utils.checkpoints.Checkpointable#
+
+
+class ray.rllib.utils.checkpoints.Checkpointable[source]#
+Bases: ABC
+Abstract base class for a component of RLlib that can be checkpointed to disk.
+Subclasses must implement the following APIs:
+- save_to_path()
+- restore_from_path()
+- from_checkpoint()
+- get_state()
+- set_state()
+- get_ctor_args_and_kwargs()
+- get_metadata()
+- get_checkpointable_components()
+PublicAPI (alpha): This API is in alpha and may change before becoming stable.
+Methods
+
+
+__init__
+
+
+from_checkpoint
+Creates a new Checkpointable instance from the given location and returns it.
+
+get_checkpointable_components
+Returns the implementing class's own Checkpointable subcomponents.
+
+get_ctor_args_and_kwargs
+Returns the args/kwargs used to create self from its constructor.
+
+get_metadata
+Returns JSON writable metadata further describing the implementing class.
+
+get_state
+Returns the implementing class's current state as a dict.
+
+restore_from_path
+Restores the state of the implementing class from the given path.
+
+save_to_path
+Saves the state of the implementing class (or state) to path.
+
+set_state
+Sets the implementing class' state to the given state dict.
+
+
+
+Attributes
+
+
+CLASS_AND_CTOR_ARGS_FILE_NAME
+
+
+METADATA_FILE_NAME
+
+
+STATE_FILE_NAME
+
+
+
+
+
+

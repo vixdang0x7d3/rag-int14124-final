@@ -1,0 +1,23 @@
+
+
+ray.rllib.utils.numpy.fc#
+
+
+ray.rllib.utils.numpy.fc(x: numpy.ndarray, weights: numpy.ndarray, biases: numpy.ndarray | None = None, framework: str | None = None) → numpy.ndarray[source]#
+Calculates FC (dense) layer outputs given weights/biases and input.
+
+Parameters:
+
+x – The input to the dense layer.
+weights – The weights matrix.
+biases – The biases vector. All 0s if None.
+framework – An optional framework hint (to figure out,
+e.g. whether to transpose torch weight matrices).
+
+
+Returns:
+The dense layer’s output.
+
+
+
+

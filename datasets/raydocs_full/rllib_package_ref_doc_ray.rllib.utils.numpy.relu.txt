@@ -1,0 +1,21 @@
+
+
+ray.rllib.utils.numpy.relu#
+
+
+ray.rllib.utils.numpy.relu(x: numpy.ndarray, alpha: float = 0.0) → numpy.ndarray[source]#
+Implementation of the leaky ReLU function.
+y = x * alpha if x < 0 else x
+
+Parameters:
+
+x – The input values.
+alpha – A scaling (“leak”) factor to use for negative x.
+
+
+Returns:
+The leaky ReLU output for x.
+
+
+
+

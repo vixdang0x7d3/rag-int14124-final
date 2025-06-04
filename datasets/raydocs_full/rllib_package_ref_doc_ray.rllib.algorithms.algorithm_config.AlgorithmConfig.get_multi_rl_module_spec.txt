@@ -1,0 +1,37 @@
+
+
+ray.rllib.algorithms.algorithm_config.AlgorithmConfig.get_multi_rl_module_spec#
+
+
+AlgorithmConfig.get_multi_rl_module_spec(*, env: Any | gymnasium.Env | None = None, spaces: Dict[str, Tuple[gymnasium.Space, gymnasium.Space]] | None = None, inference_only: bool = False, policy_dict: Dict[str, PolicySpec] | None = None, single_agent_rl_module_spec: RLModuleSpec | None = None) → MultiRLModuleSpec[source]#
+Returns the MultiRLModuleSpec based on the given env/spaces.
+
+Parameters:
+
+env – An optional environment instance, from which to infer the different
+spaces for the individual RLModules. If not provided, tries to infer
+from spaces, otherwise from self.observation_space and
+self.action_space. Raises an error, if no information on spaces can be
+inferred.
+spaces – Optional dict mapping ModuleIDs to 2-tuples of observation- and
+action space that should be used for the respective RLModule.
+These spaces are usually provided by an already instantiated remote
+EnvRunner (call EnvRunner.get_spaces()). If not provided, tries
+to infer from env, otherwise from self.observation_space and
+self.action_space. Raises an error, if no information on spaces can be
+inferred.
+inference_only – If True, the returned module spec is used in an
+inference-only setting (sampling) and the RLModule can thus be built in
+its light version (if available). For example, the inference_only
+version of an RLModule might only contain the networks required for
+computing actions, but misses additional target- or critic networks.
+Also, if True, the returned spec does NOT contain those (sub)
+RLModuleSpecs that have their learner_only flag set to True.
+
+
+Returns:
+A new MultiRLModuleSpec instance that can be used to build a MultiRLModule.
+
+
+
+

@@ -1,0 +1,54 @@
+
+
+ray.rllib.algorithms.algorithm.Algorithm.add_policy#
+
+
+Algorithm.add_policy(policy_id: str, policy_cls: Type[Policy] | None = None, policy: Policy | None = None, *, observation_space: gymnasium.spaces.Space | None = None, action_space: gymnasium.spaces.Space | None = None, config: AlgorithmConfig | dict | None = None, policy_state: Dict[str, numpy.array | jnp.ndarray | tf.Tensor | torch.Tensor | dict | tuple] | None = None, policy_mapping_fn: Callable[[Any, int | str], str] | None = None, policies_to_train: Collection[str] | Callable[[str, SampleBatch | MultiAgentBatch | Dict[str, Any] | None], bool] | None = None, add_to_env_runners: bool = True, add_to_eval_env_runners: bool = True, module_spec: RLModuleSpec | None = None, evaluation_workers=-1, add_to_learners=-1) → Policy | None[source]#
+Adds a new policy to this Algorithm.
+
+Parameters:
+
+policy_id – ID of the policy to add.
+IMPORTANT: Must not contain characters that
+are also not allowed in Unix/Win filesystems, such as: <>:"/|?*,
+or a dot, space or backslash at the end of the ID.
+policy_cls – The Policy class to use for constructing the new Policy.
+Note: Only one of policy_cls or policy must be provided.
+policy – The Policy instance to add to this algorithm. If not None, the
+given Policy object will be directly inserted into the Algorithm’s
+local worker and clones of that Policy will be created on all remote
+workers as well as all evaluation workers.
+Note: Only one of policy_cls or policy must be provided.
+observation_space – The observation space of the policy to add.
+If None, try to infer this space from the environment.
+action_space – The action space of the policy to add.
+If None, try to infer this space from the environment.
+config – The config object or overrides for the policy to add.
+policy_state – Optional state dict to apply to the new
+policy instance, right after its construction.
+policy_mapping_fn – An optional (updated) policy mapping function
+to use from here on. Note that already ongoing episodes will
+not change their mapping but will use the old mapping till
+the end of the episode.
+policies_to_train – An optional list of policy IDs to be trained
+or a callable taking PolicyID and SampleBatchType and
+returning a bool (trainable or not?).
+If None, will keep the existing setup in place. Policies,
+whose IDs are not in the list (or for which the callable
+returns False) will not be updated.
+add_to_env_runners – Whether to add the new RLModule to the EnvRunnerGroup
+(with its m EnvRunners plus the local one).
+add_to_eval_env_runners – Whether to add the new RLModule to the eval
+EnvRunnerGroup (with its o EnvRunners plus the local one).
+module_spec – In the new RLModule API we need to pass in the module_spec for
+the new module that is supposed to be added. Knowing the policy spec is
+not sufficient.
+
+
+Returns:
+The newly added policy (the copy that got added to the local
+worker). If workers was provided, None is returned.
+
+
+
+

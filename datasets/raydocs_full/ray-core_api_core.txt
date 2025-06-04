@@ -1,0 +1,121 @@
+
+
+Core API#
+
+
+ray.init
+Connect to an existing Ray cluster or start one and connect to it.
+
+ray.shutdown
+Disconnect the worker, and terminate processes started by ray.init().
+
+ray.is_initialized
+Check if ray.init has been called yet.
+
+ray.job_config.JobConfig
+A class used to store the configurations of a job.
+
+ray.LoggingConfig
+Logging configuration for a Ray job.
+
+
+
+
+Tasks#
+
+
+ray.remote
+Defines a remote function or an actor class.
+
+ray.remote_function.RemoteFunction.options
+Configures and overrides the task invocation parameters.
+
+ray.cancel
+Cancels a task.
+
+
+
+
+
+Actors#
+
+
+ray.remote
+Defines a remote function or an actor class.
+
+ray.actor.ActorClass
+An actor class.
+
+ray.actor.ActorClass.options
+Configures and overrides the actor instantiation parameters.
+
+ray.actor.ActorMethod
+A class used to invoke an actor method.
+
+ray.actor.ActorHandle
+A handle to an actor.
+
+ray.actor.ActorClassInheritanceException
+
+
+ray.actor.exit_actor
+Intentionally exit the current actor.
+
+ray.method
+Annotate an actor method.
+
+ray.get_actor
+Get a handle to a named actor.
+
+ray.kill
+Kill an actor forcefully.
+
+
+
+
+
+Objects#
+
+
+ray.get
+Get a remote object or a list of remote objects from the object store.
+
+ray.wait
+Return a list of IDs that are ready and a list of IDs that are not.
+
+ray.put
+Store an object in the object store.
+
+
+
+
+
+Runtime Context#
+
+
+ray.runtime_context.get_runtime_context
+Get the runtime context of the current driver/worker.
+
+ray.runtime_context.RuntimeContext
+A class used for getting runtime context.
+
+ray.get_gpu_ids
+Get the IDs of the GPUs that are available to the worker.
+
+
+
+
+
+Cross Language#
+
+
+ray.cross_language.java_function
+Define a Java function.
+
+ray.cross_language.java_actor_class
+Define a Java actor class.
+
+
+
+
+

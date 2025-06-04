@@ -1,0 +1,34 @@
+
+
+External library integrations for Ray Tune#
+
+PyTorch Lightning (tune.integration.pytorch_lightning)#
+
+
+TuneReportCheckpointCallback
+PyTorch Lightning report and checkpoint callback
+
+
+
+
+
+XGBoost (tune.integration.xgboost)#
+
+
+TuneReportCheckpointCallback
+alias of RayTrainReportCallback
+
+
+
+
+
+LightGBM (tune.integration.lightgbm)#
+
+
+TuneReportCheckpointCallback
+alias of RayTrainReportCallback
+
+
+
+
+

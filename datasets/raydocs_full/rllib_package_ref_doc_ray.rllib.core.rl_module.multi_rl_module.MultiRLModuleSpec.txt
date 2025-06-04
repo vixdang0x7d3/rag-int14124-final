@@ -1,0 +1,72 @@
+
+
+ray.rllib.core.rl_module.multi_rl_module.MultiRLModuleSpec#
+
+
+class ray.rllib.core.rl_module.multi_rl_module.MultiRLModuleSpec(multi_rl_module_class: ~typing.Type[~ray.rllib.core.rl_module.multi_rl_module.MultiRLModule] = <class 'ray.rllib.core.rl_module.multi_rl_module.MultiRLModule'>, observation_space: gymnasium.Space | None = None, action_space: gymnasium.Space | None = None, inference_only: bool | None = None, model_config: dict | None = None, rl_module_specs: ~ray.rllib.core.rl_module.rl_module.RLModuleSpec | ~typing.Dict[str, ~ray.rllib.core.rl_module.rl_module.RLModuleSpec] = None, load_state_path: str | None = None, modules_to_load: ~typing.Set[str] | None = None, module_specs: ~ray.rllib.core.rl_module.rl_module.RLModuleSpec | ~typing.Dict[str, ~ray.rllib.core.rl_module.rl_module.RLModuleSpec] | None = None)[source]#
+A utility spec class to make it constructing MultiRLModules easier.
+Users can extend this class to modify the behavior of base class. For example to
+share neural networks across the modules, the build method can be overridden to
+create the shared module first and then pass it to custom module classes that would
+then use it as a shared module.
+PublicAPI (alpha): This API is in alpha and may change before becoming stable.
+Methods
+
+
+add_modules
+Add new module specs to the spec or updates existing ones.
+
+as_multi_rl_module_spec
+Returns self in order to match RLModuleSpec.as_multi_rl_module_spec().
+
+build
+Builds either the MultiRLModule or a (single) sub-RLModule under module_id.
+
+from_dict
+Creates a MultiRLModuleSpec from a dictionary.
+
+from_module
+Creates a MultiRLModuleSpec from a MultiRLModule.
+
+remove_modules
+Removes the provided ModuleIDs from this MultiRLModuleSpec.
+
+to_dict
+Converts the MultiRLModuleSpec to a dictionary.
+
+update
+Updates this spec with the other spec.
+
+
+
+Attributes
+
+
+action_space
+Optional global action space for the MultiRLModule.
+
+inference_only
+An optional global inference_only flag.
+
+load_state_path
+
+
+model_config
+An optional global model_config dict.
+
+module_specs
+
+
+modules_to_load
+
+
+observation_space
+Optional global observation space for the MultiRLModule.
+
+rl_module_specs
+The module specs for each individual module.
+
+
+
+
+

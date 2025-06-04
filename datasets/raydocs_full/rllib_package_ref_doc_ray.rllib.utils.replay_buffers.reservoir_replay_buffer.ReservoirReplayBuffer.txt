@@ -1,0 +1,44 @@
+
+
+ray.rllib.utils.replay_buffers.reservoir_replay_buffer.ReservoirReplayBuffer#
+
+
+class ray.rllib.utils.replay_buffers.reservoir_replay_buffer.ReservoirReplayBuffer(capacity: int = 10000, storage_unit: str = 'timesteps', **kwargs)[source]#
+Bases: ReplayBuffer
+This buffer implements reservoir sampling.
+The algorithm has been described by Jeffrey S. Vitter in “Random sampling
+with a reservoir”.
+Methods
+
+
+__init__
+Initializes a ReservoirBuffer instance.
+
+add
+Adds a batch of experiences or other data to this buffer.
+
+apply
+Calls the given function with this Actor instance.
+
+get_host
+Returns the computer's network name.
+
+get_state
+Returns all local state.
+
+ping
+Ping the actor.
+
+sample
+Samples num_items items from this buffer.
+
+set_state
+Restores all local state to the provided state.
+
+stats
+Returns the stats of this buffer.
+
+
+
+
+

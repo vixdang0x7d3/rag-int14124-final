@@ -1,0 +1,19 @@
+
+
+ray.rllib.utils.schedules.scheduler.Scheduler.update#
+
+
+Scheduler.update(timestep: int) → float[source]#
+Updates the underlying (framework specific) tensor variable.
+In case of a fixed value, this method does nothing and only returns the fixed
+value as-is.
+
+Parameters:
+timestep – The current timestep that the update might depend on.
+
+Returns:
+The current value of the tensor variable as a python float.
+
+
+
+

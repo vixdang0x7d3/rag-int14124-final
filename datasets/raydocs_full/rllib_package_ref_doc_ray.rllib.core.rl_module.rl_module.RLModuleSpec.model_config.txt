@@ -1,0 +1,8 @@
+
+
+ray.rllib.core.rl_module.rl_module.RLModuleSpec.model_config#
+
+
+RLModuleSpec.model_config: Dict[str, Any] | DefaultModelConfig | None = None#
+
+

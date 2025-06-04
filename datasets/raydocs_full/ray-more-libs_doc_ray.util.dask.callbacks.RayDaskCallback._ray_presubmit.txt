@@ -1,0 +1,30 @@
+
+
+ray.util.dask.callbacks.RayDaskCallback._ray_presubmit#
+
+
+RayDaskCallback._ray_presubmit(task, key, deps) → Any | None[source]#
+Run before submitting a Ray task.
+If this callback returns a non-None value, Ray does _not_ create
+a task and uses this value as the would-be task’s result value.
+
+Parameters:
+
+task – A Dask task, where the first tuple item is
+the task function, and the remaining tuple items are
+the task arguments, which are either the actual argument values,
+or Dask keys into the deps dictionary whose
+corresponding values are the argument values.
+key – The Dask graph key for the given task.
+deps – The dependencies of this task.
+
+
+Returns:
+Either None, in which case Ray submits a task, or
+a non-None value, in which case Ray task doesn’t submit
+a task and uses this return value as the
+would-be task result value.
+
+
+
+

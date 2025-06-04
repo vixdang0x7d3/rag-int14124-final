@@ -1,0 +1,96 @@
+
+
+Advanced topics#
+This section covers extended topics on how to use Ray.
+
+
+Tips for first-time users
+Tip 1: Delay ray.get()
+Tip 2: Avoid tiny tasks
+Tip 3: Avoid passing same object repeatedly to remote tasks
+Tip 4: Pipeline data processing
+
+
+Starting Ray
+What is the Ray runtime?
+Starting Ray on a single machine
+Starting Ray via the CLI (ray start)
+Launching a Ray cluster (ray up)
+What’s next?
+
+
+Ray Generators
+Getting started
+Error handling
+Generator from Actor Tasks
+Using the Ray generator with asyncio
+Garbage collection of object references
+Fault tolerance
+Cancellation
+How to wait for generator without blocking a thread (compatibility to ray.wait and ray.get)
+Thread safety
+Limitation
+
+
+Using Namespaces
+Specifying namespace for named actors
+Anonymous namespaces
+Getting the current namespace
+
+
+Cross-language programming
+Setup the driver
+Python calling Java
+Java calling Python
+Cross-language data serialization
+Cross-language exception stacks
+
+
+Working with Jupyter Notebooks & JupyterLab
+Setting Up Notebook
+
+
+Lazy Computation Graphs with the Ray DAG API
+Ray DAG with functions
+Ray DAG with classes and class methods
+Ray DAG with custom InputNode
+Ray DAG with multiple MultiOutputNode
+Reuse Ray Actors in DAGs
+More resources
+
+
+Miscellaneous Topics
+Dynamic Remote Parameters
+Overloaded Functions
+Inspecting Cluster State
+Node Information
+Resource Information
+
+
+Running Large Ray Clusters
+Tuning Operating System Settings
+Maximum open files
+ARP cache
+
+
+Benchmark
+
+
+
+
+Authenticating Remote URIs in runtime_env
+Authenticating Remote URIs
+Running on VMs: the netrc File
+Running on KubeRay: Secrets with netrc
+
+
+Lifetimes of a User-Spawn Process
+User-Spawned Process Killed on Worker Exit
+Enabling the feature
+⚠️ Caution: Core worker now reaps zombies, toggle back if you wait to waitpid
+Under the hood
+
+
+
+
+

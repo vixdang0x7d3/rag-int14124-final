@@ -1,0 +1,231 @@
+
+
+Using Aim with Tune#
+
+
+
+
+Aim is an easy-to-use and supercharged open-source experiment tracker.
+Aim logs your training runs, enables a well-designed UI to compare them, and provides an API to query them programmatically.
+
+Ray Tune currently offers built-in integration with Aim.
+The AimLoggerCallback automatically logs metrics that are reported to Tune by using the Aim API.
+
+
+Logging Tune Hyperparameter Configurations and Results to Aim
+
+More Configuration Options for Aim
+
+
+Launching the Aim UI
+Tune Aim Logger API
+
+
+
+Logging Tune Hyperparameter Configurations and Results to Aim#
+The following example demonstrates how the AimLoggerCallback can be used in a Tune experiment.
+Begin by installing and importing the necessary modules:
+
+
+%pip install aim
+%pip install ray[tune]
+
+
+
+
+
+
+import numpy as np
+
+import ray
+from ray import tune
+from ray.tune.logger.aim import AimLoggerCallback
+
+
+
+
+Next, define a simple train_function, which is a Trainable that reports a loss to Tune.
+The objective function itself is not important for this example, as our main focus is on the integration with Aim.
+
+
+def train_function(config):
+    for _ in range(50):
+        loss = config["mean"] + config["sd"] * np.random.randn()
+        tune.report({"loss": loss})
+
+
+
+
+Here is an example of how you can use the AimLoggerCallback with simple grid-search Tune experiment.
+The logger will log each of the 9 grid-search trials as separate Aim runs.
+
+
+tuner = tune.Tuner(
+    train_function,
+    run_config=tune.RunConfig(
+        callbacks=[AimLoggerCallback()],
+        storage_path="/tmp/ray_results",
+        name="aim_example",
+    ),
+    param_space={
+        "mean": tune.grid_search([1, 2, 3, 4, 5, 6, 7, 8, 9]),
+        "sd": tune.uniform(0.1, 0.9),
+    },
+    tune_config=tune.TuneConfig(
+        metric="loss",
+        mode="min",
+    ),
+)
+tuner.fit()
+
+
+
+
+2023-02-07 00:04:11,228	INFO worker.py:1544 -- Started a local Ray instance. View the dashboard at http://127.0.0.1:8265 
+
+
+
+
+
+Tune Status
+
+
+Current time:2023-02-07 00:04:19
+Running for: 00:00:06.86        
+Memory:      32.8/64.0 GiB      
+
+
+
+
+
+System Info
+      Using FIFO scheduling algorithm.Resources requested: 0/10 CPUs, 0/0 GPUs, 0.0/26.93 GiB heap, 0.0/2.0 GiB objects
+    
+
+
+
+Trial Status
+
+
+Trial name                status    loc              mean      sd  iter  total time (s)   loss
+
+
+train_function_01a3b_00000TERMINATED127.0.0.1:10277     10.385428    50         4.480311.01928
+train_function_01a3b_00001TERMINATED127.0.0.1:10296     20.819716    50         2.972723.01491
+train_function_01a3b_00002TERMINATED127.0.0.1:10301     30.769197    50         2.395723.87155
+train_function_01a3b_00003TERMINATED127.0.0.1:10307     40.29466     50         2.415684.1507 
+train_function_01a3b_00004TERMINATED127.0.0.1:10313     50.152208    50         1.683835.10225
+train_function_01a3b_00005TERMINATED127.0.0.1:10321     60.879814    50         1.540156.20238
+train_function_01a3b_00006TERMINATED127.0.0.1:10329     70.487499    50         1.447067.79551
+train_function_01a3b_00007TERMINATED127.0.0.1:10333     80.639783    50         1.4261 7.94189
+train_function_01a3b_00008TERMINATED127.0.0.1:10341     90.12285     50         1.077018.82304
+
+
+
+
+
+
+Trial Progress
+
+
+Trial name                date               done  episodes_total  experiment_id                   experiment_tag    hostname                iterations_since_restore   lossnode_ip    pid  time_since_restore  time_this_iter_s  time_total_s  timestamp  timesteps_since_restoretimesteps_total    training_iterationtrial_id     warmup_time
+
+
+train_function_01a3b_000002023-02-07_00-04-18True   c8447fdceea6436c9edd6f030a5b1d820_mean=1,sd=0.3854Justins-MacBook-Pro-16                        501.01928127.0.0.110277             4.48031        0.013865         4.48031 1675757058                        0                   5001a3b_00000   0.00264072
+train_function_01a3b_000012023-02-07_00-04-18True   7dd6d3ee24244a0885b354c2850647281_mean=2,sd=0.8197Justins-MacBook-Pro-16                        503.01491127.0.0.110296             2.97272        0.0584073        2.97272 1675757058                        0                   5001a3b_00001   0.0316792 
+train_function_01a3b_000022023-02-07_00-04-18True   e3da49ebad034c4b8fdaf0aa87927b1a2_mean=3,sd=0.7692Justins-MacBook-Pro-16                        503.87155127.0.0.110301             2.39572        0.0695491        2.39572 1675757058                        0                   5001a3b_00002   0.0315411 
+train_function_01a3b_000032023-02-07_00-04-18True   95c60c4f67c4481ebccff25b0a49e75d3_mean=4,sd=0.2947Justins-MacBook-Pro-16                        504.1507 127.0.0.110307             2.41568        0.0175381        2.41568 1675757058                        0                   5001a3b_00003   0.0310779 
+train_function_01a3b_000042023-02-07_00-04-18True   a216253cb41e47caa229e65488deb0194_mean=5,sd=0.1522Justins-MacBook-Pro-16                        505.10225127.0.0.110313             1.68383        0.064441         1.68383 1675757058                        0                   5001a3b_00004   0.00450182
+train_function_01a3b_000052023-02-07_00-04-18True   23834104277f476cb99d9c696281fceb5_mean=6,sd=0.8798Justins-MacBook-Pro-16                        506.20238127.0.0.110321             1.54015        0.00910306       1.54015 1675757058                        0                   5001a3b_00005   0.0480251 
+train_function_01a3b_000062023-02-07_00-04-18True   15f650121df747c3bd2720481d47b2656_mean=7,sd=0.4875Justins-MacBook-Pro-16                        507.79551127.0.0.110329             1.44706        0.00600386       1.44706 1675757058                        0                   5001a3b_00006   0.00202489
+train_function_01a3b_000072023-02-07_00-04-19True   78b1673cf2034ed99135b80a0cb31e0e7_mean=8,sd=0.6398Justins-MacBook-Pro-16                        507.94189127.0.0.110333             1.4261         0.00225306       1.4261  1675757059                        0                   5001a3b_00007   0.00209713
+train_function_01a3b_000082023-02-07_00-04-19True   c7f5d86154cb46b6aa27bef523edcd6f8_mean=9,sd=0.1228Justins-MacBook-Pro-16                        508.82304127.0.0.110341             1.07701        0.00291467       1.07701 1675757059                        0                   5001a3b_00008   0.00240111
+
+
+
+
+2023-02-07 00:04:19,366	INFO tune.py:798 -- Total run time: 7.38 seconds (6.85 seconds for the tuning loop).
+
+
+<ray.tune.result_grid.ResultGrid at 0x137de07c0>
+
+
+
+
+When the script executes, a grid-search is carried out and the results are saved to the Aim repo,
+stored at the default location – the experiment log directory (in this case, it’s at /tmp/ray_results/aim_example).
+
+More Configuration Options for Aim#
+In the example above, we used the default configuration for the AimLoggerCallback.
+There are a few options that can be configured as arguments to the callback. For example,
+setting AimLoggerCallback(repo="/path/to/repo") will log results to the Aim repo at that
+filepath, which could be useful if you have a central location where the results of multiple
+Tune experiments are stored. Relative paths to the working directory where Tune script is
+launched can be used as well. By default, the repo will be set to the experiment log
+directory. See the API reference for more configurations.
+
+
+
+Launching the Aim UI#
+Now that we have logged our results to the Aim repository, we can view it in Aim’s web UI.
+To do this, we first find the directory where the Aim repository lives, then we use
+the Aim CLI to launch the web interface.
+
+
+# Uncomment the following line to launch the Aim UI!
+#!aim up --repo=/tmp/ray_results/aim_example
+
+
+
+
+--------------------------------------------------------------------------
+                Aim UI collects anonymous usage analytics.                
+                        Read how to opt-out here:                         
+    https://aimstack.readthedocs.io/en/latest/community/telemetry.html    
+--------------------------------------------------------------------------
+Running Aim UI on repo `<Repo#-5734997863388805469 path=/tmp/ray_results/aim_example/.aim read_only=None>`
+Open http://127.0.0.1:43800
+Press Ctrl+C to exit
+^C
+
+
+
+
+After launching the Aim UI, we can open the web interface at localhost:43800.
+
+The next sections contain more in-depth information on the API of the Tune-Aim integration.
+
+
+Tune Aim Logger API#
+
+
+class ray.tune.logger.aim.AimLoggerCallback(repo: str | None = None, experiment_name: str | None = None, metrics: List[str] | None = None, **aim_run_kwargs)[source]
+Aim Logger: logs metrics in Aim format.
+Aim is an open-source, self-hosted ML experiment tracking tool.
+It’s good at tracking lots (thousands) of training runs, and it allows you to
+compare them with a performant and well-designed UI.
+Source: aimhubio/aim
+
+Parameters:
+
+repo – Aim repository directory or a Repo object that the Run object will
+log results to. If not provided, a default repo will be set up in the
+experiment directory (one level above trial directories).
+experiment – Sets the experiment property of each Run object, which is the
+experiment name associated with it. Can be used later to query
+runs/sequences.
+If not provided, the default will be the Tune experiment name set
+by RunConfig(name=...).
+metrics – List of metric names (out of the metrics reported by Tune) to
+track in Aim. If no metric are specified, log everything that
+is reported.
+aim_run_kwargs – Additional arguments that will be passed when creating the
+individual Run objects for each trial. For the full list of arguments,
+please see the Aim documentation:
+https://aimstack.readthedocs.io/en/latest/refs/sdk.html
+
+
+
+
+
+

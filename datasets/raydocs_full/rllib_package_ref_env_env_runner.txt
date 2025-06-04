@@ -1,0 +1,66 @@
+
+
+EnvRunner API#
+
+Note
+Ray 2.40 uses RLlib’s new API stack by default.
+The Ray team has mostly completed transitioning algorithms, example scripts, and
+documentation to the new code base.
+If you’re still using the old API stack, see New API stack migration guide for details on how to migrate.
+
+
+rllib.env.env_runner.EnvRunner#
+
+Construction and setup#
+
+
+EnvRunner
+Base class for distributed RL-style data collection from an environment.
+
+EnvRunner.make_env
+Creates the RL environment for this EnvRunner and assigns it to self.env.
+
+EnvRunner.make_module
+Creates the RLModule for this EnvRunner and assigns it to self.module.
+
+EnvRunner.get_spaces
+Returns a dict mapping ModuleIDs to 2-tuples of obs- and action space.
+
+EnvRunner.assert_healthy
+Checks that self.__init__() has been completed properly.
+
+
+
+
+
+Sampling#
+
+
+EnvRunner.sample
+Returns experiences (of any form) sampled from this EnvRunner.
+
+EnvRunner.get_metrics
+Returns metrics (in any form) of the thus far collected, completed episodes.
+
+
+
+
+
+Cleanup#
+
+
+EnvRunner.stop
+Releases all resources used by this EnvRunner.
+
+
+
+
+
+
+Single-agent and multi-agent EnvRunners#
+By default, RLlib uses two built-in subclasses of EnvRunner, one for single-agent, one
+for multi-agent setups. It determines based on your config, which one to use.
+Check your config.is_multi_agent property to find out, which of these setups you have configured
+and see the docs on setting up RLlib multi-agent for more details.
+
+

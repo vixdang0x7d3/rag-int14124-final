@@ -1,0 +1,20 @@
+
+
+ray.rllib.models.distributions.Distribution.kl#
+
+
+abstract Distribution.kl(other: Distribution, **kwargs) → numpy.array | jnp.ndarray | tf.Tensor | torch.Tensor[source]#
+The KL-divergence between two distributions.
+
+Parameters:
+
+other – The other distribution.
+**kwargs – Forward compatibility placeholder.
+
+
+Returns:
+The KL-divergence between the two distributions.
+
+
+
+

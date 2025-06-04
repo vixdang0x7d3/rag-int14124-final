@@ -1,0 +1,513 @@
+
+
+Using Weights & Biases with Tune#
+
+
+
+
+Weights & Biases (Wandb) is a tool for experiment
+tracking, model optimizaton, and dataset versioning. It is very popular
+in the machine learning and data science community for its superb visualization
+tools.
+
+Ray Tune currently offers two lightweight integrations for Weights & Biases.
+One is the WandbLoggerCallback, which automatically logs
+metrics reported to Tune to the Wandb API.
+The other one is the setup_wandb() function, which can be
+used with the function API. It automatically
+initializes the Wandb API with Tune’s training information. You can just use the
+Wandb API like you would normally do, e.g. using wandb.log() to log your training
+process.
+
+
+Running A Weights & Biases Example
+Tune Wandb API Reference
+
+WandbLoggerCallback
+setup_wandb
+
+
+
+
+
+Running A Weights & Biases Example#
+In the following example we’re going to use both of the above methods, namely the WandbLoggerCallback and
+the setup_wandb function to log metrics.
+As the very first step, make sure you’re logged in into wandb on all machines you’re running your training on:
+wandb login
+
+
+We can then start with a few crucial imports:
+
+
+import numpy as np
+
+import ray
+from ray import tune
+from ray.air.integrations.wandb import WandbLoggerCallback, setup_wandb
+
+
+
+
+Next, let’s define an easy train_function function (a Tune Trainable) that reports a random loss to Tune.
+The objective function itself is not important for this example, since we want to focus on the Weights & Biases
+integration primarily.
+
+
+def train_function(config):
+    for i in range(30):
+        loss = config["mean"] + config["sd"] * np.random.randn()
+        tune.report({"loss": loss})
+
+
+
+
+You can define a
+simple grid-search Tune run using the WandbLoggerCallback as follows:
+
+
+def tune_with_callback():
+    """Example for using a WandbLoggerCallback with the function API"""
+    tuner = tune.Tuner(
+        train_function,
+        tune_config=tune.TuneConfig(
+            metric="loss",
+            mode="min",
+        ),
+        run_config=tune.RunConfig(
+            callbacks=[WandbLoggerCallback(project="Wandb_example")]
+        ),
+        param_space={
+            "mean": tune.grid_search([1, 2, 3, 4, 5]),
+            "sd": tune.uniform(0.2, 0.8),
+        },
+    )
+    tuner.fit()
+
+
+
+
+To use the setup_wandb utility, you simply call this function in your objective.
+Note that we also use wandb.log(...) to log the loss to Weights & Biases as a dictionary.
+Otherwise, this version of our objective is identical to its original.
+
+
+def train_function_wandb(config):
+    wandb = setup_wandb(config, project="Wandb_example")
+
+    for i in range(30):
+        loss = config["mean"] + config["sd"] * np.random.randn()
+        tune.report({"loss": loss})
+        wandb.log(dict(loss=loss))
+
+
+
+
+With the train_function_wandb defined, your Tune experiment will set up wandb in each trial once it starts!
+
+
+def tune_with_setup():
+    """Example for using the setup_wandb utility with the function API"""
+    tuner = tune.Tuner(
+        train_function_wandb,
+        tune_config=tune.TuneConfig(
+            metric="loss",
+            mode="min",
+        ),
+        param_space={
+            "mean": tune.grid_search([1, 2, 3, 4, 5]),
+            "sd": tune.uniform(0.2, 0.8),
+        },
+    )
+    tuner.fit()
+
+
+
+
+Finally, you can also define a class-based Tune Trainable by using the setup_wandb in the setup() method and storing the run object as an attribute. Please note that with the class trainable, you have to pass the trial id, name, and group separately:
+
+
+class WandbTrainable(tune.Trainable):
+    def setup(self, config):
+        self.wandb = setup_wandb(
+            config,
+            trial_id=self.trial_id,
+            trial_name=self.trial_name,
+            group="Example",
+            project="Wandb_example",
+        )
+
+    def step(self):
+        for i in range(30):
+            loss = self.config["mean"] + self.config["sd"] * np.random.randn()
+            self.wandb.log({"loss": loss})
+        return {"loss": loss, "done": True}
+
+    def save_checkpoint(self, checkpoint_dir: str):
+        pass
+
+    def load_checkpoint(self, checkpoint_dir: str):
+        pass
+
+
+
+
+Running Tune with this WandbTrainable works exactly the same as with the function API.
+The below tune_trainable function differs from tune_decorated above only in the first argument we pass to
+Tuner():
+
+
+def tune_trainable():
+    """Example for using a WandTrainableMixin with the class API"""
+    tuner = tune.Tuner(
+        WandbTrainable,
+        tune_config=tune.TuneConfig(
+            metric="loss",
+            mode="min",
+        ),
+        param_space={
+            "mean": tune.grid_search([1, 2, 3, 4, 5]),
+            "sd": tune.uniform(0.2, 0.8),
+        },
+    )
+    results = tuner.fit()
+
+    return results.get_best_result().config
+
+
+
+
+Since you may not have an API key for Wandb, we can mock the Wandb logger and test all three of our training
+functions as follows.
+If you are logged in into wandb, you can set mock_api = False to actually upload your results to Weights & Biases.
+
+
+import os
+
+mock_api = True
+
+if mock_api:
+    os.environ.setdefault("WANDB_MODE", "disabled")
+    os.environ.setdefault("WANDB_API_KEY", "abcd")
+    ray.init(
+        runtime_env={"env_vars": {"WANDB_MODE": "disabled", "WANDB_API_KEY": "abcd"}}
+    )
+
+tune_with_callback()
+tune_with_setup()
+tune_trainable()
+
+
+
+
+2022-11-02 16:02:45,355	INFO worker.py:1534 -- Started a local Ray instance. View the dashboard at http://127.0.0.1:8266 
+2022-11-02 16:02:46,513	INFO wandb.py:282 -- Already logged into W&B.
+
+
+
+
+
+Tune Status
+
+
+Current time:2022-11-02 16:03:13
+Running for: 00:00:27.28        
+Memory:      10.8/16.0 GiB      
+
+
+
+
+
+System Info
+      Using FIFO scheduling algorithm.Resources requested: 0/16 CPUs, 0/0 GPUs, 0.0/3.44 GiB heap, 0.0/1.72 GiB objects
+    
+
+
+
+Trial Status
+
+
+Trial name                status    loc              mean      sd  iter  total time (s)    loss
+
+
+train_function_7676d_00000TERMINATED127.0.0.1:14578     10.411212    30        0.2361370.828527
+train_function_7676d_00001TERMINATED127.0.0.1:14591     20.756339    30        5.57185 3.13156 
+train_function_7676d_00002TERMINATED127.0.0.1:14593     30.436643    30        5.50237 3.26679 
+train_function_7676d_00003TERMINATED127.0.0.1:14595     40.295929    30        5.60986 3.70388 
+train_function_7676d_00004TERMINATED127.0.0.1:14596     50.335292    30        5.61385 4.74294 
+
+
+
+
+
+
+Trial Progress
+
+
+Trial name                date               done  episodes_total  experiment_id                   experiment_tag    hostname              iterations_since_restore    lossnode_ip    pid  time_since_restore  time_this_iter_s  time_total_s  timestamp  timesteps_since_restoretimesteps_total    training_iterationtrial_id     warmup_time
+
+
+train_function_7676d_000002022-11-02_16-02-53True   a9f242fa70184d9dadd8952b16fb0ecc0_mean=1,sd=0.4112Kais-MBP.local.meter                        300.828527127.0.0.114578            0.236137        0.00381589      0.236137 1667430173                        0                   307676d_00000   0.00366998
+train_function_7676d_000012022-11-02_16-03-03True   f57118365bcb4c229fe41c5911f05ad61_mean=2,sd=0.7563Kais-MBP.local.meter                        303.13156 127.0.0.114591            5.57185         0.00627518      5.57185  1667430183                        0                   307676d_00001   0.0027349 
+train_function_7676d_000022022-11-02_16-03-03True   394021d4515d4616bae7126668f73b2b2_mean=3,sd=0.4366Kais-MBP.local.meter                        303.26679 127.0.0.114593            5.50237         0.00494576      5.50237  1667430183                        0                   307676d_00002   0.00286222
+train_function_7676d_000032022-11-02_16-03-03True   a575e79c9d95485fa37deaa86267aea43_mean=4,sd=0.2959Kais-MBP.local.meter                        303.70388 127.0.0.114595            5.60986         0.00689816      5.60986  1667430183                        0                   307676d_00003   0.00299597
+train_function_7676d_000042022-11-02_16-03-03True   91ce57dcdbb54536b1874666b711350d4_mean=5,sd=0.3353Kais-MBP.local.meter                        304.74294 127.0.0.114596            5.61385         0.00672579      5.61385  1667430183                        0                   307676d_00004   0.00323987
+
+
+
+
+2022-11-02 16:03:13,913	INFO tune.py:788 -- Total run time: 28.53 seconds (27.28 seconds for the tuning loop).
+
+
+
+
+
+Tune Status
+
+
+Current time:2022-11-02 16:03:22
+Running for: 00:00:08.49        
+Memory:      9.9/16.0 GiB       
+
+
+
+
+
+System Info
+      Using FIFO scheduling algorithm.Resources requested: 0/16 CPUs, 0/0 GPUs, 0.0/3.44 GiB heap, 0.0/1.72 GiB objects
+    
+
+
+
+Trial Status
+
+
+Trial name                      status    loc              mean      sd  iter  total time (s)    loss
+
+
+train_function_wandb_877eb_00000TERMINATED127.0.0.1:14647     10.738281    30         1.613190.555153
+train_function_wandb_877eb_00001TERMINATED127.0.0.1:14660     20.321178    30         1.724472.52109 
+train_function_wandb_877eb_00002TERMINATED127.0.0.1:14661     30.202487    30         1.8159 2.45412 
+train_function_wandb_877eb_00003TERMINATED127.0.0.1:14662     40.515434    30         1.715  4.51413 
+train_function_wandb_877eb_00004TERMINATED127.0.0.1:14663     50.216098    30         1.728275.2814  
+
+
+
+
+
+(train_function_wandb pid=14647) 2022-11-02 16:03:17,149	INFO wandb.py:282 -- Already logged into W&B.
+
+
+
+Trial Progress
+
+
+Trial name                      date               done  episodes_total  experiment_id                   experiment_tag    hostname              iterations_since_restore    lossnode_ip    pid  time_since_restore  time_this_iter_s  time_total_s  timestamp  timesteps_since_restoretimesteps_total    training_iterationtrial_id     warmup_time
+
+
+train_function_wandb_877eb_000002022-11-02_16-03-18True   7b250c9f31ab484dad1a1fd29823afdf0_mean=1,sd=0.7383Kais-MBP.local.meter                        300.555153127.0.0.114647             1.61319        0.00232315       1.61319 1667430198                        0                   30877eb_00000   0.00391102
+train_function_wandb_877eb_000012022-11-02_16-03-22True   5172868368074557a3044ea3a91466731_mean=2,sd=0.3212Kais-MBP.local.meter                        302.52109 127.0.0.114660             1.72447        0.0152011        1.72447 1667430202                        0                   30877eb_00001   0.00901699
+train_function_wandb_877eb_000022022-11-02_16-03-22True   b13d9bccb1964b4b95e1a858a3ea64c72_mean=3,sd=0.2025Kais-MBP.local.meter                        302.45412 127.0.0.114661             1.8159         0.00437403       1.8159  1667430202                        0                   30877eb_00002   0.00844812
+train_function_wandb_877eb_000032022-11-02_16-03-22True   869d7ec7a3544a8387985103e626818f3_mean=4,sd=0.5154Kais-MBP.local.meter                        304.51413 127.0.0.114662             1.715          0.00247812       1.715   1667430202                        0                   30877eb_00003   0.00282907
+train_function_wandb_877eb_000042022-11-02_16-03-22True   84d3112d66f64325bc469e44b8447ef54_mean=5,sd=0.2161Kais-MBP.local.meter                        305.2814  127.0.0.114663             1.72827        0.00517201       1.72827 1667430202                        0                   30877eb_00004   0.00272107
+
+
+
+
+(train_function_wandb pid=14660) 2022-11-02 16:03:20,600	INFO wandb.py:282 -- Already logged into W&B.
+(train_function_wandb pid=14661) 2022-11-02 16:03:20,600	INFO wandb.py:282 -- Already logged into W&B.
+(train_function_wandb pid=14663) 2022-11-02 16:03:20,628	INFO wandb.py:282 -- Already logged into W&B.
+(train_function_wandb pid=14662) 2022-11-02 16:03:20,723	INFO wandb.py:282 -- Already logged into W&B.
+2022-11-02 16:03:22,565	INFO tune.py:788 -- Total run time: 8.60 seconds (8.48 seconds for the tuning loop).
+
+
+
+
+
+Tune Status
+
+
+Current time:2022-11-02 16:03:31
+Running for: 00:00:09.28        
+Memory:      9.9/16.0 GiB       
+
+
+
+
+
+System Info
+      Using FIFO scheduling algorithm.Resources requested: 0/16 CPUs, 0/0 GPUs, 0.0/3.44 GiB heap, 0.0/1.72 GiB objects
+    
+
+
+
+Trial Status
+
+
+Trial name                status    loc              mean      sd  iter  total time (s)    loss
+
+
+WandbTrainable_8ca33_00000TERMINATED127.0.0.1:14718     10.397894     1     0.0001871590.742345
+WandbTrainable_8ca33_00001TERMINATED127.0.0.1:14737     20.386883     1     0.0001518732.5709  
+WandbTrainable_8ca33_00002TERMINATED127.0.0.1:14738     30.290693     1     0.00014019 2.99601 
+WandbTrainable_8ca33_00003TERMINATED127.0.0.1:14739     40.33333      1     0.00015831 3.91276 
+WandbTrainable_8ca33_00004TERMINATED127.0.0.1:14740     50.645479     1     0.0001509195.47779 
+
+
+
+
+
+(WandbTrainable pid=14718) 2022-11-02 16:03:25,742	INFO wandb.py:282 -- Already logged into W&B.
+
+
+
+Trial Progress
+
+
+Trial name                date               done  episodes_total  experiment_id                   hostname              iterations_since_restore    lossnode_ip    pid  time_since_restore  time_this_iter_s  time_total_s  timestamp  timesteps_since_restoretimesteps_total    training_iterationtrial_id     warmup_time
+
+
+WandbTrainable_8ca33_000002022-11-02_16-03-27True   3adb4d0ae0d74d1c9ddd07924b5653b0Kais-MBP.local.meter                         10.742345127.0.0.114718         0.000187159       0.000187159   0.000187159 1667430207                        0                    18ca33_00000      1.31382
+WandbTrainable_8ca33_000012022-11-02_16-03-31True   f1511cfd51f94b3d9cf192181ccc08a9Kais-MBP.local.meter                         12.5709  127.0.0.114737         0.000151873       0.000151873   0.000151873 1667430211                        0                    18ca33_00001      1.31668
+WandbTrainable_8ca33_000022022-11-02_16-03-31True   a7528ec6adf74de0b73aa98ebedab66dKais-MBP.local.meter                         12.99601 127.0.0.114738         0.00014019        0.00014019    0.00014019  1667430211                        0                    18ca33_00002      1.32008
+WandbTrainable_8ca33_000032022-11-02_16-03-31True   b7af756ca586449ba2d4c44141b53b06Kais-MBP.local.meter                         13.91276 127.0.0.114739         0.00015831        0.00015831    0.00015831  1667430211                        0                    18ca33_00003      1.31879
+WandbTrainable_8ca33_000042022-11-02_16-03-31True   196624f42bcc45c18a26778573a43a2cKais-MBP.local.meter                         15.47779 127.0.0.114740         0.000150919       0.000150919   0.000150919 1667430211                        0                    18ca33_00004      1.31945
+
+
+
+
+(WandbTrainable pid=14739) 2022-11-02 16:03:30,360	INFO wandb.py:282 -- Already logged into W&B.
+(WandbTrainable pid=14740) 2022-11-02 16:03:30,393	INFO wandb.py:282 -- Already logged into W&B.
+(WandbTrainable pid=14737) 2022-11-02 16:03:30,454	INFO wandb.py:282 -- Already logged into W&B.
+(WandbTrainable pid=14738) 2022-11-02 16:03:30,510	INFO wandb.py:282 -- Already logged into W&B.
+2022-11-02 16:03:31,985	INFO tune.py:788 -- Total run time: 9.40 seconds (9.27 seconds for the tuning loop).
+
+
+{'mean': 1, 'sd': 0.3978937765393781, 'wandb': {'project': 'Wandb_example'}}
+
+
+
+
+This completes our Tune and Wandb walk-through.
+In the following sections you can find more details on the API of the Tune-Wandb integration.
+
+
+Tune Wandb API Reference#
+
+WandbLoggerCallback#
+
+
+class ray.air.integrations.wandb.WandbLoggerCallback(project: str | None = None, group: str | None = None, api_key_file: str | None = None, api_key: str | None = None, excludes: List[str] | None = None, log_config: bool = False, upload_checkpoints: bool = False, save_checkpoints: bool = False, upload_timeout: int = 1800, **kwargs)[source]
+Weights and biases (https://www.wandb.ai/) is a tool for experiment
+tracking, model optimization, and dataset versioning. This Ray Tune
+LoggerCallback sends metrics to Wandb for automatic tracking and
+visualization.
+Example
+import random
+
+from ray import tune
+from ray.air.integrations.wandb import WandbLoggerCallback
+
+
+def train_func(config):
+    offset = random.random() / 5
+    for epoch in range(2, config["epochs"]):
+        acc = 1 - (2 + config["lr"]) ** -epoch - random.random() / epoch - offset
+        loss = (2 + config["lr"]) ** -epoch + random.random() / epoch + offset
+        train.report({"acc": acc, "loss": loss})
+
+
+tuner = tune.Tuner(
+    train_func,
+    param_space={
+        "lr": tune.grid_search([0.001, 0.01, 0.1, 1.0]),
+        "epochs": 10,
+    },
+    run_config=tune.RunConfig(
+        callbacks=[WandbLoggerCallback(project="Optimization_Project")]
+    ),
+)
+results = tuner.fit()
+
+
+
+Parameters:
+
+project – Name of the Wandb project. Mandatory.
+group – Name of the Wandb group. Defaults to the trainable
+name.
+api_key_file – Path to file containing the Wandb API KEY. This
+file only needs to be present on the node running the Tune script
+if using the WandbLogger.
+api_key – Wandb API Key. Alternative to setting api_key_file.
+excludes – List of metrics and config that should be excluded from
+the log.
+log_config – Boolean indicating if the config parameter of
+the results dict should be logged. This makes sense if
+parameters will change during training, e.g. with
+PopulationBasedTraining. Defaults to False.
+upload_checkpoints – If True, model checkpoints will be uploaded to
+Wandb as artifacts. Defaults to False.
+**kwargs – The keyword arguments will be pased to wandb.init().
+
+
+
+Wandb’s group, run_id and run_name are automatically selected
+by Tune, but can be overwritten by filling out the respective configuration
+values.
+Please see here for all other valid configuration settings:
+https://docs.wandb.ai/library/init
+PublicAPI (alpha): This API is in alpha and may change before becoming stable.
+
+
+
+setup_wandb#
+
+
+ray.air.integrations.wandb.setup_wandb(config: Dict | None = None, api_key: str | None = None, api_key_file: str | None = None, rank_zero_only: bool = True, **kwargs) → wandb.wandb_run.Run | wandb.sdk.lib.disabled.RunDisabled[source]
+Set up a Weights & Biases session.
+This function can be used to initialize a Weights & Biases session in a
+(distributed) training or tuning run.
+By default, the run ID is the trial ID, the run name is the trial name, and
+the run group is the experiment name. These settings can be overwritten by
+passing the respective arguments as kwargs, which will be passed to
+wandb.init().
+In distributed training with Ray Train, only the zero-rank worker will initialize
+wandb. All other workers will return a disabled run object, so that logging is not
+duplicated in a distributed run. This can be disabled by passing
+rank_zero_only=False, which will then initialize wandb in every training
+worker.
+The config argument will be passed to Weights and Biases and will be logged
+as the run configuration.
+If no API key or key file are passed, wandb will try to authenticate
+using locally stored credentials, created for instance by running wandb login.
+Keyword arguments passed to setup_wandb() will be passed to
+wandb.init() and take precedence over any potential default settings.
+
+Parameters:
+
+config – Configuration dict to be logged to Weights and Biases. Can contain
+arguments for wandb.init() as well as authentication information.
+api_key – API key to use for authentication with Weights and Biases.
+api_key_file – File pointing to API key for with Weights and Biases.
+rank_zero_only – If True, will return an initialized session only for the
+rank 0 worker in distributed training. If False, will initialize a
+session for all workers.
+kwargs – Passed to wandb.init().
+
+
+
+Example
+from ray.air.integrations.wandb import setup_wandb
+
+def training_loop(config):
+    wandb = setup_wandb(config)
+    # ...
+    wandb.log({"loss": 0.123})
+
+
+PublicAPI (alpha): This API is in alpha and may change before becoming stable.
+
+
+
+

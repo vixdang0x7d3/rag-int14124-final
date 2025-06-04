@@ -1,0 +1,22 @@
+
+
+ray.rllib.algorithms.algorithm_config.AlgorithmConfig.get_rollout_fragment_length#
+
+
+AlgorithmConfig.get_rollout_fragment_length(worker_index: int = 0) → int[source]#
+Automatically infers a proper rollout_fragment_length setting if “auto”.
+Uses the simple formula:
+rollout_fragment_length = total_train_batch_size /
+(num_envs_per_env_runner * num_env_runners)
+If result is a fraction AND worker_index is provided, makes
+those workers add additional timesteps, such that the overall batch size (across
+the workers) adds up to exactly the total_train_batch_size.
+
+Returns:
+The user-provided rollout_fragment_length or a computed one (if user
+provided value is “auto”), making sure total_train_batch_size is reached
+exactly in each iteration.
+
+
+
+

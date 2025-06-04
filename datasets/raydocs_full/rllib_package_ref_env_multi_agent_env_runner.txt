@@ -1,0 +1,96 @@
+
+
+MultiAgentEnvRunner API#
+
+Note
+Ray 2.40 uses RLlib’s new API stack by default.
+The Ray team has mostly completed transitioning algorithms, example scripts, and
+documentation to the new code base.
+If you’re still using the old API stack, see New API stack migration guide for details on how to migrate.
+
+
+rllib.env.multi_agent_env_runner.MultiAgentEnvRunner#
+
+
+class ray.rllib.env.multi_agent_env_runner.MultiAgentEnvRunner(config: AlgorithmConfig, **kwargs)[source]#
+The genetic environment runner for the multi-agent case.
+PublicAPI (alpha): This API is in alpha and may change before becoming stable.
+
+
+__init__(config: AlgorithmConfig, **kwargs)[source]#
+Initializes a MultiAgentEnvRunner instance.
+
+Parameters:
+config – An AlgorithmConfig object containing all settings needed to
+build this EnvRunner class.
+
+
+
+
+
+sample(*, num_timesteps: int = None, num_episodes: int = None, explore: bool = None, random_actions: bool = False, force_reset: bool = False) → List[MultiAgentEpisode][source]#
+Runs and returns a sample (n timesteps or m episodes) on the env(s).
+
+Parameters:
+
+num_timesteps – The number of timesteps to sample during this call.
+Note that only one of num_timetseps or num_episodes may be provided.
+num_episodes – The number of episodes to sample during this call.
+Note that only one of num_timetseps or num_episodes may be provided.
+explore – If True, will use the RLModule’s forward_exploration()
+method to compute actions. If False, will use the RLModule’s
+forward_inference() method. If None (default), will use the explore
+boolean setting from self.config passed into this EnvRunner’s
+constructor. You can change this setting in your config via
+config.env_runners(explore=True|False).
+random_actions – If True, actions will be sampled randomly (from the action
+space of the environment). If False (default), actions or action
+distribution parameters are computed by the RLModule.
+force_reset – Whether to force-reset all (vector) environments before
+sampling. Useful if you would like to collect a clean slate of new
+episodes via this call. Note that when sampling n episodes
+(num_episodes != None), this is fixed to True.
+
+
+Returns:
+A list of MultiAgentEpisode instances, carrying the sampled data.
+
+
+
+
+
+get_metrics() → Dict[source]#
+Returns metrics (in any form) of the thus far collected, completed episodes.
+
+Returns:
+Metrics of any form.
+
+
+
+
+
+get_spaces()[source]#
+Returns a dict mapping ModuleIDs to 2-tuples of obs- and action space.
+
+
+
+make_env()[source]#
+Creates the RL environment for this EnvRunner and assigns it to self.env.
+Note that users should be able to change the EnvRunner’s config (e.g. change
+self.config.env_config) and then call this method to create new environments
+with the updated configuration.
+It should also be called after a failure of an earlier env in order to clean up
+the existing env (for example close() it), re-create a new one, and then
+continue sampling with that new env.
+
+
+
+make_module()[source]#
+Creates the RLModule for this EnvRunner and assigns it to self.module.
+Note that users should be able to change the EnvRunner’s config (e.g. change
+self.config.rl_module_spec) and then call this method to create a new RLModule
+with the updated configuration.
+
+
+
+

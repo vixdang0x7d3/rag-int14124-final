@@ -1,0 +1,20 @@
+
+
+ray.rllib.callbacks.callbacks.RLlibCallback.on_evaluate_start#
+
+
+RLlibCallback.on_evaluate_start(*, algorithm: Algorithm, metrics_logger: MetricsLogger | None = None, **kwargs) → None[source]#
+Callback before evaluation starts.
+This method gets called at the beginning of Algorithm.evaluate().
+
+Parameters:
+
+algorithm – Reference to the algorithm instance.
+metrics_logger – The MetricsLogger object inside the Algorithm. Can be
+used to log custom metrics before running the next round of evaluation.
+kwargs – Forward compatibility placeholder.
+
+
+
+
+

@@ -1,0 +1,24 @@
+
+
+ray.rllib.core.rl_module.rl_module.RLModule.forward_train#
+
+
+RLModule.forward_train(batch: Dict[str, Any], **kwargs) → Dict[str, Any][source]#
+DO NOT OVERRIDE! Forward-pass during training called from the learner.
+This method should not be overridden. Override the self._forward_train()
+method instead.
+
+Parameters:
+
+batch – The input batch. This input batch should comply with
+input_specs_train().
+**kwargs – Additional keyword arguments.
+
+
+Returns:
+The output of the forward pass. This output should comply with the
+output_specs_train().
+
+
+
+

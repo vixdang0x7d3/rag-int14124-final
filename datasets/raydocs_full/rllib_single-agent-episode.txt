@@ -1,0 +1,342 @@
+
+
+Episodes#
+
+Note
+Ray 2.40 uses RLlib’s new API stack by default.
+The Ray team has mostly completed transitioning algorithms, example scripts, and
+documentation to the new code base.
+If you’re still using the old API stack, see New API stack migration guide for details on how to migrate.
+
+RLlib stores and transports all trajectory data in the form of Episodes, in particular
+SingleAgentEpisode for single-agent setups
+and MultiAgentEpisode for multi-agent setups.
+The data is translated from this Episode format to tensor batches (including a possible move to the GPU)
+only immediately before a neural network forward pass by so called “connector pipelines”.
+
+
+
+Episodes are the main vehicle to store and transport trajectory data across the different components
+of RLlib (for example from EnvRunner to Learner or from ReplayBuffer to Learner).
+One of the main design principles of RLlib’s new API stack is that all trajectory data is kept in such episodic form
+for as long as possible. Only immediately before the neural network passes, “connector pipelines” translate lists
+of Episodes into tensor batches. See the ConnectorV2 class for
+more details (documentation of which is still work in progress).#
+
+
+The main advantage of collecting and moving around data in such a trajectory-as-a-whole format
+(as opposed to tensor batches) is that it offers 360° visibility and full access
+to the RL environment’s history. This means users can extract arbitrary pieces of information from episodes to be further
+processed by their custom components. Think of a transformer model requiring not
+only the most recent observation to compute the next action, but instead the whole sequence of the last n observations.
+Using get_observations(), a user can easily
+extract this information inside their custom ConnectorV2
+pipeline and add the data to the neural network batch.
+Another advantage of episodes over batches is the more efficient memory footprint.
+For example, an algorithm like DQN needs to have both observations and
+next observations (to compute the TD error-based loss) in the train batch, thereby duplicating an
+already large observation tensor. Using episode objects for most of the time reduces the memory need
+to a single observation-track, which contains all observations, from reset to terminal.
+This page explains in detail what working with RLlib’s Episode APIs looks like.
+
+
+SingleAgentEpisode#
+This page describes the single-agent case only.
+
+Note
+The Ray team is working on a detailed description of the multi-agent case, analogous to this page here,
+but for MultiAgentEpisode.
+
+
+Creating a SingleAgentEpisode#
+RLlib usually takes care of creating SingleAgentEpisode instances
+and moving them around, for example from EnvRunner to Learner.
+However, here is how to manually generate and fill an initially empty episode with dummy data:
+from ray.rllib.env.single_agent_episode import SingleAgentEpisode
+
+# Construct a new episode (without any data in it yet).
+episode = SingleAgentEpisode()
+assert len(episode) == 0
+
+episode.add_env_reset(observation="obs_0", infos="info_0")
+# Even with the initial obs/infos, the episode is still considered len=0.
+assert len(episode) == 0
+
+# Fill the episode with some fake data (5 timesteps).
+for i in range(5):
+    episode.add_env_step(
+        observation=f"obs_{i+1}",
+        action=f"act_{i}",
+        reward=f"rew_{i}",
+        terminated=False,
+        truncated=False,
+        infos=f"info_{i+1}",
+    )
+assert len(episode) == 5
+
+
+The SingleAgentEpisode constructed and filled preceding should roughly look like this now:
+
+
+
+(Single-agent) Episode: The episode starts with a single observation (the “reset observation”), then
+continues on each timestep with a 3-tuple of (observation, action, reward). Note that because of the reset observation,
+every episode - at each timestep - always contains one more observation than it contains actions or rewards.
+Important additional properties of an Episode are its id_ (str) and terminated/truncated (bool) flags.
+See further below for a detailed description of the SingleAgentEpisode
+APIs exposed to the user.#
+
+
+
+
+Using the getter APIs of SingleAgentEpisode#
+Now that there is a SingleAgentEpisode to work with, one can explore
+and extract information from this episode using its different “getter” methods:
+
+
+
+SingleAgentEpisode getter APIs: “getter” methods exist for all of the Episode’s fields, which are observations,
+actions, rewards, infos, and extra_model_outputs. For simplicity, only the getters for observations, actions, and rewards
+are shown here. Their behavior is intuitive, returning a single item when provided with a single index and returning a list of items
+(in the non-numpy’ized case; see further below) when provided with a list of indices or a slice of indices.#
+
+
+Note that for extra_model_outputs, the getter is slightly more complicated as there exist sub-keys in this data (for example:
+action_logp). See get_extra_model_outputs() for more information.
+The following code snippet summarizes the various capabilities of the different getter methods:
+# We can now access information from the episode via its getter APIs.
+
+from ray.rllib.utils.test_utils import check
+
+# Get the very first observation ("reset observation"). Note that a single observation
+# is returned here (not a list of size 1 or a batch of size 1).
+check(episode.get_observations(0), "obs_0")
+# ... which is the same as using the indexing operator on the Episode's
+# `observations` property:
+check(episode.observations[0], "obs_0")
+
+# You can also get several observations at once by providing a list of indices:
+check(episode.get_observations([1, 2]), ["obs_1", "obs_2"])
+# .. or a slice of observations by providing a python slice object:
+check(episode.get_observations(slice(1, 3)), ["obs_1", "obs_2"])
+
+# Note that when passing only a single index, a single item is returned.
+# Whereas when passing a list of indices or a slice, a list of items is returned.
+
+# Similarly for getting rewards:
+# Get the last reward.
+check(episode.get_rewards(-1), "rew_4")
+# ... which is the same as using the slice operator on the `rewards` property:
+check(episode.rewards[-1], "rew_4")
+
+# Similarly for getting actions:
+# Get the first action in the episode (single item, not batched).
+# This works regardless of the action space.
+check(episode.get_actions(0), "act_0")
+# ... which is the same as using the indexing operator on the `actions` property:
+check(episode.actions[0], "act_0")
+
+# Finally, you can slice the entire episode using the []-operator with a slice notation:
+sliced_episode = episode[3:4]
+check(list(sliced_episode.observations), ["obs_3", "obs_4"])
+check(list(sliced_episode.actions), ["act_3"])
+check(list(sliced_episode.rewards), ["rew_3"])
+
+
+
+
+
+Numpy’ized and non-numpy’ized Episodes#
+The data in a SingleAgentEpisode can exist in two states:
+non-numpy’ized and numpy’ized. A non-numpy’ized episode stores its data items in plain python lists
+and appends new timestep data to these. In a numpy’ized episode,
+these lists have been converted into possibly complex structures that have NumPy arrays at their leafs.
+Note that a numpy’ized episode doesn’t necessarily have to be terminated or truncated yet
+in the sense that the underlying RL environment declared the episode to be over or has reached some
+maximum number of timesteps.
+
+
+
+SingleAgentEpisode objects start in the non-numpy’ized
+state, in which data is stored in python lists, making it very fast to append data from an ongoing episode:
+
+# Episodes start in the non-numpy'ized state (in which data is stored
+# under the hood in lists).
+assert episode.is_numpy is False
+
+# Call `to_numpy()` to convert all stored data from lists of individual (possibly
+# complex) items to numpy arrays. Note that RLlib normally performs this method call,
+# so users don't need to call `to_numpy()` themselves.
+episode.to_numpy()
+assert episode.is_numpy is True
+
+
+
+To illustrate the differences between the data stored in a non-numpy’ized episode vs. the same data stored in
+a numpy’ized one, take a look at this complex observation example here, showing the exact same observation data in two
+episodes (one non-numpy’ized the other numpy’ized):
+
+
+
+Complex observations in a non-numpy’ized episode: Each individual observation is a (complex) dict matching the
+gymnasium environment’s observation space. There are three such observation items stored in the episode so far.#
+
+
+
+
+
+Complex observations in a numpy’ized episode: The entire observation record is a single complex dict matching the
+gymnasium environment’s observation space. At the leafs of the structure are NDArrays holding the individual values of the leaf.
+Note that these NDArrays have an extra batch dim (axis=0), whose length matches the length of the episode stored (here 3).#
+
+
+
+
+Episode.cut() and lookback buffers#
+During sample collection from an RL environment, the EnvRunner sometimes has to stop
+appending data to an ongoing (non-terminated) SingleAgentEpisode to return the
+data collected thus far.
+The EnvRunner then calls cut() on
+the SingleAgentEpisode object, which returns a
+new episode chunk, with which collection can continue in the next round of sampling.
+
+# An ongoing episode (of length 5):
+assert len(episode) == 5
+assert episode.is_done is False
+
+# During an `EnvRunner.sample()` rollout, when enough data has been collected into
+# one or more Episodes, the `EnvRunner` calls the `cut()` method, interrupting
+# the ongoing Episode and returning a new continuation chunk (with which the
+# `EnvRunner` can continue collecting data during the next call to `sample()`):
+continuation_episode = episode.cut()
+
+# The length is still 5, but the length of the continuation chunk is 0.
+assert len(episode) == 5
+assert len(continuation_episode) == 0
+
+# Thanks to the lookback buffer, we can still access the most recent observation
+# in the continuation chunk:
+check(continuation_episode.get_observations(-1), "obs_5")
+
+
+
+Note that a “lookback” mechanism exists to allow for connectors to look back into the
+H previous timesteps of the cut episode from within the continuation chunk, where H
+is a configurable parameter.
+
+
+
+The default lookback horizon (H) is 1. This means you can - after a cut() - still access
+the most recent action (get_actions(-1)), the most recent reward (get_rewards(-1)),
+and the two most recent observations (get_observations([-2, -1])). If you would like to
+be able to access data further in the past, change this setting in your
+AlgorithmConfig:
+config = AlgorithmConfig()
+# Change the lookback horizon setting, in case your connector (pipelines) need
+# to access data further in the past.
+config.env_runners(episode_lookback_horizon=10)
+
+
+
+Lookback Buffers and getters in more Detail#
+The following code demonstrates more options available to users of the
+SingleAgentEpisode getter APIs to access
+information further in the past (inside the lookback buffers). Imagine having to write
+a connector piece that has to add the last 5 rewards to the tensor batch used by your model’s
+action computing forward pass:
+
+# Construct a new episode (with some data in its lookback buffer).
+episode = SingleAgentEpisode(
+    observations=["o0", "o1", "o2", "o3"],
+    actions=["a0", "a1", "a2"],
+    rewards=[0.0, 1.0, 2.0],
+    len_lookback_buffer=3,
+)
+# Since our lookback buffer is 3, all data already specified in the constructor should
+# now be in the lookback buffer (and not be part of the `episode` chunk), meaning
+# the length of `episode` should still be 0.
+assert len(episode) == 0
+
+# .. and trying to get the first reward will hence lead to an IndexError.
+try:
+    episode.get_rewards(0)
+except IndexError:
+    pass
+
+# Get the last 3 rewards (using the lookback buffer).
+check(episode.get_rewards(slice(-3, None)), [0.0, 1.0, 2.0])
+
+# Assuming the episode actually started with `obs_0` (reset obs),
+# then `obs_1` + `act_0` + reward=0.0, but your model always requires a 1D reward tensor
+# of shape (5,) with the 5 most recent rewards in it.
+# You could try to code for this by manually filling the missing 2 timesteps with zeros:
+last_5_rewards = [0.0, 0.0] + episode.get_rewards(slice(-3, None))
+# However, this will become extremely tedious, especially when moving to (possibly more
+# complex) observations and actions.
+
+# Instead, `SingleAgentEpisode` getters offer some useful options to solve this problem:
+last_5_rewards = episode.get_rewards(slice(-5, None), fill=0.0)
+# Note that the `fill` argument allows you to even go further back into the past, provided
+# you are ok with filling timesteps that are not covered by the lookback buffer with
+# a fixed value.
+
+
+
+Another useful getter argument (besides fill) is the neg_index_as_lookback boolean argument.
+If set to True, negative indices are not interpreted as “from the end”, but as
+“into the lookback buffer”. This allows you to loop over a range of global timesteps
+while looking back a certain amount of timesteps from each of these global timesteps:
+
+# Construct a new episode (len=3 and lookback buffer=3).
+episode = SingleAgentEpisode(
+    observations=[
+        "o-3",
+        "o-2",
+        "o-1",  # <- lookback  # noqa
+        "o0",
+        "o1",
+        "o2",
+        "o3",  # <- actual episode data  # noqa
+    ],
+    actions=[
+        "a-3",
+        "a-2",
+        "a-1",  # <- lookback  # noqa
+        "a0",
+        "a1",
+        "a2",  # <- actual episode data  # noqa
+    ],
+    rewards=[
+        -3.0,
+        -2.0,
+        -1.0,  # <- lookback  # noqa
+        0.0,
+        1.0,
+        2.0,  # <- actual episode data  # noqa
+    ],
+    len_lookback_buffer=3,
+)
+assert len(episode) == 3
+
+# In case you want to loop through global timesteps 0 to 2 (timesteps -3, -2, and -1
+# being the lookback buffer) and at each such global timestep look 2 timesteps back,
+# you can do so easily using the `neg_index_as_lookback` arg like so:
+for global_ts in [0, 1, 2]:
+    rewards = episode.get_rewards(
+        slice(global_ts - 2, global_ts + 1),
+        # Switch behavior of negative indices from "from-the-end" to
+        # "into the lookback buffer":
+        neg_index_as_lookback=True,
+    )
+    print(rewards)
+
+# The expected output should be:
+# [-2.0, -1.0, 0.0]  # global ts=0 (plus looking back 2 ts)
+# [-1.0, 0.0, 1.0]   # global ts=1 (plus looking back 2 ts)
+# [0.0, 1.0, 2.0]    # global ts=2 (plus looking back 2 ts)
+
+
+
+
+
+

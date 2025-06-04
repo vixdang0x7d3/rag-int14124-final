@@ -1,0 +1,25 @@
+
+
+ray.util.dask.callbacks.RayDaskCallback._ray_pretask#
+
+
+RayDaskCallback._ray_pretask(key, object_refs: List[ray._raylet.ObjectRef])[source]#
+Run before executing a Dask task within a Ray task.
+This method executes after Ray submits the task within a Ray
+worker. Ray passes the return value of this task to the
+_ray_posttask callback, if provided.
+
+Parameters:
+
+key – The Dask graph key for the Dask task.
+object_refs – The object references
+for the arguments of the Ray task.
+
+
+Returns:
+A value that Ray passes to the corresponding
+_ray_posttask callback, if the callback is defined.
+
+
+
+

@@ -1,0 +1,14 @@
+
+
+ray.rllib.offline.offline_prelearner.SCHEMA#
+
+
+ray.rllib.offline.offline_prelearner.SCHEMA = {'actions': 'actions', 'agent_id': 'agent_id', 'agent_index': 'agent_index', 'dones': 'dones', 'eps_id': 'eps_id', 'infos': 'infos', 'module_id': 'module_id', 'new_obs': 'new_obs', 'obs': 'obs', 'rewards': 'rewards', 't': 't', 'terminateds': 'terminateds', 'truncateds': 'truncateds', 'unroll_id': 'unroll_id'}#
+This is the default schema used if no input_read_schema is set in
+the config. If a user passes in a schema into input_read_schema
+this user-defined schema has to comply with the keys of SCHEMA,
+while values correspond to the columns in the user’s dataset. Note
+that only the user-defined values will be overridden while all
+other values from SCHEMA remain as defined here.
+
+

@@ -1,0 +1,116 @@
+
+
+Ray Tune API#
+
+Tip
+We’d love to hear your feedback on using Tune - get in touch!
+
+This section contains a reference for the Tune API. If there is anything missing, please open an issue
+on Github.
+
+
+Tune Execution (tune.Tuner)
+Tuner
+tune.run_experiments
+
+
+Tune Experiment Results (tune.ResultGrid)
+ResultGrid (tune.ResultGrid)
+Result (tune.Result)
+ExperimentAnalysis (tune.ExperimentAnalysis)
+
+
+Training in Tune (tune.Trainable, tune.report)
+Function Trainable API
+Class Trainable API
+Comparing Tune’s Function API and Class API
+Advanced Resource Allocation
+Function API
+Trainable (Class API)
+Tune Trainable Utilities
+
+
+Tune Search Space API
+Random Distributions API
+Grid Search and Custom Function APIs
+References
+
+
+Tune Search Algorithms (tune.search)
+Saving and Restoring Tune Search Algorithms
+Random search and grid search (tune.search.basic_variant.BasicVariantGenerator)
+Ax (tune.search.ax.AxSearch)
+Bayesian Optimization (tune.search.bayesopt.BayesOptSearch)
+BOHB (tune.search.bohb.TuneBOHB)
+HEBO (tune.search.hebo.HEBOSearch)
+HyperOpt (tune.search.hyperopt.HyperOptSearch)
+Nevergrad (tune.search.nevergrad.NevergradSearch)
+Optuna (tune.search.optuna.OptunaSearch)
+ZOOpt (tune.search.zoopt.ZOOptSearch)
+Repeated Evaluations (tune.search.Repeater)
+ConcurrencyLimiter (tune.search.ConcurrencyLimiter)
+Custom Search Algorithms (tune.search.Searcher)
+Shim Instantiation (tune.create_searcher)
+
+
+Tune Trial Schedulers (tune.schedulers)
+ASHA (tune.schedulers.ASHAScheduler)
+HyperBand (tune.schedulers.HyperBandScheduler)
+Median Stopping Rule (tune.schedulers.MedianStoppingRule)
+Population Based Training (tune.schedulers.PopulationBasedTraining)
+Population Based Training Replay (tune.schedulers.PopulationBasedTrainingReplay)
+Population Based Bandits (PB2) (tune.schedulers.pb2.PB2)
+BOHB (tune.schedulers.HyperBandForBOHB)
+ResourceChangingScheduler
+FIFOScheduler (Default Scheduler)
+TrialScheduler Interface
+Shim Instantiation (tune.create_scheduler)
+
+
+Tune Stopping Mechanisms (tune.stopper)
+Stopper Interface (tune.Stopper)
+Tune Built-in Stoppers
+
+
+Tune Console Output (Reporters)
+Reporter Interface (tune.ProgressReporter)
+Tune Built-in Reporters
+
+
+Syncing in Tune
+Tune Syncing Configuration
+
+
+Tune Loggers (tune.logger)
+LoggerCallback Interface (tune.logger.LoggerCallback)
+Tune Built-in Loggers
+MLFlow Integration
+Wandb Integration
+Comet Integration
+Aim Integration
+Other Integrations
+
+
+Tune Callbacks (tune.Callback)
+Callback Interface
+
+
+Environment variables used by Ray Tune
+External library integrations for Ray Tune
+PyTorch Lightning (tune.integration.pytorch_lightning)
+XGBoost (tune.integration.xgboost)
+LightGBM (tune.integration.lightgbm)
+
+
+Tune Internals
+TunerInternal
+Trial
+FunctionTrainable
+Registry
+Output
+
+
+Tune CLI (Experimental)
+
+
+

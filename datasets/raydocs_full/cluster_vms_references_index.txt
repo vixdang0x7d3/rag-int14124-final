@@ -1,0 +1,28 @@
+
+
+API References#
+The following pages provide reference documentation for using Ray Clusters on virtual machines.
+
+Reference documentation for Ray Clusters on VMs:
+
+Cluster Launcher Commands
+Launching a cluster (ray up)
+Updating an existing cluster (ray up)
+Running shell commands on the cluster (ray exec)
+Running Ray scripts on the cluster (ray submit)
+Attaching to a running cluster (ray attach)
+Synchronizing files from the cluster (ray rsync-up/down)
+Monitoring cluster status (ray dashboard/status)
+Common Workflow: Syncing git branches
+
+
+Cluster YAML Configuration Options
+Syntax
+Custom types
+Properties and Definitions
+Examples
+
+
+
+
+

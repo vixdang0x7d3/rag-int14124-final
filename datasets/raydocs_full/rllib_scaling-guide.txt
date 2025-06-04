@@ -1,0 +1,172 @@
+
+
+RLlib scaling guide#
+
+Note
+Ray 2.40 uses RLlib’s new API stack by default.
+The Ray team has mostly completed transitioning algorithms, example scripts, and
+documentation to the new code base.
+If you’re still using the old API stack, see New API stack migration guide for details on how to migrate.
+
+RLlib is a distributed and scalable RL library, based on Ray. An RLlib Algorithm
+uses Ray actors wherever parallelization of
+its sub-components can speed up sample and learning throughput.
+
+
+
+Scalable axes in RLlib: Three scaling axes are available across all RLlib Algorithm classes:#
+
+
+The number of EnvRunner actors in the EnvRunnerGroup,
+settable through config.env_runners(num_env_runners=n).
+The number of vectorized sub-environments on each
+EnvRunner actor, settable through config.env_runners(num_envs_per_env_runner=p).
+The number of Learner actors in the
+LearnerGroup, settable through config.learners(num_learners=m).
+
+
+
+
+
+Scaling the number of EnvRunner actors#
+You can control the degree of parallelism for the sampling machinery of the
+Algorithm by increasing the number of remote
+EnvRunner actors in the EnvRunnerGroup
+through the config as follows.
+from ray.rllib.algorithms.ppo import PPOConfig
+
+config = (
+    PPOConfig()
+    # Use 4 EnvRunner actors (default is 2).
+    .env_runners(num_env_runners=4)
+)
+
+
+To assign resources to each EnvRunner, use these config settings:
+config.env_runners(
+    num_cpus_per_env_runner=..,
+    num_gpus_per_env_runner=..,
+)
+
+
+See this
+example of an EnvRunner and RL environment requiring a GPU resource.
+The number of GPUs may be fractional quantities, for example 0.5, to allocate only a fraction of a GPU per
+EnvRunner.
+Note that there’s always one “local” EnvRunner in the
+EnvRunnerGroup.
+If you only want to sample using this local EnvRunner,
+set num_env_runners=0. This local EnvRunner directly sits in the main
+Algorithm process.
+
+Hint
+The Ray team may decide to deprecate the local EnvRunner some time in the future.
+It still exists for historical reasons. It’s usefulness to keep in the set is still under debate.
+
+
+
+Scaling the number of envs per EnvRunner actor#
+RLlib vectorizes RL environments on EnvRunner
+actors through the gymnasium’s VectorEnv API.
+To create more than one environment copy per EnvRunner, set the following in your config:
+from ray.rllib.algorithms.ppo import PPOConfig
+
+config = (
+    PPOConfig()
+    # Use 10 sub-environments (vector) per EnvRunner.
+    .env_runners(num_envs_per_env_runner=10)
+)
+
+
+
+Note
+Unlike single-agent environments, RLlib can’t vectorize multi-agent setups yet.
+The Ray team is working on a solution for this restriction by utilizing
+gymnasium >= 1.x custom vectorization feature.
+
+Doing so allows the RLModule on the
+EnvRunner to run inference on a batch of data and
+thus compute actions for all sub-environments in parallel.
+By default, the individual sub-environments in a vector step and reset, in sequence, making only
+the action computation of the RL environment loop parallel, because observations can move through the model
+in a batch.
+However, gymnasium supports an asynchronous
+vectorization setting, in which each sub-environment receives its own Python process.
+This way, the vector environment can step or reset in parallel. Activate
+this asynchronous vectorization behavior through:
+import gymnasium as gym
+
+config.env_runners(
+    gym_env_vectorize_mode=gym.envs.registration.VectorizeMode.ASYNC,  # default is `SYNC`
+)
+
+
+This setting can speed up the sampling process significantly in combination with num_envs_per_env_runner > 1,
+especially when your RL environment’s stepping process is time consuming.
+See this example script  that demonstrates a massive speedup with async vectorization.
+
+
+Scaling the number of Learner actors#
+Learning updates happen in the LearnerGroup, which manages either a single,
+local Learner instance or any number of remote
+Learner actors.
+Set the number of remote Learner actors through:
+from ray.rllib.algorithms.ppo import PPOConfig
+
+config = (
+    PPOConfig()
+    # Use 2 remote Learner actors (default is 0) for distributed data parallelism.
+    # Choosing 0 creates a local Learner instance on the main Algorithm process.
+    .learners(num_learners=2)
+)
+
+
+Typically, you use as many Learner actors as you have GPUs available for training.
+Make sure to set the number of GPUs per Learner to 1:
+config.learners(num_gpus_per_learner=1)
+
+
+
+Warning
+For some algorithms, such as IMPALA and APPO, the performance of a single remote
+Learner actor (num_learners=1) compared to a
+single local Learner instance (num_learners=0),
+depends on whether you have a GPU available or not.
+If exactly one GPU is available, you should run these two algorithms with num_learners=0, num_gpus_per_learner=1,
+if no GPU is available, set num_learners=1, num_gpus_per_learner=0. If more than 1 GPU is available,
+set num_learners=.., num_gpus_per_learner=1.
+
+The number of GPUs may be fractional quantities, for example 0.5, to allocate only a fraction of a GPU per
+EnvRunner. For example, you can pack five Algorithm
+instances onto one GPU by setting num_learners=1, num_gpus_per_learner=0.2.
+See this fractional GPU example
+for details.
+
+Note
+If you specify num_gpus_per_learner > 0 and your machine doesn’t have the required number of GPUs
+available, the experiment may stall until the Ray autoscaler brings up enough machines to fulfill the resource request.
+If your cluster has autoscaling turned off, this setting then results in a seemingly hanging experiment run.
+On the other hand, if you set num_gpus_per_learner=0, RLlib builds the RLModule
+instances solely on CPUs, even if GPUs are available on the cluster.
+
+
+
+Outlook: More RLlib elements that should scale#
+There are other components and aspects in RLlib that should be able to scale up.
+For example, the model size is limited to whatever fits on a single GPU, due to
+“distributed data parallel” (DDP) being the only way in which RLlib scales Learner
+actors.
+The Ray team is working on closing these gaps. In particular, future areas of improvements are:
+
+Enable training very large models, such as a “large language model” (LLM). The team is actively working on a
+“Reinforcement Learning from Human Feedback” (RLHF) prototype setup. The main problems to solve are the
+model-parallel and tensor-parallel distribution across multiple GPUs, as well as, a reasonably fast transfer of
+weights between Ray actors.
+Enable training with thousands of multi-agent policies. A possible solution for this scaling problem
+could be to split up the MultiRLModule into
+manageable groups of individual policies across the various EnvRunner
+and Learner actors.
+Enabling vector envs for multi-agent.
+
+
+

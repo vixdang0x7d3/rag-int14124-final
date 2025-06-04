@@ -1,0 +1,180 @@
+
+
+ray.rllib.algorithms.algorithm.Algorithm#
+
+
+class ray.rllib.algorithms.algorithm.Algorithm(config: AlgorithmConfig | None = None, env=None, logger_creator: Callable[[], Logger] | None = None, **kwargs)[source]#
+Bases: Checkpointable, Trainable
+An RLlib algorithm responsible for training one or more neural network models.
+You can write your own Algorithm classes by sub-classing from Algorithm
+or any of its built-in subclasses.
+Override the training_step method to implement your own algorithm logic.
+Find the various built-in training_step() methods for different algorithms in
+their respective [algo name].py files, for example:
+ray.rllib.algorithms.dqn.dqn.py or ray.rllib.algorithms.impala.impala.py.
+The most important API methods an Algorithm exposes are train() for running a
+single training iteration, evaluate() for running a single round of evaluation,
+save_to_path() for creating a checkpoint, and restore_from_path() for loading a
+state from an existing checkpoint.
+Methods
+
+
+__init__
+Initializes an Algorithm instance.
+
+add_module
+Adds a new (single-agent) RLModule to this Algorithm's MARLModule.
+
+add_policy
+Adds a new policy to this Algorithm.
+
+evaluate
+Evaluates current policy under evaluation_config settings.
+
+evaluate_offline
+Evaluates current policy offline under evaluation_config settings.
+
+export_model
+Exports model based on export_formats.
+
+export_policy_checkpoint
+Exports Policy checkpoint to a local directory and returns an AIR Checkpoint.
+
+export_policy_model
+Exports policy model with given policy_id to a local directory.
+
+from_checkpoint
+Creates a new algorithm instance from a given checkpoint.
+
+from_state
+Recovers an Algorithm from a state object.
+
+get_config
+Returns configuration passed in by Tune.
+
+get_default_policy_class
+Returns a default Policy class to use, given a config.
+
+get_metadata
+Returns JSON writable metadata further describing the implementing class.
+
+get_module
+Returns the (single-agent) RLModule with model_id (None if ID not found).
+
+get_policy
+Return policy for the specified id, or None.
+
+get_weights
+Return a dict mapping Module/Policy IDs to weights.
+
+merge_algorithm_configs
+Merges a complete Algorithm config dict with a partial override dict.
+
+remove_module
+Removes a new (single-agent) RLModule from this Algorithm's MARLModule.
+
+remove_policy
+Removes a policy from this Algorithm.
+
+reset
+Resets trial for use with new config.
+
+reset_config
+Resets configuration without restarting the trial.
+
+restore
+Restores training state from a given model checkpoint.
+
+restore_env_runners
+Try bringing back unhealthy EnvRunners and - if successful - sync with local.
+
+save
+Saves the current model state to a checkpoint.
+
+save_checkpoint
+Exports checkpoint to a local directory.
+
+save_to_path
+Saves the state of the implementing class (or state) to path.
+
+set_weights
+Set RLModule/Policy weights by Module/Policy ID.
+
+step
+Implements the main Algorithm.train() logic.
+
+stop
+Releases all resources used by this trainable.
+
+train
+Runs one logical iteration of training.
+
+train_buffered
+Runs multiple iterations of training.
+
+training_step
+Default single iteration logic of an algorithm.
+
+validate_env
+Env validator function for this Algorithm class.
+
+
+
+Attributes
+
+
+CLASS_AND_CTOR_ARGS_FILE_NAME
+
+
+METADATA_FILE_NAME
+
+
+STATE_FILE_NAME
+
+
+config
+The AlgorithmConfig instance of the Algorithm.
+
+env_runner
+The local EnvRunner instance within the algo's EnvRunnerGroup.
+
+env_runner_group
+The EnvRunnerGroup of the Algorithm.
+
+eval_env_runner
+The local EnvRunner instance within the algo's evaluation EnvRunnerGroup.
+
+eval_env_runner_group
+A special EnvRunnerGroup only used for evaluation, not to collect training samples.
+
+iteration
+Current training iteration.
+
+learner_group
+The LearnerGroup instance of the Algorithm, managing either one local Learner or one or more remote Learner actors.
+
+logdir
+Directory of the results and checkpoints for this Trainable.
+
+metrics
+The MetricsLogger instance of the Algorithm.
+
+offline_data
+An optional OfflineData instance, used for offline RL.
+
+training_iteration
+Current training iteration (same as self.iteration).
+
+trial_id
+Trial ID for the corresponding trial of this Trainable.
+
+trial_name
+Trial name for the corresponding trial of this Trainable.
+
+trial_resources
+Resources currently assigned to the trial of this Trainable.
+
+
+
+
+

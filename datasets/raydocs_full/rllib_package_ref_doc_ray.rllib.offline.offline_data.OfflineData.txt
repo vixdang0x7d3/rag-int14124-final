@@ -1,0 +1,25 @@
+
+
+ray.rllib.offline.offline_data.OfflineData#
+
+
+class ray.rllib.offline.offline_data.OfflineData(config: AlgorithmConfig)[source]#
+PublicAPI (alpha): This API is in alpha and may change before becoming stable.
+Methods
+
+
+
+
+Attributes
+
+
+default_iter_batches_kwargs
+
+
+default_map_batches_kwargs
+
+
+
+
+
+

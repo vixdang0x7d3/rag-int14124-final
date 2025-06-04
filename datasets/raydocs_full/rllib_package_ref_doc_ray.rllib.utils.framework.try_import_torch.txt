@@ -1,0 +1,20 @@
+
+
+ray.rllib.utils.framework.try_import_torch#
+
+
+ray.rllib.utils.framework.try_import_torch(error: bool = False)[source]#
+Tries importing torch and returns the module (or None).
+
+Parameters:
+error – Whether to raise an error if torch cannot be imported.
+
+Returns:
+Tuple consisting of the torch- AND torch.nn modules.
+
+Raises:
+ImportError – If error=True and PyTorch is not installed.
+
+
+
+

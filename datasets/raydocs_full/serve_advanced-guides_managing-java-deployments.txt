@@ -1,0 +1,192 @@
+
+
+Experimental Java API#
+
+Warning
+Java API support is an experimental feature and subject to change.
+The Java API is not currently supported on KubeRay.
+
+Java is a mainstream programming language for production services. Ray Serve offers a native Java API for creating, updating, and managing deployments. You can create Ray Serve deployments using Java and call them via Python, or vice versa.
+This section helps you to:
+
+create, query, and update Java deployments
+configure Java deployment resources
+manage Python deployments using the Java API
+
+
+Contents
+
+Experimental Java API
+
+Creating a Deployment
+Accessing a Deployment
+Updating a Deployment
+Configuring a Deployment
+
+Scaling Out
+Resource Management (CPUs, GPUs)
+
+
+Managing a Python Deployment
+Future Roadmap
+
+
+
+
+
+Creating a Deployment#
+By specifying the full name of the class as an argument to the Serve.deployment() method, as shown in the code below, you can create and deploy a deployment of the class.
+  public static class Counter {
+
+    private AtomicInteger value;
+
+    public Counter(String value) {
+      this.value = new AtomicInteger(Integer.valueOf(value));
+    }
+
+    public String call(String delta) {
+      return String.valueOf(value.addAndGet(Integer.valueOf(delta)));
+    }
+  }
+
+  public void create() {
+    Application app =
+        Serve.deployment()
+            .setName("counter")
+            .setDeploymentDef(Counter.class.getName())
+            .setNumReplicas(1)
+            .bind("1");
+    Serve.run(app);
+  }
+
+
+
+
+Accessing a Deployment#
+Once a deployment is deployed, you can fetch its instance by name.
+  public Deployment query() {
+    Deployment deployment = Serve.getDeployment("counter");
+    return deployment;
+  }
+
+
+
+
+Updating a Deployment#
+You can update a deployment’s code and configuration and then redeploy it. The following example updates the "counter" deployment’s initial value to 2.
+  public void update() {
+    Application app =
+        Serve.deployment()
+            .setName("counter")
+            .setDeploymentDef(Counter.class.getName())
+            .setNumReplicas(1)
+            .bind("2");
+    Serve.run(app);
+  }
+
+
+
+
+Configuring a Deployment#
+Ray Serve lets you configure your deployments to:
+
+scale out by increasing the number of deployment replicas
+assign replica resources such as CPUs and GPUs.
+
+The next two sections describe how to configure your deployments.
+
+Scaling Out#
+By specifying the numReplicas parameter, you can change the number of deployment replicas:
+  public void scaleOut() {
+    Deployment deployment = Serve.getDeployment("counter");
+
+    // Scale up to 2 replicas.
+    Serve.run(deployment.options().setNumReplicas(2).bind());
+
+    // Scale down to 1 replica.
+    Serve.run(deployment.options().setNumReplicas(1).bind());
+  }
+
+
+
+
+Resource Management (CPUs, GPUs)#
+Through the rayActorOptions parameter, you can reserve resources for each deployment replica, such as one GPU:
+  public void manageResource() {
+    Map<String, Object> rayActorOptions = new HashMap<>();
+    rayActorOptions.put("num_gpus", 1);
+    Application app =
+        Serve.deployment()
+            .setName("counter")
+            .setDeploymentDef(Counter.class.getName())
+            .setRayActorOptions(rayActorOptions)
+            .bind();
+    Serve.run(app);
+  }
+
+
+
+
+
+Managing a Python Deployment#
+A Python deployment can also be managed and called by the Java API. Suppose you have a Python file counter.py in the /path/to/code/ directory:
+from ray import serve
+
+@serve.deployment
+class Counter(object):
+    def __init__(self, value):
+        self.value = int(value)
+
+    def increase(self, delta):
+        self.value += int(delta)
+        return str(self.value)
+
+
+
+You can deploy it through the Java API and call it through a RayServeHandle:
+import io.ray.api.Ray;
+import io.ray.serve.api.Serve;
+import io.ray.serve.deployment.Deployment;
+import io.ray.serve.generated.DeploymentLanguage;
+import java.io.File;
+
+public class ManagePythonDeployment {
+
+  public static void main(String[] args) {
+
+    System.setProperty(
+        "ray.job.code-search-path",
+        System.getProperty("java.class.path") + File.pathSeparator + "/path/to/code/");
+
+    Serve.start(true, false, null);
+
+    Deployment deployment =
+        Serve.deployment()
+            .setDeploymentLanguage(DeploymentLanguage.PYTHON)
+            .setName("counter")
+            .setDeploymentDef("counter.Counter")
+            .setNumReplicas(1)
+            .setInitArgs(new Object[] {"1"})
+            .create();
+    deployment.deploy(true);
+
+    System.out.println(Ray.get(deployment.getHandle().method("increase").remote("2")));
+  }
+}
+
+
+
+Note
+Before Ray.init or Serve.start, you need to specify a directory to find the Python code. For details, please refer to Cross-Language Programming.
+
+
+
+Future Roadmap#
+In the future, Ray Serve plans to provide more Java features, such as:
+
+an improved Java API that matches the Python version
+HTTP ingress support
+bring-your-own Java Spring project as a deployment
+
+
+

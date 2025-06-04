@@ -1,0 +1,22 @@
+
+
+ray.rllib.callbacks.callbacks.RLlibCallback.on_sample_end#
+
+
+RLlibCallback.on_sample_end(*, env_runner: EnvRunner | None = None, metrics_logger: MetricsLogger | None = None, samples: SampleBatch | List[SingleAgentEpisode | MultiAgentEpisode], worker: EnvRunner | None = None, **kwargs) → None[source]#
+Called at the end of EnvRunner.sample().
+
+Parameters:
+
+env_runner – Reference to the current EnvRunner object.
+metrics_logger – The MetricsLogger object inside the env_runner. Can be
+used to log custom metrics during env/episode stepping.
+samples – Lists of SingleAgentEpisode or MultiAgentEpisode instances to be
+returned. You can mutate the episodes to modify the returned training
+data.
+kwargs – Forward compatibility placeholder.
+
+
+
+
+

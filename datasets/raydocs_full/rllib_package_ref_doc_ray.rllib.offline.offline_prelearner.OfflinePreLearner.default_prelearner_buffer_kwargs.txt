@@ -1,0 +1,11 @@
+
+
+ray.rllib.offline.offline_prelearner.OfflinePreLearner.default_prelearner_buffer_kwargs#
+
+
+property OfflinePreLearner.default_prelearner_buffer_kwargs: Dict[str, Any]#
+Sets the default arguments for the replay buffer.
+Note, the capacity might vary with the size of the episodes or
+sample batches in the offline dataset.
+
+

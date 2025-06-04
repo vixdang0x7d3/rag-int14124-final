@@ -1,0 +1,20 @@
+
+
+Advanced Guides#
+
+
+If you’re new to Ray Serve, start with the Ray Serve Quickstart.
+Use these advanced guides for more options and configurations:
+
+Pass Arguments to Applications
+Advanced Ray Serve Autoscaling
+Performance Tuning
+Dynamic Request Batching
+In-Place Updates for Serve
+Development Workflow
+gRPC Support
+Ray Serve Dashboard
+Experimental Java API
+Run Applications in Different Containers
+
+

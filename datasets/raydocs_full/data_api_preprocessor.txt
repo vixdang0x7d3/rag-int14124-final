@@ -1,0 +1,112 @@
+
+
+Preprocessor#
+
+Preprocessor Interface#
+
+Constructor#
+
+
+Preprocessor
+Implements an ML preprocessing operation.
+
+
+
+
+
+Fit/Transform APIs#
+
+
+fit
+Fit this Preprocessor to the Dataset.
+
+fit_transform
+Fit this Preprocessor to the Dataset and then transform the Dataset.
+
+transform
+Transform the given dataset.
+
+transform_batch
+Transform a single batch of data.
+
+PreprocessorNotFittedException
+Error raised when the preprocessor needs to be fitted first.
+
+
+
+
+
+
+Generic Preprocessors#
+
+
+Concatenator
+Combine numeric columns into a column of type TensorDtype.
+
+SimpleImputer
+Replace missing values with imputed values.
+
+
+
+
+
+Categorical Encoders#
+
+
+Categorizer
+Convert columns to pd.CategoricalDtype.
+
+LabelEncoder
+Encode labels as integer targets.
+
+MultiHotEncoder
+Multi-hot encode categorical data.
+
+OneHotEncoder
+One-hot encode categorical data.
+
+OrdinalEncoder
+Encode values within columns as ordered integer values.
+
+
+
+
+
+Feature Scalers#
+
+
+MaxAbsScaler
+Scale each column by its absolute max value.
+
+MinMaxScaler
+Scale each column by its range.
+
+Normalizer
+Scales each sample to have unit norm.
+
+PowerTransformer
+Apply a power transform to make your data more normally distributed.
+
+RobustScaler
+Scale and translate each column using quantiles.
+
+StandardScaler
+Translate and scale each column by its mean and standard deviation, respectively.
+
+
+
+
+
+K-Bins Discretizers#
+
+
+CustomKBinsDiscretizer
+Bin values into discrete intervals using custom bin edges.
+
+UniformKBinsDiscretizer
+Bin values into discrete intervals (bins) of uniform width.
+
+
+
+
+

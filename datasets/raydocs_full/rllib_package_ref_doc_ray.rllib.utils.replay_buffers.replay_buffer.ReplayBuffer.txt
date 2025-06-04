@@ -1,0 +1,82 @@
+
+
+ray.rllib.utils.replay_buffers.replay_buffer.ReplayBuffer#
+
+
+class ray.rllib.utils.replay_buffers.replay_buffer.ReplayBuffer(capacity: int = 10000, storage_unit: str | StorageUnit = 'timesteps', **kwargs)[source]#
+Bases: ReplayBufferInterface, FaultAwareApply
+The lowest-level replay buffer interface used by RLlib.
+This class implements a basic ring-type of buffer with random sampling.
+ReplayBuffer is the base class for advanced types that add functionality while
+retaining compatibility through inheritance.
+The following examples show how buffers behave with different storage_units
+and capacities. This behaviour is generally similar for other buffers, although
+they might not implement all storage_units.
+Examples:
+from ray.rllib.utils.replay_buffers.replay_buffer import ReplayBuffer
+from ray.rllib.utils.replay_buffers.replay_buffer import StorageUnit
+from ray.rllib.policy.sample_batch import SampleBatch
+
+# Store any batch as a whole
+buffer = ReplayBuffer(capacity=10, storage_unit=StorageUnit.FRAGMENTS)
+buffer.add(SampleBatch({"a": [1], "b": [2, 3, 4]}))
+buffer.sample(1)
+
+# Store only complete episodes
+buffer = ReplayBuffer(capacity=10,
+                        storage_unit=StorageUnit.EPISODES)
+buffer.add(SampleBatch({"c": [1, 2, 3, 4],
+                        SampleBatch.T: [0, 1, 0, 1],
+                        SampleBatch.TERMINATEDS: [False, True, False, True],
+                        SampleBatch.EPS_ID: [0, 0, 1, 1]}))
+buffer.sample(1)
+
+# Store single timesteps
+buffer = ReplayBuffer(capacity=2, storage_unit=StorageUnit.TIMESTEPS)
+buffer.add(SampleBatch({"a": [1, 2], SampleBatch.T: [0, 1]}))
+buffer.sample(1)
+
+buffer.add(SampleBatch({"a": [3], SampleBatch.T: [2]}))
+print(buffer._eviction_started)
+buffer.sample(1)
+
+buffer = ReplayBuffer(capacity=10, storage_unit=StorageUnit.SEQUENCES)
+buffer.add(SampleBatch({"c": [1, 2, 3], SampleBatch.SEQ_LENS: [1, 2]}))
+buffer.sample(1)
+
+
+True
+
+
+True is not the output of the above testcode, but an artifact of unexpected
+behaviour of sphinx doctests.
+(see ray-project/ray#32477)
+DeveloperAPI: This API may change across minor Ray releases.
+Methods
+
+
+__init__
+Initializes a (FIFO) ReplayBuffer instance.
+
+add
+Adds a batch of experiences or other data to this buffer.
+
+apply
+Calls the given function with this Actor instance.
+
+get_host
+Returns the computer's network name.
+
+ping
+Ping the actor.
+
+sample
+Samples num_items items from this buffer.
+
+stats
+Returns the stats of this buffer.
+
+
+
+
+

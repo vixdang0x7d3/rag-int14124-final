@@ -1,0 +1,1871 @@
+
+
+Running Tune experiments with Nevergrad#
+
+
+
+
+In this tutorial we introduce Nevergrad, while running a simple Ray Tune experiment. Tune’s Search Algorithms integrate with Nevergrad and, as a result, allow you to seamlessly scale up a Nevergrad optimization process - without sacrificing performance.
+Nevergrad provides gradient/derivative-free optimization able to handle noise over the objective landscape, including evolutionary, bandit, and Bayesian optimization algorithms. Nevergrad internally supports search spaces which are continuous, discrete or a mixture of thereof. It also provides a library of functions on which to test the optimization algorithms and compare with other benchmarks.
+In this example we minimize a simple objective to briefly demonstrate the usage of Nevergrad with Ray Tune via NevergradSearch. It’s useful to keep in mind that despite the emphasis on machine learning experiments, Ray Tune optimizes any implicit or explicit objective. Here we assume nevergrad==0.4.3.post7 library is installed. To learn more, please refer to Nevergrad website.
+Necessary requirements:
+
+pip install ray[tune] nevergrad==0.4.3.post7
+
+Click below to see all the imports we need for this example.
+
+
+
+Show code cell source
+Hide code cell source
+
+
+import time
+
+import ray
+import nevergrad as ng
+from ray import tune
+from ray.tune.search import ConcurrencyLimiter
+from ray.tune.search.nevergrad import NevergradSearch
+
+
+
+
+
+/Users/kai/.pyenv/versions/3.7.7/lib/python3.7/site-packages/nevergrad/optimization/differentialevolution.py:107: InefficientSettingsWarning: DE algorithms are inefficient with budget < 60
+  "DE algorithms are inefficient with budget < 60", base.errors.InefficientSettingsWarning
+
+
+
+
+Let’s start by defining a simple evaluation function.
+We artificially sleep for a bit (0.1 seconds) to simulate a long-running ML experiment.
+This setup assumes that we’re running multiple steps of an experiment and try to tune two hyperparameters,
+namely width and height, and activation.
+
+
+def evaluate(step, width, height, activation):
+    time.sleep(0.1)
+    activation_boost = 10 if activation=="relu" else 1
+    return (0.1 + width * step / 100) ** (-1) + height * 0.1 + activation_boost
+
+
+
+
+Next, our objective function takes a Tune config, evaluates the score of your experiment in a training loop,
+and uses tune.report to report the score back to Tune.
+
+
+def objective(config):
+    for step in range(config["steps"]):
+        score = evaluate(step, config["width"], config["height"], config["activation"])
+        tune.report({"iterations": step, "mean_loss": score})
+
+
+
+
+Now we construct the hyperparameter search space using ConfigSpace
+Next we define the search algorithm built from NevergradSearch, constrained  to a maximum of 4 concurrent trials with a ConcurrencyLimiter. Here we use ng.optimizers.OnePlusOne, a simple evolutionary algorithm.
+
+
+algo = NevergradSearch(
+    optimizer=ng.optimizers.OnePlusOne,
+)
+algo = tune.search.ConcurrencyLimiter(algo, max_concurrent=4)
+
+
+
+
+The number of samples is the number of hyperparameter combinations that will be tried out. This Tune run is set to 1000 samples.
+(you can decrease this if it takes too long on your machine).
+
+
+num_samples = 1000
+
+
+
+
+Finally, all that’s left is to define a search space.
+
+
+search_config = {
+    "steps": 100,
+    "width": tune.uniform(0, 20),
+    "height": tune.uniform(-100, 100),
+    "activation": tune.choice(["relu, tanh"])
+}
+
+
+
+
+Finally, we run the experiment to "min"imize the “mean_loss” of the objective by searching search_space via algo, num_samples times. This previous sentence is fully characterizes the search problem we aim to solve. With this in mind, observe how efficient it is to execute tuner.fit().
+
+
+tuner = tune.Tuner(
+    objective,
+    tune_config=tune.TuneConfig(
+        metric="mean_loss",
+        mode="min",
+        search_alg=algo,
+        num_samples=num_samples,
+    ),
+    param_space=search_config,
+)
+results = tuner.fit()
+
+
+
+
+WARNING:ray.tune.trainable.function_trainable:
+
+
+== Status ==Current time: 2022-07-22 15:24:44 (running for 00:00:43.69)Memory usage on this node: 10.4/16.0 GiBUsing FIFO scheduling algorithm.Resources requested: 0/16 CPUs, 0/0 GPUs, 0.0/4.61 GiB heap, 0.0/2.0 GiB objectsCurrent best trial: 004f499a with mean_loss=-7.595329711238255 and parameters={'steps': 100, 'width': 2.1174116156230918, 'height': -90.50653873694615, 'activation': 'relu, tanh'}Result logdir: /Users/kai/ray_results/objective_2022-07-22_15-23-59Number of trials: 10/10 (10 TERMINATED)
+
+Trial name        status    loc            activation     height    width    loss  iter  total time (s)  iterations  neg_mean_loss
+
+
+objective_ee2ca136TERMINATED127.0.0.1:46434relu, tanh    0      10        1.1       100         10.942           99       -1.1    
+objective_efe1626eTERMINATED127.0.0.1:46441relu, tanh  -31.0013  9.28761 -1.99254   100         11.5354          99        1.99254
+objective_efe34e4eTERMINATED127.0.0.1:46442relu, tanh    5.21403 9.48974  1.62672   100         11.6606          99       -1.62672
+objective_efe55c2aTERMINATED127.0.0.1:46443relu, tanh  -20.8721 11.3958  -0.99935   100         11.6083          99        0.99935
+objective_f6688086TERMINATED127.0.0.1:46467relu, tanh   57.2829 17.7296   6.78493   100         10.716           99       -6.78493
+objective_f85ed926TERMINATED127.0.0.1:46478relu, tanh   40.5543 19.0813   5.10809   100         10.7158          99       -5.10809
+objective_f86ee276TERMINATED127.0.0.1:46481relu, tanh   93.8686  1.60757 10.9781    100         10.7415          99      -10.9781 
+objective_f880a02eTERMINATED127.0.0.1:46484relu, tanh  -80.5769  5.84852 -6.88791   100         10.7335          99        6.88791
+objective_fe4e7a44TERMINATED127.0.0.1:46499relu, tanh    9.62911 0.622909 3.35823   100         13.1428          99       -3.35823
+objective_004f499aTERMINATED127.0.0.1:46504relu, tanh  -90.5065  2.11741 -7.59533   100         10.7688          99        7.59533
+
+INFO:ray._private.runtime_env.plugin_schema_manager:Loading the default runtime env schemas: ['/Users/kai/coding/ray/python/ray/_private/runtime_env/../../runtime_env/schemas/working_dir_schema.json', '/Users/kai/coding/ray/python/ray/_private/runtime_env/../../runtime_env/schemas/pip_schema.json'].
+
+
+Result for objective_ee2ca136:
+  date: 2022-07-22_15-24-03
+  done: false
+  experiment_id: c0ad5ddb78cc4cc88e8195f5bde34e20
+  hostname: Kais-MacBook-Pro.local
+  iterations: 0
+  iterations_since_restore: 1
+  mean_loss: 11.0
+  neg_mean_loss: -11.0
+  node_ip: 127.0.0.1
+  pid: 46434
+  time_since_restore: 0.10390329360961914
+  time_this_iter_s: 0.10390329360961914
+  time_total_s: 0.10390329360961914
+  timestamp: 1658499843
+  timesteps_since_restore: 0
+  training_iteration: 1
+  trial_id: ee2ca136
+  warmup_time: 0.003058910369873047
+  
+Result for objective_efe1626e:
+  date: 2022-07-22_15-24-06
+  done: false
+  experiment_id: c6d33a9a30c040c0929b657f1d3e1557
+  hostname: Kais-MacBook-Pro.local
+  iterations: 0
+  iterations_since_restore: 1
+  mean_loss: 7.899868000941147
+  neg_mean_loss: -7.899868000941147
+  node_ip: 127.0.0.1
+  pid: 46441
+  time_since_restore: 0.10202908515930176
+  time_this_iter_s: 0.10202908515930176
+  time_total_s: 0.10202908515930176
+  timestamp: 1658499846
+  timesteps_since_restore: 0
+  training_iteration: 1
+  trial_id: efe1626e
+  warmup_time: 0.003210783004760742
+  
+Result for objective_efe55c2a:
+  date: 2022-07-22_15-24-06
+  done: false
+  experiment_id: 903e9605ba894aa0bc55297229b8a77b
+  hostname: Kais-MacBook-Pro.local
+  iterations: 0
+  iterations_since_restore: 1
+  mean_loss: 8.91279068144465
+  neg_mean_loss: -8.91279068144465
+  node_ip: 127.0.0.1
+  pid: 46443
+  time_since_restore: 0.1029670238494873
+  time_this_iter_s: 0.1029670238494873
+  time_total_s: 0.1029670238494873
+  timestamp: 1658499846
+  timesteps_since_restore: 0
+  training_iteration: 1
+  trial_id: efe55c2a
+  warmup_time: 0.0031630992889404297
+  
+Result for objective_efe34e4e:
+  date: 2022-07-22_15-24-06
+  done: false
+  experiment_id: 1efbb9c1becb436e8f304b61e9edd61b
+  hostname: Kais-MacBook-Pro.local
+  iterations: 0
+  iterations_since_restore: 1
+  mean_loss: 11.521403250268252
+  neg_mean_loss: -11.521403250268252
+  node_ip: 127.0.0.1
+  pid: 46442
+  time_since_restore: 0.10443997383117676
+  time_this_iter_s: 0.10443997383117676
+  time_total_s: 0.10443997383117676
+  timestamp: 1658499846
+  timesteps_since_restore: 0
+  training_iteration: 1
+  trial_id: efe34e4e
+  warmup_time: 0.002650022506713867
+  
+Result for objective_ee2ca136:
+  date: 2022-07-22_15-24-08
+  done: false
+  experiment_id: c0ad5ddb78cc4cc88e8195f5bde34e20
+  hostname: Kais-MacBook-Pro.local
+  iterations: 45
+  iterations_since_restore: 46
+  mean_loss: 1.2173913043478262
+  neg_mean_loss: -1.2173913043478262
+  node_ip: 127.0.0.1
+  pid: 46434
+  time_since_restore: 5.145823955535889
+  time_this_iter_s: 0.10791492462158203
+  time_total_s: 5.145823955535889
+  timestamp: 1658499848
+  timesteps_since_restore: 0
+  training_iteration: 46
+  trial_id: ee2ca136
+  warmup_time: 0.003058910369873047
+  
+Result for objective_efe1626e:
+  date: 2022-07-22_15-24-11
+  done: false
+  experiment_id: c6d33a9a30c040c0929b657f1d3e1557
+  hostname: Kais-MacBook-Pro.local
+  iterations: 47
+  iterations_since_restore: 48
+  mean_loss: -1.8761766831351419
+  neg_mean_loss: 1.8761766831351419
+  node_ip: 127.0.0.1
+  pid: 46441
+  time_since_restore: 5.138395071029663
+  time_this_iter_s: 0.10561490058898926
+  time_total_s: 5.138395071029663
+  timestamp: 1658499851
+  timesteps_since_restore: 0
+  training_iteration: 48
+  trial_id: efe1626e
+  warmup_time: 0.003210783004760742
+  
+Result for objective_efe55c2a:
+  date: 2022-07-22_15-24-11
+  done: false
+  experiment_id: 903e9605ba894aa0bc55297229b8a77b
+  hostname: Kais-MacBook-Pro.local
+  iterations: 47
+  iterations_since_restore: 48
+  mean_loss: -0.9039251143764186
+  neg_mean_loss: 0.9039251143764186
+  node_ip: 127.0.0.1
+  pid: 46443
+  time_since_restore: 5.145689249038696
+  time_this_iter_s: 0.10677504539489746
+  time_total_s: 5.145689249038696
+  timestamp: 1658499851
+  timesteps_since_restore: 0
+  training_iteration: 48
+  trial_id: efe55c2a
+  warmup_time: 0.0031630992889404297
+  
+Result for objective_efe34e4e:
+  date: 2022-07-22_15-24-11
+  done: false
+  experiment_id: 1efbb9c1becb436e8f304b61e9edd61b
+  hostname: Kais-MacBook-Pro.local
+  iterations: 47
+  iterations_since_restore: 48
+  mean_loss: 1.7406930109818743
+  neg_mean_loss: -1.7406930109818743
+  node_ip: 127.0.0.1
+  pid: 46442
+  time_since_restore: 5.151263952255249
+  time_this_iter_s: 0.10529589653015137
+  time_total_s: 5.151263952255249
+  timestamp: 1658499851
+  timesteps_since_restore: 0
+  training_iteration: 48
+  trial_id: efe34e4e
+  warmup_time: 0.002650022506713867
+  
+Result for objective_ee2ca136:
+  date: 2022-07-22_15-24-13
+  done: false
+  experiment_id: c0ad5ddb78cc4cc88e8195f5bde34e20
+  hostname: Kais-MacBook-Pro.local
+  iterations: 92
+  iterations_since_restore: 93
+  mean_loss: 1.10752688172043
+  neg_mean_loss: -1.10752688172043
+  node_ip: 127.0.0.1
+  pid: 46434
+  time_since_restore: 10.185918092727661
+  time_this_iter_s: 0.10853385925292969
+  time_total_s: 10.185918092727661
+  timestamp: 1658499853
+  timesteps_since_restore: 0
+  training_iteration: 93
+  trial_id: ee2ca136
+  warmup_time: 0.003058910369873047
+  
+Result for objective_ee2ca136:
+  date: 2022-07-22_15-24-14
+  done: true
+  experiment_id: c0ad5ddb78cc4cc88e8195f5bde34e20
+  experiment_tag: 1_activation=relu_tanh,height=0.0000,steps=100,width=10.0000
+  hostname: Kais-MacBook-Pro.local
+  iterations: 99
+  iterations_since_restore: 100
+  mean_loss: 1.1
+  neg_mean_loss: -1.1
+  node_ip: 127.0.0.1
+  pid: 46434
+  time_since_restore: 10.941971063613892
+  time_this_iter_s: 0.10557413101196289
+  time_total_s: 10.941971063613892
+  timestamp: 1658499854
+  timesteps_since_restore: 0
+  training_iteration: 100
+  trial_id: ee2ca136
+  warmup_time: 0.003058910369873047
+  
+Result for objective_efe34e4e:
+  date: 2022-07-22_15-24-16
+  done: false
+  experiment_id: 1efbb9c1becb436e8f304b61e9edd61b
+  hostname: Kais-MacBook-Pro.local
+  iterations: 90
+  iterations_since_restore: 91
+  mean_loss: 1.63713376556457
+  neg_mean_loss: -1.63713376556457
+  node_ip: 127.0.0.1
+  pid: 46442
+  time_since_restore: 9.770322799682617
+  time_this_iter_s: 0.1040806770324707
+  time_total_s: 9.770322799682617
+  timestamp: 1658499856
+  timesteps_since_restore: 0
+  training_iteration: 91
+  trial_id: efe34e4e
+  warmup_time: 0.002650022506713867
+  
+Result for objective_efe1626e:
+  date: 2022-07-22_15-24-16
+  done: false
+  experiment_id: c6d33a9a30c040c0929b657f1d3e1557
+  hostname: Kais-MacBook-Pro.local
+  iterations: 92
+  iterations_since_restore: 93
+  mean_loss: -1.9844528559710652
+  neg_mean_loss: 1.9844528559710652
+  node_ip: 127.0.0.1
+  pid: 46441
+  time_since_restore: 9.955276012420654
+  time_this_iter_s: 0.10721087455749512
+  time_total_s: 9.955276012420654
+  timestamp: 1658499856
+  timesteps_since_restore: 0
+  training_iteration: 93
+  trial_id: efe1626e
+  warmup_time: 0.003210783004760742
+  
+Result for objective_efe55c2a:
+  date: 2022-07-22_15-24-16
+  done: false
+  experiment_id: 903e9605ba894aa0bc55297229b8a77b
+  hostname: Kais-MacBook-Pro.local
+  iterations: 91
+  iterations_since_restore: 92
+  mean_loss: -0.991699632507838
+  neg_mean_loss: 0.991699632507838
+  node_ip: 127.0.0.1
+  pid: 46443
+  time_since_restore: 9.83866286277771
+  time_this_iter_s: 0.10593676567077637
+  time_total_s: 9.83866286277771
+  timestamp: 1658499856
+  timesteps_since_restore: 0
+  training_iteration: 92
+  trial_id: efe55c2a
+  warmup_time: 0.0031630992889404297
+  
+Result for objective_f6688086:
+  date: 2022-07-22_15-24-17
+  done: false
+  experiment_id: aa090556819b41c5b1e93d761dc9311a
+  hostname: Kais-MacBook-Pro.local
+  iterations: 0
+  iterations_since_restore: 1
+  mean_loss: 16.728285222315503
+  neg_mean_loss: -16.728285222315503
+  node_ip: 127.0.0.1
+  pid: 46467
+  time_since_restore: 0.10288572311401367
+  time_this_iter_s: 0.10288572311401367
+  time_total_s: 0.10288572311401367
+  timestamp: 1658499857
+  timesteps_since_restore: 0
+  training_iteration: 1
+  trial_id: f6688086
+  warmup_time: 0.002875089645385742
+  
+Result for objective_efe1626e:
+  date: 2022-07-22_15-24-17
+  done: true
+  experiment_id: c6d33a9a30c040c0929b657f1d3e1557
+  experiment_tag: 2_activation=relu_tanh,height=-31.0013,steps=100,width=9.2876
+  hostname: Kais-MacBook-Pro.local
+  iterations: 99
+  iterations_since_restore: 100
+  mean_loss: -1.9925441896649678
+  neg_mean_loss: 1.9925441896649678
+  node_ip: 127.0.0.1
+  pid: 46441
+  time_since_restore: 11.535439252853394
+  time_this_iter_s: 0.10611414909362793
+  time_total_s: 11.535439252853394
+  timestamp: 1658499857
+  timesteps_since_restore: 0
+  training_iteration: 100
+  trial_id: efe1626e
+  warmup_time: 0.003210783004760742
+  
+Result for objective_efe55c2a:
+  date: 2022-07-22_15-24-17
+  done: true
+  experiment_id: 903e9605ba894aa0bc55297229b8a77b
+  experiment_tag: 4_activation=relu_tanh,height=-20.8721,steps=100,width=11.3958
+  hostname: Kais-MacBook-Pro.local
+  iterations: 99
+  iterations_since_restore: 100
+  mean_loss: -0.9993497773424045
+  neg_mean_loss: 0.9993497773424045
+  node_ip: 127.0.0.1
+  pid: 46443
+  time_since_restore: 11.608299970626831
+  time_this_iter_s: 0.10889291763305664
+  time_total_s: 11.608299970626831
+  timestamp: 1658499857
+  timesteps_since_restore: 0
+  training_iteration: 100
+  trial_id: efe55c2a
+  warmup_time: 0.0031630992889404297
+  
+
+
+Result for objective_efe34e4e:
+  date: 2022-07-22_15-24-18
+  done: true
+  experiment_id: 1efbb9c1becb436e8f304b61e9edd61b
+  experiment_tag: 3_activation=relu_tanh,height=5.2140,steps=100,width=9.4897
+  hostname: Kais-MacBook-Pro.local
+  iterations: 99
+  iterations_since_restore: 100
+  mean_loss: 1.6267236167220034
+  neg_mean_loss: -1.6267236167220034
+  node_ip: 127.0.0.1
+  pid: 46442
+  time_since_restore: 11.660571098327637
+  time_this_iter_s: 0.1082301139831543
+  time_total_s: 11.660571098327637
+  timestamp: 1658499858
+  timesteps_since_restore: 0
+  training_iteration: 100
+  trial_id: efe34e4e
+  warmup_time: 0.002650022506713867
+  
+Result for objective_f85ed926:
+  date: 2022-07-22_15-24-20
+  done: false
+  experiment_id: 402684968ef24377ae7787c9af50d3ae
+  hostname: Kais-MacBook-Pro.local
+  iterations: 0
+  iterations_since_restore: 1
+  mean_loss: 15.055429995999226
+  neg_mean_loss: -15.055429995999226
+  node_ip: 127.0.0.1
+  pid: 46478
+  time_since_restore: 0.10394287109375
+  time_this_iter_s: 0.10394287109375
+  time_total_s: 0.10394287109375
+  timestamp: 1658499860
+  timesteps_since_restore: 0
+  training_iteration: 1
+  trial_id: f85ed926
+  warmup_time: 0.0031621456146240234
+  
+Result for objective_f86ee276:
+  date: 2022-07-22_15-24-20
+  done: false
+  experiment_id: cbdc4d94c3d64e59aa53e4465349dbe1
+  hostname: Kais-MacBook-Pro.local
+  iterations: 0
+  iterations_since_restore: 1
+  mean_loss: 20.386860838650087
+  neg_mean_loss: -20.386860838650087
+  node_ip: 127.0.0.1
+  pid: 46481
+  time_since_restore: 0.10312676429748535
+  time_this_iter_s: 0.10312676429748535
+  time_total_s: 0.10312676429748535
+  timestamp: 1658499860
+  timesteps_since_restore: 0
+  training_iteration: 1
+  trial_id: f86ee276
+  warmup_time: 0.002810955047607422
+  
+Result for objective_f880a02e:
+  date: 2022-07-22_15-24-20
+  done: false
+  experiment_id: fb5af0209b2b45eda67ab40960a48a99
+  hostname: Kais-MacBook-Pro.local
+  iterations: 0
+  iterations_since_restore: 1
+  mean_loss: 2.94231225430282
+  neg_mean_loss: -2.94231225430282
+  node_ip: 127.0.0.1
+  pid: 46484
+  time_since_restore: 0.10325503349304199
+  time_this_iter_s: 0.10325503349304199
+  time_total_s: 0.10325503349304199
+  timestamp: 1658499860
+  timesteps_since_restore: 0
+  training_iteration: 1
+  trial_id: f880a02e
+  warmup_time: 0.0027141571044921875
+  
+Result for objective_f6688086:
+  date: 2022-07-22_15-24-22
+  done: false
+  experiment_id: aa090556819b41c5b1e93d761dc9311a
+  hostname: Kais-MacBook-Pro.local
+  iterations: 47
+  iterations_since_restore: 48
+  mean_loss: 6.846867893893624
+  neg_mean_loss: -6.846867893893624
+  node_ip: 127.0.0.1
+  pid: 46467
+  time_since_restore: 5.122231721878052
+  time_this_iter_s: 0.10641169548034668
+  time_total_s: 5.122231721878052
+  timestamp: 1658499862
+  timesteps_since_restore: 0
+  training_iteration: 48
+  trial_id: f6688086
+  warmup_time: 0.002875089645385742
+  
+Result for objective_f85ed926:
+  date: 2022-07-22_15-24-25
+  done: false
+  experiment_id: 402684968ef24377ae7787c9af50d3ae
+  hostname: Kais-MacBook-Pro.local
+  iterations: 47
+  iterations_since_restore: 48
+  mean_loss: 5.1657053480548045
+  neg_mean_loss: -5.1657053480548045
+  node_ip: 127.0.0.1
+  pid: 46478
+  time_since_restore: 5.151860952377319
+  time_this_iter_s: 0.10704493522644043
+  time_total_s: 5.151860952377319
+  timestamp: 1658499865
+  timesteps_since_restore: 0
+  training_iteration: 48
+  trial_id: f85ed926
+  warmup_time: 0.0031621456146240234
+  
+Result for objective_f86ee276:
+  date: 2022-07-22_15-24-25
+  done: false
+  experiment_id: cbdc4d94c3d64e59aa53e4465349dbe1
+  hostname: Kais-MacBook-Pro.local
+  iterations: 47
+  iterations_since_restore: 48
+  mean_loss: 11.55568804118157
+  neg_mean_loss: -11.55568804118157
+  node_ip: 127.0.0.1
+  pid: 46481
+  time_since_restore: 5.140729665756226
+  time_this_iter_s: 0.1076810359954834
+  time_total_s: 5.140729665756226
+  timestamp: 1658499865
+  timesteps_since_restore: 0
+  training_iteration: 48
+  trial_id: f86ee276
+  warmup_time: 0.002810955047607422
+  
+Result for objective_f880a02e:
+  date: 2022-07-22_15-24-25
+  done: false
+  experiment_id: fb5af0209b2b45eda67ab40960a48a99
+  hostname: Kais-MacBook-Pro.local
+  iterations: 47
+  iterations_since_restore: 48
+  mean_loss: -6.706663109525936
+  neg_mean_loss: 6.706663109525936
+  node_ip: 127.0.0.1
+  pid: 46484
+  time_since_restore: 5.157264947891235
+  time_this_iter_s: 0.1107029914855957
+  time_total_s: 5.157264947891235
+  timestamp: 1658499865
+  timesteps_since_restore: 0
+  training_iteration: 48
+  trial_id: f880a02e
+  warmup_time: 0.0027141571044921875
+  
+Result for objective_f6688086:
+  date: 2022-07-22_15-24-27
+  done: false
+  experiment_id: aa090556819b41c5b1e93d761dc9311a
+  hostname: Kais-MacBook-Pro.local
+  iterations: 94
+  iterations_since_restore: 95
+  mean_loss: 6.787930201151392
+  neg_mean_loss: -6.787930201151392
+  node_ip: 127.0.0.1
+  pid: 46467
+  time_since_restore: 10.178911924362183
+  time_this_iter_s: 0.10588788986206055
+  time_total_s: 10.178911924362183
+  timestamp: 1658499867
+  timesteps_since_restore: 0
+  training_iteration: 95
+  trial_id: f6688086
+  warmup_time: 0.002875089645385742
+  
+Result for objective_f6688086:
+  date: 2022-07-22_15-24-27
+  done: true
+  experiment_id: aa090556819b41c5b1e93d761dc9311a
+  experiment_tag: 5_activation=relu_tanh,height=57.2829,steps=100,width=17.7296
+  hostname: Kais-MacBook-Pro.local
+  iterations: 99
+  iterations_since_restore: 100
+  mean_loss: 6.784934893475021
+  neg_mean_loss: -6.784934893475021
+  node_ip: 127.0.0.1
+  pid: 46467
+  time_since_restore: 10.71599006652832
+  time_this_iter_s: 0.10760498046875
+  time_total_s: 10.71599006652832
+  timestamp: 1658499867
+  timesteps_since_restore: 0
+  training_iteration: 100
+  trial_id: f6688086
+  warmup_time: 0.002875089645385742
+  
+Result for objective_fe4e7a44:
+  date: 2022-07-22_15-24-30
+  done: false
+  experiment_id: 95711fcb897a4f9fae3ebd811619fba9
+  hostname: Kais-MacBook-Pro.local
+  iterations: 0
+  iterations_since_restore: 1
+  mean_loss: 11.962911259228687
+  neg_mean_loss: -11.962911259228687
+  node_ip: 127.0.0.1
+  pid: 46499
+  time_since_restore: 0.10338783264160156
+  time_this_iter_s: 0.10338783264160156
+  time_total_s: 0.10338783264160156
+  timestamp: 1658499870
+  timesteps_since_restore: 0
+  training_iteration: 1
+  trial_id: fe4e7a44
+  warmup_time: 0.002811908721923828
+  
+Result for objective_f85ed926:
+  date: 2022-07-22_15-24-30
+  done: false
+  experiment_id: 402684968ef24377ae7787c9af50d3ae
+  hostname: Kais-MacBook-Pro.local
+  iterations: 94
+  iterations_since_restore: 95
+  mean_loss: 5.110873373928027
+  neg_mean_loss: -5.110873373928027
+  node_ip: 127.0.0.1
+  pid: 46478
+  time_since_restore: 10.178997039794922
+  time_this_iter_s: 0.10618400573730469
+  time_total_s: 10.178997039794922
+  timestamp: 1658499870
+  timesteps_since_restore: 0
+  training_iteration: 95
+  trial_id: f85ed926
+  warmup_time: 0.0031621456146240234
+  
+Result for objective_f86ee276:
+  date: 2022-07-22_15-24-30
+  done: false
+  experiment_id: cbdc4d94c3d64e59aa53e4465349dbe1
+  hostname: Kais-MacBook-Pro.local
+  iterations: 94
+  iterations_since_restore: 95
+  mean_loss: 11.007548256848812
+  neg_mean_loss: -11.007548256848812
+  node_ip: 127.0.0.1
+  pid: 46481
+  time_since_restore: 10.165759801864624
+  time_this_iter_s: 0.10771489143371582
+  time_total_s: 10.165759801864624
+  timestamp: 1658499870
+  timesteps_since_restore: 0
+  training_iteration: 95
+  trial_id: f86ee276
+  warmup_time: 0.002810955047607422
+  
+Result for objective_f880a02e:
+  date: 2022-07-22_15-24-30
+  done: false
+  experiment_id: fb5af0209b2b45eda67ab40960a48a99
+  hostname: Kais-MacBook-Pro.local
+  iterations: 94
+  iterations_since_restore: 95
+  mean_loss: -6.87903993853598
+  neg_mean_loss: 6.87903993853598
+  node_ip: 127.0.0.1
+  pid: 46484
+  time_since_restore: 10.188904047012329
+  time_this_iter_s: 0.10939908027648926
+  time_total_s: 10.188904047012329
+  timestamp: 1658499870
+  timesteps_since_restore: 0
+  training_iteration: 95
+  trial_id: f880a02e
+  warmup_time: 0.0027141571044921875
+  
+Result for objective_f85ed926:
+  date: 2022-07-22_15-24-31
+  done: true
+  experiment_id: 402684968ef24377ae7787c9af50d3ae
+  experiment_tag: 6_activation=relu_tanh,height=40.5543,steps=100,width=19.0813
+  hostname: Kais-MacBook-Pro.local
+  iterations: 99
+  iterations_since_restore: 100
+  mean_loss: 5.108087948450606
+  neg_mean_loss: -5.108087948450606
+  node_ip: 127.0.0.1
+  pid: 46478
+  time_since_restore: 10.71581220626831
+  time_this_iter_s: 0.10749602317810059
+  time_total_s: 10.71581220626831
+  timestamp: 1658499871
+  timesteps_since_restore: 0
+  training_iteration: 100
+  trial_id: f85ed926
+  warmup_time: 0.0031621456146240234
+  
+
+
+Result for objective_f86ee276:
+  date: 2022-07-22_15-24-31
+  done: true
+  experiment_id: cbdc4d94c3d64e59aa53e4465349dbe1
+  experiment_tag: 7_activation=relu_tanh,height=93.8686,steps=100,width=1.6076
+  hostname: Kais-MacBook-Pro.local
+  iterations: 99
+  iterations_since_restore: 100
+  mean_loss: 10.978053669828887
+  neg_mean_loss: -10.978053669828887
+  node_ip: 127.0.0.1
+  pid: 46481
+  time_since_restore: 10.741472005844116
+  time_this_iter_s: 0.1456291675567627
+  time_total_s: 10.741472005844116
+  timestamp: 1658499871
+  timesteps_since_restore: 0
+  training_iteration: 100
+  trial_id: f86ee276
+  warmup_time: 0.002810955047607422
+  
+Result for objective_f880a02e:
+  date: 2022-07-22_15-24-31
+  done: true
+  experiment_id: fb5af0209b2b45eda67ab40960a48a99
+  experiment_tag: 8_activation=relu_tanh,height=-80.5769,steps=100,width=5.8485
+  hostname: Kais-MacBook-Pro.local
+  iterations: 99
+  iterations_since_restore: 100
+  mean_loss: -6.887909370541976
+  neg_mean_loss: 6.887909370541976
+  node_ip: 127.0.0.1
+  pid: 46484
+  time_since_restore: 10.733515977859497
+  time_this_iter_s: 0.1060791015625
+  time_total_s: 10.733515977859497
+  timestamp: 1658499871
+  timesteps_since_restore: 0
+  training_iteration: 100
+  trial_id: f880a02e
+  warmup_time: 0.0027141571044921875
+  
+Result for objective_004f499a:
+  date: 2022-07-22_15-24-33
+  done: false
+  experiment_id: c3015ffd206444cd9c2eb1152aae5dd0
+  hostname: Kais-MacBook-Pro.local
+  iterations: 0
+  iterations_since_restore: 1
+  mean_loss: 1.9493461263053842
+  neg_mean_loss: -1.9493461263053842
+  node_ip: 127.0.0.1
+  pid: 46504
+  time_since_restore: 0.1044008731842041
+  time_this_iter_s: 0.1044008731842041
+  time_total_s: 0.1044008731842041
+  timestamp: 1658499873
+  timesteps_since_restore: 0
+  training_iteration: 1
+  trial_id: 004f499a
+  warmup_time: 0.0026237964630126953
+  
+Result for objective_fe4e7a44:
+  date: 2022-07-22_15-24-35
+  done: false
+  experiment_id: 95711fcb897a4f9fae3ebd811619fba9
+  hostname: Kais-MacBook-Pro.local
+  iterations: 25
+  iterations_since_restore: 26
+  mean_loss: 5.873327389463485
+  neg_mean_loss: -5.873327389463485
+  node_ip: 127.0.0.1
+  pid: 46499
+  time_since_restore: 5.199802875518799
+  time_this_iter_s: 0.1075749397277832
+  time_total_s: 5.199802875518799
+  timestamp: 1658499875
+  timesteps_since_restore: 0
+  training_iteration: 26
+  trial_id: fe4e7a44
+  warmup_time: 0.002811908721923828
+  
+Result for objective_004f499a:
+  date: 2022-07-22_15-24-38
+  done: false
+  experiment_id: c3015ffd206444cd9c2eb1152aae5dd0
+  hostname: Kais-MacBook-Pro.local
+  iterations: 47
+  iterations_since_restore: 48
+  mean_loss: -7.137564846035238
+  neg_mean_loss: 7.137564846035238
+  node_ip: 127.0.0.1
+  pid: 46504
+  time_since_restore: 5.15981912612915
+  time_this_iter_s: 0.10737729072570801
+  time_total_s: 5.15981912612915
+  timestamp: 1658499878
+  timesteps_since_restore: 0
+  training_iteration: 48
+  trial_id: 004f499a
+  warmup_time: 0.0026237964630126953
+  
+Result for objective_fe4e7a44:
+  date: 2022-07-22_15-24-40
+  done: false
+  experiment_id: 95711fcb897a4f9fae3ebd811619fba9
+  hostname: Kais-MacBook-Pro.local
+  iterations: 72
+  iterations_since_restore: 73
+  mean_loss: 3.7860835740628094
+  neg_mean_loss: -3.7860835740628094
+  node_ip: 127.0.0.1
+  pid: 46499
+  time_since_restore: 10.234857082366943
+  time_this_iter_s: 0.10819101333618164
+  time_total_s: 10.234857082366943
+  timestamp: 1658499880
+  timesteps_since_restore: 0
+  training_iteration: 73
+  trial_id: fe4e7a44
+  warmup_time: 0.002811908721923828
+  
+Result for objective_fe4e7a44:
+  date: 2022-07-22_15-24-43
+  done: true
+  experiment_id: 95711fcb897a4f9fae3ebd811619fba9
+  experiment_tag: 9_activation=relu_tanh,height=9.6291,steps=100,width=0.6229
+  hostname: Kais-MacBook-Pro.local
+  iterations: 99
+  iterations_since_restore: 100
+  mean_loss: 3.3582342398877607
+  neg_mean_loss: -3.3582342398877607
+  node_ip: 127.0.0.1
+  pid: 46499
+  time_since_restore: 13.142819166183472
+  time_this_iter_s: 0.10675215721130371
+  time_total_s: 13.142819166183472
+  timestamp: 1658499883
+  timesteps_since_restore: 0
+  training_iteration: 100
+  trial_id: fe4e7a44
+  warmup_time: 0.002811908721923828
+  
+Result for objective_004f499a:
+  date: 2022-07-22_15-24-43
+  done: false
+  experiment_id: c3015ffd206444cd9c2eb1152aae5dd0
+  hostname: Kais-MacBook-Pro.local
+  iterations: 94
+  iterations_since_restore: 95
+  mean_loss: -7.572268959036313
+  neg_mean_loss: 7.572268959036313
+  node_ip: 127.0.0.1
+  pid: 46504
+  time_since_restore: 10.228418827056885
+  time_this_iter_s: 0.10715484619140625
+  time_total_s: 10.228418827056885
+  timestamp: 1658499883
+  timesteps_since_restore: 0
+  training_iteration: 95
+  trial_id: 004f499a
+  warmup_time: 0.0026237964630126953
+  
+Result for objective_004f499a:
+  date: 2022-07-22_15-24-44
+  done: true
+  experiment_id: c3015ffd206444cd9c2eb1152aae5dd0
+  experiment_tag: 10_activation=relu_tanh,height=-90.5065,steps=100,width=2.1174
+  hostname: Kais-MacBook-Pro.local
+  iterations: 99
+  iterations_since_restore: 100
+  mean_loss: -7.595329711238255
+  neg_mean_loss: 7.595329711238255
+  node_ip: 127.0.0.1
+  pid: 46504
+  time_since_restore: 10.768790006637573
+  time_this_iter_s: 0.10774111747741699
+  time_total_s: 10.768790006637573
+  timestamp: 1658499884
+  timesteps_since_restore: 0
+  training_iteration: 100
+  trial_id: 004f499a
+  warmup_time: 0.0026237964630126953
+  
+
+
+INFO:ray.tune.tune:Total run time: 44.70 seconds (43.68 seconds for the tuning loop).
+
+
+
+
+Here are the hyperparamters found to minimize the mean loss of the defined objective.
+
+
+print("Best hyperparameters found were: ", results.get_best_result().config)
+
+
+
+
+Best hyperparameters found were:  {'steps': 100, 'width': 2.1174116156230918, 'height': -90.50653873694615, 'activation': 'relu, tanh'}
+
+
+
+
+
+Optional: passing the (hyper)parameter space into the search algorithm#
+We can also pass the search space into NevergradSearch using their designed format.
+
+
+space = ng.p.Dict(
+    width=ng.p.Scalar(lower=0, upper=20),
+    height=ng.p.Scalar(lower=-100, upper=100),
+    activation=ng.p.Choice(choices=["relu", "tanh"])
+)
+
+
+
+
+
+
+algo = NevergradSearch(
+    optimizer=ng.optimizers.OnePlusOne,
+    space=space,
+    metric="mean_loss",
+    mode="min"
+)
+algo = tune.search.ConcurrencyLimiter(algo, max_concurrent=4)
+
+
+
+
+Again we run the experiment, this time with a less passed via the config and instead passed through search_alg.
+
+
+tuner = tune.Tuner(
+    objective,
+    tune_config=tune.TuneConfig(
+#         metric="mean_loss",
+#         mode="min",
+        search_alg=algo,
+        num_samples=num_samples,
+    ),
+    param_space={"steps": 100},
+)
+results = tuner.fit()
+
+
+
+
+== Status ==Current time: 2022-07-22 15:25:27 (running for 00:00:43.22)Memory usage on this node: 10.8/16.0 GiBUsing FIFO scheduling algorithm.Resources requested: 0/16 CPUs, 0/0 GPUs, 0.0/4.61 GiB heap, 0.0/2.0 GiB objectsResult logdir: /Users/kai/ray_results/objective_2022-07-22_15-24-44Number of trials: 10/10 (10 TERMINATED)
+
+Trial name        status    loc            activation     height   width     loss  iter  total time (s)  iterations  neg_mean_loss
+
+
+objective_085274beTERMINATED127.0.0.1:46516tanh          0      10       1.1        100         10.7324          99      -1.1     
+objective_09dee4f2TERMINATED127.0.0.1:46524tanh        -44.4216 12.9653 -3.36485    100         11.3476          99       3.36485 
+objective_09e0846aTERMINATED127.0.0.1:46525relu        -38.0638 11.1574  6.28334    100         11.3103          99      -6.28334 
+objective_09e21122TERMINATED127.0.0.1:46526relu         41.2509  9.7558514.2276     100         11.3512          99     -14.2276  
+objective_1045958eTERMINATED127.0.0.1:46544relu        -73.2818  5.78832 2.84334    100         10.7372          99      -2.84334 
+objective_12309db2TERMINATED127.0.0.1:46549relu        -94.9666 16.9764  0.562486   100         10.7329          99      -0.562486
+objective_12342770TERMINATED127.0.0.1:46550tanh        -98.0775 17.2252 -8.74945    100         10.7455          99       8.74945 
+objective_12374d7eTERMINATED127.0.0.1:46551relu         -1.6075918.0841  9.89479    100         10.7348          99      -9.89479 
+objective_18344524TERMINATED127.0.0.1:46569tanh        -41.1284 12.2952 -3.03135    100         12.622           99       3.03135 
+objective_1a1e29b8TERMINATED127.0.0.1:46576tanh         64.0289 10.0482  7.50242    100         10.8237          99      -7.50242 
+
+Result for objective_085274be:
+  date: 2022-07-22_15-24-47
+  done: false
+  experiment_id: be25590fb790400ca28b548b8359a120
+  hostname: Kais-MacBook-Pro.local
+  iterations: 0
+  iterations_since_restore: 1
+  mean_loss: 11.0
+  neg_mean_loss: -11.0
+  node_ip: 127.0.0.1
+  pid: 46516
+  time_since_restore: 0.10224103927612305
+  time_this_iter_s: 0.10224103927612305
+  time_total_s: 0.10224103927612305
+  timestamp: 1658499887
+  timesteps_since_restore: 0
+  training_iteration: 1
+  trial_id: 085274be
+  warmup_time: 0.0029327869415283203
+  
+Result for objective_09dee4f2:
+  date: 2022-07-22_15-24-49
+  done: false
+  experiment_id: 9469ffc8df11476db00e329acd2ae8b6
+  hostname: Kais-MacBook-Pro.local
+  iterations: 0
+  iterations_since_restore: 1
+  mean_loss: 6.557843114006006
+  neg_mean_loss: -6.557843114006006
+  node_ip: 127.0.0.1
+  pid: 46524
+  time_since_restore: 0.10509586334228516
+  time_this_iter_s: 0.10509586334228516
+  time_total_s: 0.10509586334228516
+  timestamp: 1658499889
+  timesteps_since_restore: 0
+  training_iteration: 1
+  trial_id: 09dee4f2
+  warmup_time: 0.002938985824584961
+  
+Result for objective_09e21122:
+  date: 2022-07-22_15-24-49
+  done: false
+  experiment_id: 0a825198482b4bd4aded6c318dff0dcf
+  hostname: Kais-MacBook-Pro.local
+  iterations: 0
+  iterations_since_restore: 1
+  mean_loss: 24.125094234750687
+  neg_mean_loss: -24.125094234750687
+  node_ip: 127.0.0.1
+  pid: 46526
+  time_since_restore: 0.10476112365722656
+  time_this_iter_s: 0.10476112365722656
+  time_total_s: 0.10476112365722656
+  timestamp: 1658499889
+  timesteps_since_restore: 0
+  training_iteration: 1
+  trial_id: 09e21122
+  warmup_time: 0.003228902816772461
+  
+Result for objective_09e0846a:
+  date: 2022-07-22_15-24-49
+  done: false
+  experiment_id: 260410fc1fb24f78af507cd38a8361a9
+  hostname: Kais-MacBook-Pro.local
+  iterations: 0
+  iterations_since_restore: 1
+  mean_loss: 16.193619847512025
+  neg_mean_loss: -16.193619847512025
+  node_ip: 127.0.0.1
+  pid: 46525
+  time_since_restore: 0.10422873497009277
+  time_this_iter_s: 0.10422873497009277
+  time_total_s: 0.10422873497009277
+  timestamp: 1658499889
+  timesteps_since_restore: 0
+  training_iteration: 1
+  trial_id: 09e0846a
+  warmup_time: 0.002719879150390625
+  
+Result for objective_085274be:
+  date: 2022-07-22_15-24-52
+  done: false
+  experiment_id: be25590fb790400ca28b548b8359a120
+  hostname: Kais-MacBook-Pro.local
+  iterations: 47
+  iterations_since_restore: 48
+  mean_loss: 1.2083333333333333
+  neg_mean_loss: -1.2083333333333333
+  node_ip: 127.0.0.1
+  pid: 46516
+  time_since_restore: 5.132040977478027
+  time_this_iter_s: 0.1084139347076416
+  time_total_s: 5.132040977478027
+  timestamp: 1658499892
+  timesteps_since_restore: 0
+  training_iteration: 48
+  trial_id: 085274be
+  warmup_time: 0.0029327869415283203
+  
+Result for objective_09dee4f2:
+  date: 2022-07-22_15-24-54
+  done: false
+  experiment_id: 9469ffc8df11476db00e329acd2ae8b6
+  hostname: Kais-MacBook-Pro.local
+  iterations: 47
+  iterations_since_restore: 48
+  mean_loss: -3.280701838145472
+  neg_mean_loss: 3.280701838145472
+  node_ip: 127.0.0.1
+  pid: 46524
+  time_since_restore: 5.134023189544678
+  time_this_iter_s: 0.10428118705749512
+  time_total_s: 5.134023189544678
+  timestamp: 1658499894
+  timesteps_since_restore: 0
+  training_iteration: 48
+  trial_id: 09dee4f2
+  warmup_time: 0.002938985824584961
+  
+Result for objective_09e21122:
+  date: 2022-07-22_15-24-54
+  done: false
+  experiment_id: 0a825198482b4bd4aded6c318dff0dcf
+  hostname: Kais-MacBook-Pro.local
+  iterations: 47
+  iterations_since_restore: 48
+  mean_loss: 14.33852997141215
+  neg_mean_loss: -14.33852997141215
+  node_ip: 127.0.0.1
+  pid: 46526
+  time_since_restore: 5.139041185379028
+  time_this_iter_s: 0.10721492767333984
+  time_total_s: 5.139041185379028
+  timestamp: 1658499894
+  timesteps_since_restore: 0
+  training_iteration: 48
+  trial_id: 09e21122
+  warmup_time: 0.003228902816772461
+  
+Result for objective_09e0846a:
+  date: 2022-07-22_15-24-54
+  done: false
+  experiment_id: 260410fc1fb24f78af507cd38a8361a9
+  hostname: Kais-MacBook-Pro.local
+  iterations: 47
+  iterations_since_restore: 48
+  mean_loss: 6.3807469650477024
+  neg_mean_loss: -6.3807469650477024
+  node_ip: 127.0.0.1
+  pid: 46525
+  time_since_restore: 5.149268865585327
+  time_this_iter_s: 0.10705304145812988
+  time_total_s: 5.149268865585327
+  timestamp: 1658499894
+  timesteps_since_restore: 0
+  training_iteration: 48
+  trial_id: 09e0846a
+  warmup_time: 0.002719879150390625
+  
+Result for objective_085274be:
+  date: 2022-07-22_15-24-57
+  done: false
+  experiment_id: be25590fb790400ca28b548b8359a120
+  hostname: Kais-MacBook-Pro.local
+  iterations: 94
+  iterations_since_restore: 95
+  mean_loss: 1.1052631578947367
+  neg_mean_loss: -1.1052631578947367
+  node_ip: 127.0.0.1
+  pid: 46516
+  time_since_restore: 10.194181203842163
+  time_this_iter_s: 0.10754203796386719
+  time_total_s: 10.194181203842163
+  timestamp: 1658499897
+  timesteps_since_restore: 0
+  training_iteration: 95
+  trial_id: 085274be
+  warmup_time: 0.0029327869415283203
+  
+Result for objective_085274be:
+  date: 2022-07-22_15-24-57
+  done: true
+  experiment_id: be25590fb790400ca28b548b8359a120
+  experiment_tag: 1_activation=tanh,height=0.0000,steps=100,width=10.0000
+  hostname: Kais-MacBook-Pro.local
+  iterations: 99
+  iterations_since_restore: 100
+  mean_loss: 1.1
+  neg_mean_loss: -1.1
+  node_ip: 127.0.0.1
+  pid: 46516
+  time_since_restore: 10.732417106628418
+  time_this_iter_s: 0.10759997367858887
+  time_total_s: 10.732417106628418
+  timestamp: 1658499897
+  timesteps_since_restore: 0
+  training_iteration: 100
+  trial_id: 085274be
+  warmup_time: 0.0029327869415283203
+  
+Result for objective_09dee4f2:
+  date: 2022-07-22_15-24-59
+  done: false
+  experiment_id: 9469ffc8df11476db00e329acd2ae8b6
+  hostname: Kais-MacBook-Pro.local
+  iterations: 93
+  iterations_since_restore: 94
+  mean_loss: -3.3599044605358728
+  neg_mean_loss: 3.3599044605358728
+  node_ip: 127.0.0.1
+  pid: 46524
+  time_since_restore: 10.055138111114502
+  time_this_iter_s: 0.10467100143432617
+  time_total_s: 10.055138111114502
+  timestamp: 1658499899
+  timesteps_since_restore: 0
+  training_iteration: 94
+  trial_id: 09dee4f2
+  warmup_time: 0.002938985824584961
+  
+Result for objective_09e21122:
+  date: 2022-07-22_15-24-59
+  done: false
+  experiment_id: 0a825198482b4bd4aded6c318dff0dcf
+  hostname: Kais-MacBook-Pro.local
+  iterations: 93
+  iterations_since_restore: 94
+  mean_loss: 14.23411049568083
+  neg_mean_loss: -14.23411049568083
+  node_ip: 127.0.0.1
+  pid: 46526
+  time_since_restore: 10.066343307495117
+  time_this_iter_s: 0.1061861515045166
+  time_total_s: 10.066343307495117
+  timestamp: 1658499899
+  timesteps_since_restore: 0
+  training_iteration: 94
+  trial_id: 09e21122
+  warmup_time: 0.003228902816772461
+  
+Result for objective_09e0846a:
+  date: 2022-07-22_15-24-59
+  done: false
+  experiment_id: 260410fc1fb24f78af507cd38a8361a9
+  hostname: Kais-MacBook-Pro.local
+  iterations: 93
+  iterations_since_restore: 94
+  mean_loss: 6.2890729561522765
+  neg_mean_loss: -6.2890729561522765
+  node_ip: 127.0.0.1
+  pid: 46525
+  time_since_restore: 10.100499868392944
+  time_this_iter_s: 0.10625505447387695
+  time_total_s: 10.100499868392944
+  timestamp: 1658499899
+  timesteps_since_restore: 0
+  training_iteration: 94
+  trial_id: 09e0846a
+  warmup_time: 0.002719879150390625
+  
+Result for objective_1045958e:
+  date: 2022-07-22_15-25-00
+  done: false
+  experiment_id: 3579bfc2b346424b833f82f23d459807
+  hostname: Kais-MacBook-Pro.local
+  iterations: 0
+  iterations_since_restore: 1
+  mean_loss: 12.671822501738296
+  neg_mean_loss: -12.671822501738296
+  node_ip: 127.0.0.1
+  pid: 46544
+  time_since_restore: 0.10491013526916504
+  time_this_iter_s: 0.10491013526916504
+  time_total_s: 0.10491013526916504
+  timestamp: 1658499900
+  timesteps_since_restore: 0
+  training_iteration: 1
+  trial_id: 1045958e
+  warmup_time: 0.002847909927368164
+  
+Result for objective_09dee4f2:
+  date: 2022-07-22_15-25-01
+  done: true
+  experiment_id: 9469ffc8df11476db00e329acd2ae8b6
+  experiment_tag: 2_activation=tanh,height=-44.4216,steps=100,width=12.9653
+  hostname: Kais-MacBook-Pro.local
+  iterations: 99
+  iterations_since_restore: 100
+  mean_loss: -3.3648509190285747
+  neg_mean_loss: 3.3648509190285747
+  node_ip: 127.0.0.1
+  pid: 46524
+  time_since_restore: 11.347625017166138
+  time_this_iter_s: 0.10793185234069824
+  time_total_s: 11.347625017166138
+  timestamp: 1658499901
+  timesteps_since_restore: 0
+  training_iteration: 100
+  trial_id: 09dee4f2
+  warmup_time: 0.002938985824584961
+  
+Result for objective_09e0846a:
+  date: 2022-07-22_15-25-01
+  done: true
+  experiment_id: 260410fc1fb24f78af507cd38a8361a9
+  experiment_tag: 3_activation=relu,height=-38.0638,steps=100,width=11.1574
+  hostname: Kais-MacBook-Pro.local
+  iterations: 99
+  iterations_since_restore: 100
+  mean_loss: 6.28333982260153
+  neg_mean_loss: -6.28333982260153
+  node_ip: 127.0.0.1
+  pid: 46525
+  time_since_restore: 11.310342788696289
+  time_this_iter_s: 0.10942316055297852
+  time_total_s: 11.310342788696289
+  timestamp: 1658499901
+  timesteps_since_restore: 0
+  training_iteration: 100
+  trial_id: 09e0846a
+  warmup_time: 0.002719879150390625
+  
+Result for objective_09e21122:
+  date: 2022-07-22_15-25-01
+  done: true
+  experiment_id: 0a825198482b4bd4aded6c318dff0dcf
+  experiment_tag: 4_activation=relu,height=41.2509,steps=100,width=9.7559
+  hostname: Kais-MacBook-Pro.local
+  iterations: 99
+  iterations_since_restore: 100
+  mean_loss: 14.22757115653867
+  neg_mean_loss: -14.22757115653867
+  node_ip: 127.0.0.1
+  pid: 46526
+  time_since_restore: 11.351194143295288
+  time_this_iter_s: 0.10791015625
+  time_total_s: 11.351194143295288
+  timestamp: 1658499901
+  timesteps_since_restore: 0
+  training_iteration: 100
+  trial_id: 09e21122
+  warmup_time: 0.003228902816772461
+  
+
+
+Result for objective_12309db2:
+  date: 2022-07-22_15-25-03
+  done: false
+  experiment_id: 3915d19b775c4ee1843b5dcf79560a93
+  hostname: Kais-MacBook-Pro.local
+  iterations: 0
+  iterations_since_restore: 1
+  mean_loss: 10.503337773185708
+  neg_mean_loss: -10.503337773185708
+  node_ip: 127.0.0.1
+  pid: 46549
+  time_since_restore: 0.10407328605651855
+  time_this_iter_s: 0.10407328605651855
+  time_total_s: 0.10407328605651855
+  timestamp: 1658499903
+  timesteps_since_restore: 0
+  training_iteration: 1
+  trial_id: 12309db2
+  warmup_time: 0.0030128955841064453
+  
+Result for objective_12342770:
+  date: 2022-07-22_15-25-03
+  done: false
+  experiment_id: 1da16f0c20d7438b93927280dc40e5a1
+  hostname: Kais-MacBook-Pro.local
+  iterations: 0
+  iterations_since_restore: 1
+  mean_loss: 1.1922491879354844
+  neg_mean_loss: -1.1922491879354844
+  node_ip: 127.0.0.1
+  pid: 46550
+  time_since_restore: 0.1050269603729248
+  time_this_iter_s: 0.1050269603729248
+  time_total_s: 0.1050269603729248
+  timestamp: 1658499903
+  timesteps_since_restore: 0
+  training_iteration: 1
+  trial_id: '12342770'
+  warmup_time: 0.0032460689544677734
+  
+Result for objective_12374d7e:
+  date: 2022-07-22_15-25-03
+  done: false
+  experiment_id: 5788d010ee194eeeabfc3592d37fb2cc
+  hostname: Kais-MacBook-Pro.local
+  iterations: 0
+  iterations_since_restore: 1
+  mean_loss: 19.839240921278268
+  neg_mean_loss: -19.839240921278268
+  node_ip: 127.0.0.1
+  pid: 46551
+  time_since_restore: 0.10313534736633301
+  time_this_iter_s: 0.10313534736633301
+  time_total_s: 0.10313534736633301
+  timestamp: 1658499903
+  timesteps_since_restore: 0
+  training_iteration: 1
+  trial_id: 12374d7e
+  warmup_time: 0.002891063690185547
+  
+Result for objective_1045958e:
+  date: 2022-07-22_15-25-05
+  done: false
+  experiment_id: 3579bfc2b346424b833f82f23d459807
+  hostname: Kais-MacBook-Pro.local
+  iterations: 47
+  iterations_since_restore: 48
+  mean_loss: 3.0263684682219036
+  neg_mean_loss: -3.0263684682219036
+  node_ip: 127.0.0.1
+  pid: 46544
+  time_since_restore: 5.180821180343628
+  time_this_iter_s: 0.10701394081115723
+  time_total_s: 5.180821180343628
+  timestamp: 1658499905
+  timesteps_since_restore: 0
+  training_iteration: 48
+  trial_id: 1045958e
+  warmup_time: 0.002847909927368164
+  
+Result for objective_12309db2:
+  date: 2022-07-22_15-25-08
+  done: false
+  experiment_id: 3915d19b775c4ee1843b5dcf79560a93
+  hostname: Kais-MacBook-Pro.local
+  iterations: 47
+  iterations_since_restore: 48
+  mean_loss: 0.6271166903395393
+  neg_mean_loss: -0.6271166903395393
+  node_ip: 127.0.0.1
+  pid: 46549
+  time_since_restore: 5.172047138214111
+  time_this_iter_s: 0.11187624931335449
+  time_total_s: 5.172047138214111
+  timestamp: 1658499908
+  timesteps_since_restore: 0
+  training_iteration: 48
+  trial_id: 12309db2
+  warmup_time: 0.0030128955841064453
+  
+Result for objective_12342770:
+  date: 2022-07-22_15-25-08
+  done: false
+  experiment_id: 1da16f0c20d7438b93927280dc40e5a1
+  hostname: Kais-MacBook-Pro.local
+  iterations: 47
+  iterations_since_restore: 48
+  mean_loss: -8.685737519988487
+  neg_mean_loss: 8.685737519988487
+  node_ip: 127.0.0.1
+  pid: 46550
+  time_since_restore: 5.172597885131836
+  time_this_iter_s: 0.10711097717285156
+  time_total_s: 5.172597885131836
+  timestamp: 1658499908
+  timesteps_since_restore: 0
+  training_iteration: 48
+  trial_id: '12342770'
+  warmup_time: 0.0032460689544677734
+  
+Result for objective_12374d7e:
+  date: 2022-07-22_15-25-08
+  done: false
+  experiment_id: 5788d010ee194eeeabfc3592d37fb2cc
+  hostname: Kais-MacBook-Pro.local
+  iterations: 47
+  iterations_since_restore: 48
+  mean_loss: 9.955526689542863
+  neg_mean_loss: -9.955526689542863
+  node_ip: 127.0.0.1
+  pid: 46551
+  time_since_restore: 5.162422180175781
+  time_this_iter_s: 0.10872411727905273
+  time_total_s: 5.162422180175781
+  timestamp: 1658499908
+  timesteps_since_restore: 0
+  training_iteration: 48
+  trial_id: 12374d7e
+  warmup_time: 0.002891063690185547
+  
+Result for objective_1045958e:
+  date: 2022-07-22_15-25-10
+  done: false
+  experiment_id: 3579bfc2b346424b833f82f23d459807
+  hostname: Kais-MacBook-Pro.local
+  iterations: 94
+  iterations_since_restore: 95
+  mean_loss: 2.852294770731789
+  neg_mean_loss: -2.852294770731789
+  node_ip: 127.0.0.1
+  pid: 46544
+  time_since_restore: 10.196197271347046
+  time_this_iter_s: 0.10780715942382812
+  time_total_s: 10.196197271347046
+  timestamp: 1658499910
+  timesteps_since_restore: 0
+  training_iteration: 95
+  trial_id: 1045958e
+  warmup_time: 0.002847909927368164
+  
+Result for objective_1045958e:
+  date: 2022-07-22_15-25-11
+  done: true
+  experiment_id: 3579bfc2b346424b833f82f23d459807
+  experiment_tag: 5_activation=relu,height=-73.2818,steps=100,width=5.7883
+  hostname: Kais-MacBook-Pro.local
+  iterations: 99
+  iterations_since_restore: 100
+  mean_loss: 2.8433363404373386
+  neg_mean_loss: -2.8433363404373386
+  node_ip: 127.0.0.1
+  pid: 46544
+  time_since_restore: 10.737220287322998
+  time_this_iter_s: 0.10835909843444824
+  time_total_s: 10.737220287322998
+  timestamp: 1658499911
+  timesteps_since_restore: 0
+  training_iteration: 100
+  trial_id: 1045958e
+  warmup_time: 0.002847909927368164
+  
+Result for objective_18344524:
+  date: 2022-07-22_15-25-13
+  done: false
+  experiment_id: 10740ef080664baaa8cca7ba5cb899ac
+  hostname: Kais-MacBook-Pro.local
+  iterations: 0
+  iterations_since_restore: 1
+  mean_loss: 6.887162536491742
+  neg_mean_loss: -6.887162536491742
+  node_ip: 127.0.0.1
+  pid: 46569
+  time_since_restore: 0.10450887680053711
+  time_this_iter_s: 0.10450887680053711
+  time_total_s: 0.10450887680053711
+  timestamp: 1658499913
+  timesteps_since_restore: 0
+  training_iteration: 1
+  trial_id: '18344524'
+  warmup_time: 0.002858877182006836
+  
+Result for objective_12309db2:
+  date: 2022-07-22_15-25-13
+  done: false
+  experiment_id: 3915d19b775c4ee1843b5dcf79560a93
+  hostname: Kais-MacBook-Pro.local
+  iterations: 94
+  iterations_since_restore: 95
+  mean_loss: 0.5656126475885976
+  neg_mean_loss: -0.5656126475885976
+  node_ip: 127.0.0.1
+  pid: 46549
+  time_since_restore: 10.193128108978271
+  time_this_iter_s: 0.10602211952209473
+  time_total_s: 10.193128108978271
+  timestamp: 1658499913
+  timesteps_since_restore: 0
+  training_iteration: 95
+  trial_id: 12309db2
+  warmup_time: 0.0030128955841064453
+  
+Result for objective_12342770:
+  date: 2022-07-22_15-25-13
+  done: false
+  experiment_id: 1da16f0c20d7438b93927280dc40e5a1
+  hostname: Kais-MacBook-Pro.local
+  iterations: 94
+  iterations_since_restore: 95
+  mean_loss: -8.746369700451542
+  neg_mean_loss: 8.746369700451542
+  node_ip: 127.0.0.1
+  pid: 46550
+  time_since_restore: 10.210996866226196
+  time_this_iter_s: 0.10719585418701172
+  time_total_s: 10.210996866226196
+  timestamp: 1658499913
+  timesteps_since_restore: 0
+  training_iteration: 95
+  trial_id: '12342770'
+  warmup_time: 0.0032460689544677734
+  
+Result for objective_12374d7e:
+  date: 2022-07-22_15-25-13
+  done: false
+  experiment_id: 5788d010ee194eeeabfc3592d37fb2cc
+  hostname: Kais-MacBook-Pro.local
+  iterations: 94
+  iterations_since_restore: 95
+  mean_loss: 9.897723841978765
+  neg_mean_loss: -9.897723841978765
+  node_ip: 127.0.0.1
+  pid: 46551
+  time_since_restore: 10.19912338256836
+  time_this_iter_s: 0.10725522041320801
+  time_total_s: 10.19912338256836
+  timestamp: 1658499913
+  timesteps_since_restore: 0
+  training_iteration: 95
+  trial_id: 12374d7e
+  warmup_time: 0.002891063690185547
+  
+Result for objective_12309db2:
+  date: 2022-07-22_15-25-14
+  done: true
+  experiment_id: 3915d19b775c4ee1843b5dcf79560a93
+  experiment_tag: 6_activation=relu,height=-94.9666,steps=100,width=16.9764
+  hostname: Kais-MacBook-Pro.local
+  iterations: 99
+  iterations_since_restore: 100
+  mean_loss: 0.5624860552037738
+  neg_mean_loss: -0.5624860552037738
+  node_ip: 127.0.0.1
+  pid: 46549
+  time_since_restore: 10.73293399810791
+  time_this_iter_s: 0.1079857349395752
+  time_total_s: 10.73293399810791
+  timestamp: 1658499914
+  timesteps_since_restore: 0
+  training_iteration: 100
+  trial_id: 12309db2
+  warmup_time: 0.0030128955841064453
+  
+Result for objective_12342770:
+  date: 2022-07-22_15-25-14
+  done: true
+  experiment_id: 1da16f0c20d7438b93927280dc40e5a1
+  experiment_tag: 7_activation=tanh,height=-98.0775,steps=100,width=17.2252
+  hostname: Kais-MacBook-Pro.local
+  iterations: 99
+  iterations_since_restore: 100
+  mean_loss: -8.749451683536464
+  neg_mean_loss: 8.749451683536464
+  node_ip: 127.0.0.1
+  pid: 46550
+  time_since_restore: 10.745534181594849
+  time_this_iter_s: 0.10716795921325684
+  time_total_s: 10.745534181594849
+  timestamp: 1658499914
+  timesteps_since_restore: 0
+  training_iteration: 100
+  trial_id: '12342770'
+  warmup_time: 0.0032460689544677734
+  
+Result for objective_12374d7e:
+  date: 2022-07-22_15-25-14
+  done: true
+  experiment_id: 5788d010ee194eeeabfc3592d37fb2cc
+  experiment_tag: 8_activation=relu,height=-1.6076,steps=100,width=18.0841
+  hostname: Kais-MacBook-Pro.local
+  iterations: 99
+  iterations_since_restore: 100
+  mean_loss: 9.894786565536863
+  neg_mean_loss: -9.894786565536863
+  node_ip: 127.0.0.1
+  pid: 46551
+  time_since_restore: 10.734816074371338
+  time_this_iter_s: 0.10638594627380371
+  time_total_s: 10.734816074371338
+  timestamp: 1658499914
+  timesteps_since_restore: 0
+  training_iteration: 100
+  trial_id: 12374d7e
+  warmup_time: 0.002891063690185547
+  
+
+
+Result for objective_1a1e29b8:
+  date: 2022-07-22_15-25-17
+  done: false
+  experiment_id: 26fc8c5f05a6407690dc8cada561576e
+  hostname: Kais-MacBook-Pro.local
+  iterations: 0
+  iterations_since_restore: 1
+  mean_loss: 17.40289288319415
+  neg_mean_loss: -17.40289288319415
+  node_ip: 127.0.0.1
+  pid: 46576
+  time_since_restore: 0.10475707054138184
+  time_this_iter_s: 0.10475707054138184
+  time_total_s: 0.10475707054138184
+  timestamp: 1658499917
+  timesteps_since_restore: 0
+  training_iteration: 1
+  trial_id: 1a1e29b8
+  warmup_time: 0.0028810501098632812
+  
+Result for objective_18344524:
+  date: 2022-07-22_15-25-19
+  done: false
+  experiment_id: 10740ef080664baaa8cca7ba5cb899ac
+  hostname: Kais-MacBook-Pro.local
+  iterations: 30
+  iterations_since_restore: 31
+  mean_loss: -2.8488858516331668
+  neg_mean_loss: 2.8488858516331668
+  node_ip: 127.0.0.1
+  pid: 46569
+  time_since_restore: 5.212157964706421
+  time_this_iter_s: 0.10646200180053711
+  time_total_s: 5.212157964706421
+  timestamp: 1658499919
+  timesteps_since_restore: 0
+  training_iteration: 31
+  trial_id: '18344524'
+  warmup_time: 0.002858877182006836
+  
+Result for objective_1a1e29b8:
+  date: 2022-07-22_15-25-22
+  done: false
+  experiment_id: 26fc8c5f05a6407690dc8cada561576e
+  hostname: Kais-MacBook-Pro.local
+  iterations: 47
+  iterations_since_restore: 48
+  mean_loss: 7.610248309424407
+  neg_mean_loss: -7.610248309424407
+  node_ip: 127.0.0.1
+  pid: 46576
+  time_since_restore: 5.170850038528442
+  time_this_iter_s: 0.1072230339050293
+  time_total_s: 5.170850038528442
+  timestamp: 1658499922
+  timesteps_since_restore: 0
+  training_iteration: 48
+  trial_id: 1a1e29b8
+  warmup_time: 0.0028810501098632812
+  
+Result for objective_18344524:
+  date: 2022-07-22_15-25-24
+  done: false
+  experiment_id: 10740ef080664baaa8cca7ba5cb899ac
+  hostname: Kais-MacBook-Pro.local
+  iterations: 77
+  iterations_since_restore: 78
+  mean_loss: -3.0083151799393004
+  neg_mean_loss: 3.0083151799393004
+  node_ip: 127.0.0.1
+  pid: 46569
+  time_since_restore: 10.263540983200073
+  time_this_iter_s: 0.10780215263366699
+  time_total_s: 10.263540983200073
+  timestamp: 1658499924
+  timesteps_since_restore: 0
+  training_iteration: 78
+  trial_id: '18344524'
+  warmup_time: 0.002858877182006836
+  
+Result for objective_18344524:
+  date: 2022-07-22_15-25-26
+  done: true
+  experiment_id: 10740ef080664baaa8cca7ba5cb899ac
+  experiment_tag: 9_activation=tanh,height=-41.1284,steps=100,width=12.2952
+  hostname: Kais-MacBook-Pro.local
+  iterations: 99
+  iterations_since_restore: 100
+  mean_loss: -3.0313530888899516
+  neg_mean_loss: 3.0313530888899516
+  node_ip: 127.0.0.1
+  pid: 46569
+  time_since_restore: 12.62198805809021
+  time_this_iter_s: 0.1080331802368164
+  time_total_s: 12.62198805809021
+  timestamp: 1658499926
+  timesteps_since_restore: 0
+  training_iteration: 100
+  trial_id: '18344524'
+  warmup_time: 0.002858877182006836
+  
+Result for objective_1a1e29b8:
+  date: 2022-07-22_15-25-27
+  done: false
+  experiment_id: 26fc8c5f05a6407690dc8cada561576e
+  hostname: Kais-MacBook-Pro.local
+  iterations: 93
+  iterations_since_restore: 94
+  mean_loss: 7.5087713304782575
+  neg_mean_loss: -7.5087713304782575
+  node_ip: 127.0.0.1
+  pid: 46576
+  time_since_restore: 10.177540063858032
+  time_this_iter_s: 0.1076350212097168
+  time_total_s: 10.177540063858032
+  timestamp: 1658499927
+  timesteps_since_restore: 0
+  training_iteration: 94
+  trial_id: 1a1e29b8
+  warmup_time: 0.0028810501098632812
+  
+Result for objective_1a1e29b8:
+  date: 2022-07-22_15-25-27
+  done: true
+  experiment_id: 26fc8c5f05a6407690dc8cada561576e
+  experiment_tag: 10_activation=tanh,height=64.0289,steps=100,width=10.0482
+  hostname: Kais-MacBook-Pro.local
+  iterations: 99
+  iterations_since_restore: 100
+  mean_loss: 7.502418319119348
+  neg_mean_loss: -7.502418319119348
+  node_ip: 127.0.0.1
+  pid: 46576
+  time_since_restore: 10.823745012283325
+  time_this_iter_s: 0.10851097106933594
+  time_total_s: 10.823745012283325
+  timestamp: 1658499927
+  timesteps_since_restore: 0
+  training_iteration: 100
+  trial_id: 1a1e29b8
+  warmup_time: 0.0028810501098632812
+  
+
+
+INFO:ray.tune.tune:Total run time: 43.33 seconds (43.21 seconds for the tuning loop).
+
+
+
+
+Here are the hyperparamters found to minimize the mean loss of the defined objective. Note that we have to pass the metric and mode here because we don’t set it in the TuneConfig.
+
+
+print("Best hyperparameters found were: ", results.get_best_result("mean_loss", "min").config)
+
+
+
+
+Best hyperparameters found were:  {'steps': 100, 'width': 17.225166732233465, 'height': -98.07750812064515, 'activation': 'tanh'}
+
+
+
+
+
+

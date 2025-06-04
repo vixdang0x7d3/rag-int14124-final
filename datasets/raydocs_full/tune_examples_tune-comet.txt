@@ -1,0 +1,283 @@
+
+
+Using Comet with Tune#
+
+
+
+
+Comet is a tool to manage and optimize the
+entire ML lifecycle, from experiment tracking, model optimization and dataset
+versioning to model production monitoring.
+
+
+
+Example
+Tune Comet Logger
+
+
+
+Example#
+To illustrate logging your trial results to Comet, we’ll define a simple training function
+that simulates a loss metric:
+
+
+import numpy as np
+from ray import tune
+
+
+def train_function(config):
+    for i in range(30):
+        loss = config["mean"] + config["sd"] * np.random.randn()
+        tune.report({"loss": loss})
+
+
+
+
+Now, given that you provide your Comet API key and your project name like so:
+
+
+api_key = "YOUR_COMET_API_KEY"
+project_name = "YOUR_COMET_PROJECT_NAME"
+
+
+
+
+You can add a Comet logger by specifying the callbacks argument in your RunConfig() accordingly:
+
+
+from ray.air.integrations.comet import CometLoggerCallback
+
+tuner = tune.Tuner(
+    train_function,
+    tune_config=tune.TuneConfig(
+        metric="loss",
+        mode="min",
+    ),
+    run_config=tune.RunConfig(
+        callbacks=[
+            CometLoggerCallback(
+                api_key=api_key, project_name=project_name, tags=["comet_example"]
+            )
+        ],
+    ),
+    param_space={"mean": tune.grid_search([1, 2, 3]), "sd": tune.uniform(0.2, 0.8)},
+)
+results = tuner.fit()
+
+print(results.get_best_result().config)
+
+
+
+
+2022-07-22 15:41:21,477	INFO services.py:1483 -- View the Ray dashboard at http://127.0.0.1:8267
+/Users/kai/coding/ray/python/ray/tune/trainable/function_trainable.py:643: DeprecationWarning: `checkpoint_dir` in `func(config, checkpoint_dir)` is being deprecated. To save and load checkpoint in trainable functions, please use the `ray.air.session` API:
+
+from ray.air import session
+
+def train(config):
+    # ...
+    session.report({"metric": metric}, checkpoint=checkpoint)
+
+For more information please see https://docs.ray.io/en/master/ray-air/key-concepts.html#session
+
+  DeprecationWarning,
+
+
+== Status ==Current time: 2022-07-22 15:41:31 (running for 00:00:06.73)Memory usage on this node: 9.9/16.0 GiBUsing FIFO scheduling algorithm.Resources requested: 0/16 CPUs, 0/0 GPUs, 0.0/4.5 GiB heap, 0.0/2.0 GiB objectsCurrent best trial: 5bf98_00000 with loss=1.0234101880766688 and parameters={'mean': 1, 'sd': 0.40575843135279466}Result logdir: /Users/kai/ray_results/train_function_2022-07-22_15-41-18Number of trials: 3/3 (3 TERMINATED)
+
+Trial name                status    loc              mean      sd  iter  total time (s)   loss
+
+
+train_function_5bf98_00000TERMINATED127.0.0.1:48140     10.405758    30       2.11758  1.02341
+train_function_5bf98_00001TERMINATED127.0.0.1:48147     20.647335    30       0.07707311.53993
+train_function_5bf98_00002TERMINATED127.0.0.1:48151     30.256568    30       0.07284313.0393 
+
+2022-07-22 15:41:24,693	INFO plugin_schema_manager.py:52 -- Loading the default runtime env schemas: ['/Users/kai/coding/ray/python/ray/_private/runtime_env/../../runtime_env/schemas/working_dir_schema.json', '/Users/kai/coding/ray/python/ray/_private/runtime_env/../../runtime_env/schemas/pip_schema.json'].
+COMET WARNING: As you are running in a Jupyter environment, you will need to call `experiment.end()` when finished to ensure all metrics and code are logged before exiting.
+COMET ERROR: The given API key abc is invalid, please check it against the dashboard. Your experiment would not be logged 
+For more details, please refer to: https://www.comet.ml/docs/python-sdk/warnings-errors/
+COMET WARNING: As you are running in a Jupyter environment, you will need to call `experiment.end()` when finished to ensure all metrics and code are logged before exiting.
+COMET ERROR: The given API key abc is invalid, please check it against the dashboard. Your experiment would not be logged 
+For more details, please refer to: https://www.comet.ml/docs/python-sdk/warnings-errors/
+COMET WARNING: As you are running in a Jupyter environment, you will need to call `experiment.end()` when finished to ensure all metrics and code are logged before exiting.
+COMET ERROR: The given API key abc is invalid, please check it against the dashboard. Your experiment would not be logged 
+For more details, please refer to: https://www.comet.ml/docs/python-sdk/warnings-errors/
+
+
+Result for train_function_5bf98_00000:
+  date: 2022-07-22_15-41-27
+  done: false
+  experiment_id: c94e6cdedd4540e4b40e4a34fbbeb850
+  hostname: Kais-MacBook-Pro.local
+  iterations_since_restore: 1
+  loss: 1.1009860426725162
+  node_ip: 127.0.0.1
+  pid: 48140
+  time_since_restore: 0.000125885009765625
+  time_this_iter_s: 0.000125885009765625
+  time_total_s: 0.000125885009765625
+  timestamp: 1658500887
+  timesteps_since_restore: 0
+  training_iteration: 1
+  trial_id: 5bf98_00000
+  warmup_time: 0.0029532909393310547
+  
+Result for train_function_5bf98_00000:
+  date: 2022-07-22_15-41-29
+  done: true
+  experiment_id: c94e6cdedd4540e4b40e4a34fbbeb850
+  experiment_tag: 0_mean=1,sd=0.4058
+  hostname: Kais-MacBook-Pro.local
+  iterations_since_restore: 30
+  loss: 1.0234101880766688
+  node_ip: 127.0.0.1
+  pid: 48140
+  time_since_restore: 2.1175789833068848
+  time_this_iter_s: 0.0022211074829101562
+  time_total_s: 2.1175789833068848
+  timestamp: 1658500889
+  timesteps_since_restore: 0
+  training_iteration: 30
+  trial_id: 5bf98_00000
+  warmup_time: 0.0029532909393310547
+  
+Result for train_function_5bf98_00001:
+  date: 2022-07-22_15-41-30
+  done: false
+  experiment_id: ba865bc613d94413a37fe027123ba031
+  hostname: Kais-MacBook-Pro.local
+  iterations_since_restore: 1
+  loss: 2.3754716847171182
+  node_ip: 127.0.0.1
+  pid: 48147
+  time_since_restore: 0.0001590251922607422
+  time_this_iter_s: 0.0001590251922607422
+  time_total_s: 0.0001590251922607422
+  timestamp: 1658500890
+  timesteps_since_restore: 0
+  training_iteration: 1
+  trial_id: 5bf98_00001
+  warmup_time: 0.0036537647247314453
+  
+Result for train_function_5bf98_00001:
+  date: 2022-07-22_15-41-30
+  done: true
+  experiment_id: ba865bc613d94413a37fe027123ba031
+  experiment_tag: 1_mean=2,sd=0.6473
+  hostname: Kais-MacBook-Pro.local
+  iterations_since_restore: 30
+  loss: 1.5399275480220707
+  node_ip: 127.0.0.1
+  pid: 48147
+  time_since_restore: 0.0770730972290039
+  time_this_iter_s: 0.002664804458618164
+  time_total_s: 0.0770730972290039
+  timestamp: 1658500890
+  timesteps_since_restore: 0
+  training_iteration: 30
+  trial_id: 5bf98_00001
+  warmup_time: 0.0036537647247314453
+  
+Result for train_function_5bf98_00002:
+  date: 2022-07-22_15-41-31
+  done: false
+  experiment_id: 2efb6f3c4d954bcab1ea4083f138008e
+  hostname: Kais-MacBook-Pro.local
+  iterations_since_restore: 1
+  loss: 3.204653294422825
+  node_ip: 127.0.0.1
+  pid: 48151
+  time_since_restore: 0.00014400482177734375
+  time_this_iter_s: 0.00014400482177734375
+  time_total_s: 0.00014400482177734375
+  timestamp: 1658500891
+  timesteps_since_restore: 0
+  training_iteration: 1
+  trial_id: 5bf98_00002
+  warmup_time: 0.0030150413513183594
+  
+Result for train_function_5bf98_00002:
+  date: 2022-07-22_15-41-31
+  done: true
+  experiment_id: 2efb6f3c4d954bcab1ea4083f138008e
+  experiment_tag: 2_mean=3,sd=0.2566
+  hostname: Kais-MacBook-Pro.local
+  iterations_since_restore: 30
+  loss: 3.0393011150182865
+  node_ip: 127.0.0.1
+  pid: 48151
+  time_since_restore: 0.07284307479858398
+  time_this_iter_s: 0.0020139217376708984
+  time_total_s: 0.07284307479858398
+  timestamp: 1658500891
+  timesteps_since_restore: 0
+  training_iteration: 30
+  trial_id: 5bf98_00002
+  warmup_time: 0.0030150413513183594
+  
+
+
+2022-07-22 15:41:31,290	INFO tune.py:738 -- Total run time: 7.36 seconds (6.72 seconds for the tuning loop).
+
+
+{'mean': 1, 'sd': 0.40575843135279466}
+
+
+
+
+
+
+Tune Comet Logger#
+Ray Tune offers an integration with Comet through the CometLoggerCallback,
+which automatically logs metrics and parameters reported to Tune to the Comet UI.
+Click on the following dropdown to see this callback API in detail:
+
+
+class ray.air.integrations.comet.CometLoggerCallback(online: bool = True, tags: List[str] = None, save_checkpoints: bool = False, **experiment_kwargs)[source]
+CometLoggerCallback for logging Tune results to Comet.
+Comet (https://comet.ml/site/) is a tool to manage and optimize the
+entire ML lifecycle, from experiment tracking, model optimization
+and dataset versioning to model production monitoring.
+This Ray Tune LoggerCallback sends metrics and parameters to
+Comet for tracking.
+In order to use the CometLoggerCallback you must first install Comet
+via pip install comet_ml
+Then set the following environment variables
+export COMET_API_KEY=<Your API Key>
+Alternatively, you can also pass in your API Key as an argument to the
+CometLoggerCallback constructor.
+CometLoggerCallback(api_key=<Your API Key>)
+
+Parameters:
+
+online – Whether to make use of an Online or
+Offline Experiment. Defaults to True.
+tags – Tags to add to the logged Experiment.
+Defaults to None.
+save_checkpoints – If True, model checkpoints will be saved to
+Comet ML as artifacts. Defaults to False.
+**experiment_kwargs – Other keyword arguments will be passed to the
+constructor for comet_ml.Experiment (or OfflineExperiment if
+online=False).
+
+
+
+Please consult the Comet ML documentation for more information on the
+Experiment and OfflineExperiment classes: https://comet.ml/site/
+Example:
+from ray.air.integrations.comet import CometLoggerCallback
+tune.run(
+    train,
+    config=config
+    callbacks=[CometLoggerCallback(
+        True,
+        ['tag1', 'tag2'],
+        workspace='my_workspace',
+        project_name='my_project_name'
+        )]
+)
+
+
+
+
+

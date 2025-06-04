@@ -1,0 +1,126 @@
+
+
+ray.rllib.core.rl_module.multi_rl_module.MultiRLModule#
+
+
+class ray.rllib.core.rl_module.multi_rl_module.MultiRLModule(config=-1, *, observation_space: gymnasium.Space | None = None, action_space: gymnasium.Space | None = None, inference_only: bool | None = None, learner_only: bool | None = None, model_config: dict | None = None, rl_module_specs: Dict[str, RLModuleSpec] | None = None, **kwargs)[source]#
+Bases: RLModule
+Base class for an RLModule that contains n sub-RLModules.
+This class holds a mapping from ModuleID to underlying RLModules. It provides
+a convenient way of accessing each individual module, as well as accessing all of
+them with only one API call. Whether a given module is trainable is
+determined by the caller of this class (not the instance of this class itself).
+The extension of this class can include any arbitrary neural networks as part of
+the MultiRLModule. For example, a MultiRLModule can include a shared encoder network
+that is used by all the individual (single-agent) RLModules. It is up to the user
+to decide how to implement this class.
+The default implementation assumes the data communicated as input and output of
+the APIs in this class are Dict[ModuleID, Dict[str, Any]] types. The
+MultiRLModule by default loops through each module_id, and runs the forward pass
+of the corresponding RLModule object with the associated batch within the
+input.
+It also assumes that the underlying RLModules do not share any parameters or
+communication with one another. The behavior of modules with such advanced
+communication would be undefined by default. To share parameters or communication
+between the underlying RLModules, you should implement your own
+MultiRLModule subclass.
+PublicAPI (alpha): This API is in alpha and may change before becoming stable.
+Methods
+
+
+__init__
+Initializes a MultiRLModule instance.
+
+add_module
+Adds a module at run time to the multi-agent module.
+
+as_multi_rl_module
+Returns self in order to match RLModule.as_multi_rl_module() behavior.
+
+foreach_module
+Calls the given function with each (module_id, module).
+
+forward_exploration
+DO NOT OVERRIDE! Forward-pass during exploration, called from the sampler.
+
+forward_inference
+DO NOT OVERRIDE! Forward-pass during evaluation, called from the sampler.
+
+forward_train
+DO NOT OVERRIDE! Forward-pass during training called from the learner.
+
+from_checkpoint
+Creates a new Checkpointable instance from the given location and returns it.
+
+get
+Returns the module with the given module ID or default if not found in self.
+
+get_exploration_action_dist_cls
+Returns the action distribution class for this RLModule used for exploration.
+
+get_inference_action_dist_cls
+Returns the action distribution class for this RLModule used for inference.
+
+get_metadata
+Returns JSON writable metadata further describing the implementing class.
+
+get_train_action_dist_cls
+Returns the action distribution class for this RLModule used for training.
+
+input_specs_exploration
+Returns the input specs of the forward_exploration method.
+
+input_specs_inference
+Returns the input specs of the forward_inference method.
+
+input_specs_train
+Returns the input specs of the forward_train method.
+
+items
+Returns an ItemsView over the module IDs in this MultiRLModule.
+
+keys
+Returns a KeysView over the module IDs in this MultiRLModule.
+
+remove_module
+Removes a module at runtime from the multi-agent module.
+
+restore_from_path
+Restores the state of the implementing class from the given path.
+
+save_to_path
+Saves the state of the implementing class (or state) to path.
+
+set_state
+Sets the state of the multi-agent module.
+
+setup
+Sets up the underlying, individual RLModules.
+
+unwrapped
+Returns the underlying module if this module is a wrapper.
+
+values
+Returns a ValuesView over the module IDs in this MultiRLModule.
+
+
+
+Attributes
+
+
+CLASS_AND_CTOR_ARGS_FILE_NAME
+
+
+METADATA_FILE_NAME
+
+
+STATE_FILE_NAME
+
+
+framework
+
+
+
+
+
+

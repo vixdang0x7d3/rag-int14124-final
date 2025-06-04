@@ -1,0 +1,19 @@
+
+
+ray.rllib.offline.offline_prelearner.OfflinePreLearner.__call__#
+
+
+OfflinePreLearner.__call__(batch: Dict[str, numpy.ndarray]) → Dict[str, numpy.ndarray][source]#
+Prepares plain data batches for training with Learner’s.
+
+Parameters:
+batch – A dictionary of numpy arrays containing either column data
+with self.config.input_read_schema, EpisodeType data, or
+BatchType data.
+
+Returns:
+A MultiAgentBatch that can be passed to Learner.update methods.
+
+
+
+

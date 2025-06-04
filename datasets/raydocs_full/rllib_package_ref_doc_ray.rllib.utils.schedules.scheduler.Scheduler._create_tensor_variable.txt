@@ -1,0 +1,17 @@
+
+
+ray.rllib.utils.schedules.scheduler.Scheduler._create_tensor_variable#
+
+
+Scheduler._create_tensor_variable(initial_value: float) → numpy.array | jnp.ndarray | tf.Tensor | torch.Tensor[source]#
+Creates a framework-specific tensor variable to be scheduled.
+
+Parameters:
+initial_value – The initial (float) value for the variable to hold.
+
+Returns:
+The created framework-specific tensor variable.
+
+
+
+

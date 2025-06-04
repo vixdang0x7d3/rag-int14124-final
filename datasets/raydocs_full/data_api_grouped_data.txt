@@ -1,0 +1,44 @@
+
+
+GroupedData API#
+GroupedData objects are returned by groupby call:
+Dataset.groupby().
+
+Computations or Descriptive Stats#
+
+
+GroupedData.count
+Compute count aggregation.
+
+GroupedData.max
+Compute grouped max aggregation.
+
+GroupedData.mean
+Compute grouped mean aggregation.
+
+GroupedData.min
+Compute grouped min aggregation.
+
+GroupedData.std
+Compute grouped standard deviation aggregation.
+
+GroupedData.sum
+Compute grouped sum aggregation.
+
+
+
+
+
+Function Application#
+
+
+GroupedData.aggregate
+Implements an accumulator-based aggregation.
+
+GroupedData.map_groups
+Apply the given function to each group of records of this dataset.
+
+
+
+
+

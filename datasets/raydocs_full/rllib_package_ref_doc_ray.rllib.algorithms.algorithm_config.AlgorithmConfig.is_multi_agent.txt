@@ -1,0 +1,15 @@
+
+
+ray.rllib.algorithms.algorithm_config.AlgorithmConfig.is_multi_agent#
+
+
+property AlgorithmConfig.is_multi_agent: bool#
+Returns whether this config specifies a multi-agent setup.
+
+Returns:
+True, if a) >1 policies defined OR b) 1 policy defined, but its ID is NOT
+DEFAULT_POLICY_ID.
+
+
+
+

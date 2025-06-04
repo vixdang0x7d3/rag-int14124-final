@@ -1,0 +1,20 @@
+
+
+ray.rllib.utils.replay_buffers.replay_buffer.ReplayBuffer.add#
+
+
+ReplayBuffer.add(batch: SampleBatch | MultiAgentBatch | Dict[str, Any], **kwargs) → None[source]#
+Adds a batch of experiences or other data to this buffer.
+Splits batch into chunks of timesteps, sequences or episodes, depending on
+self._storage_unit. Calls self._add_single_batch to add resulting slices
+to the buffer storage.
+
+Parameters:
+
+batch – The batch to add.
+**kwargs – Forward compatibility kwargs.
+
+
+
+
+

@@ -1,0 +1,35 @@
+
+
+ray.rllib.callbacks.callbacks.RLlibCallback.on_episode_start#
+
+
+RLlibCallback.on_episode_start(*, episode: SingleAgentEpisode | MultiAgentEpisode | EpisodeV2, env_runner: EnvRunner | None = None, metrics_logger: MetricsLogger | None = None, env: gymnasium.Env | None = None, env_index: int, rl_module: RLModule | None = None, worker: EnvRunner | None = None, base_env: BaseEnv | None = None, policies: Dict[str, Policy] | None = None, **kwargs) → None[source]#
+Callback run right after an Episode has been started.
+This method gets called after a SingleAgentEpisode or MultiAgentEpisode instance
+has been reset with a call to env.reset() by the EnvRunner.
+
+Single-/MultiAgentEpisode created: on_episode_created() is called.
+Respective sub-environment (gym.Env) is reset().
+Single-/MultiAgentEpisode starts: This callback is called.
+Stepping through sub-environment/episode commences.
+
+
+Parameters:
+
+episode – The just started (after env.reset()) SingleAgentEpisode or
+MultiAgentEpisode object.
+env_runner – Reference to the EnvRunner running the env and episode.
+metrics_logger – The MetricsLogger object inside the env_runner. Can be
+used to log custom metrics during env/episode stepping.
+env – The gym.Env or gym.vector.Env object running the started episode.
+env_index – The index of the sub-environment that is about to be reset
+(within the vector of sub-environments of the BaseEnv).
+rl_module – The RLModule used to compute actions for stepping the env. In
+single-agent mode, this is a simple RLModule, in multi-agent mode, this
+is a MultiRLModule.
+kwargs – Forward compatibility placeholder.
+
+
+
+
+

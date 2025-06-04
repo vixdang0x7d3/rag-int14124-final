@@ -1,0 +1,9 @@
+
+
+ray.rllib.core.rl_module.rl_module.RLModule.as_multi_rl_module#
+
+
+RLModule.as_multi_rl_module() → MultiRLModule[source]#
+Returns a multi-agent wrapper around this module.
+
+

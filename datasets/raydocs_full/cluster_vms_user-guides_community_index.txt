@@ -1,0 +1,51 @@
+
+
+Community Supported Cluster Managers#
+
+
+
+Note
+If you’re using AWS, Azure, GCP or vSphere you can use the Ray cluster launcher to simplify the cluster setup process.
+
+The following is a list of community supported cluster managers.
+
+
+Deploying on YARN
+Skein Configuration
+Packaging Dependencies
+Ray Setup in YARN
+Running a Job
+Cleaning Up
+Questions or Issues?
+
+
+Deploying on Slurm
+Walkthrough using Ray with SLURM
+Python-interface SLURM scripts
+Examples and templates
+
+
+Deploying on LSF
+Deploying on Spark Standalone cluster
+Running a basic example
+Creating a long running ray cluster on spark cluster
+Ray on Spark APIs
+
+
+
+
+
+
+Using a custom cloud or cluster manager#
+The Ray cluster launcher currently supports AWS, Azure, GCP, Aliyun, vSphere and KubeRay out of the box. To use the Ray cluster launcher and Autoscaler on other cloud providers or cluster managers, you can implement the node_provider.py interface (100 LOC).
+Once the node provider is implemented, you can register it in the provider section of the cluster launcher config.
+provider:
+  type: "external"
+  module: "my.module.MyCustomNodeProvider"
+
+
+
+You can refer to AWSNodeProvider, KubeRayNodeProvider andLocalNodeProvider for more examples.
+
+
+

@@ -1,0 +1,156 @@
+
+
+Key Concepts#
+
+Deployment#
+Deployments are the central concept in Ray Serve.
+A deployment contains business logic or an ML model to handle incoming requests and can be scaled up to run across a Ray cluster.
+At runtime, a deployment consists of a number of replicas, which are individual copies of the class or function that are started in separate Ray Actors (processes).
+The number of replicas can be scaled up or down (or even autoscaled) to match the incoming request load.
+To define a deployment, use the @serve.deployment decorator on a Python class (or function for simple use cases).
+Then, bind the deployment with optional arguments to the constructor to define an application.
+Finally, deploy the resulting application using serve.run (or the equivalent serve run CLI command, see Development Workflow for details).
+from ray import serve
+from ray.serve.handle import DeploymentHandle
+
+
+@serve.deployment
+class MyFirstDeployment:
+    # Take the message to return as an argument to the constructor.
+    def __init__(self, msg):
+        self.msg = msg
+
+    def __call__(self):
+        return self.msg
+
+
+my_first_deployment = MyFirstDeployment.bind("Hello world!")
+handle: DeploymentHandle = serve.run(my_first_deployment)
+assert handle.remote().result() == "Hello world!"
+
+
+
+
+Application#
+An application is the unit of upgrade in a Ray Serve cluster. An application consists of one or more deployments. One of these deployments is considered the “ingress” deployment, which handles all inbound traffic.
+Applications can be called via HTTP at the specified route_prefix or in Python using a DeploymentHandle.
+
+
+DeploymentHandle (composing deployments)#
+Ray Serve enables flexible model composition and scaling by allowing multiple independent deployments to call into each other.
+When binding a deployment, you can include references to other bound deployments.
+Then, at runtime each of these arguments is converted to a DeploymentHandle that can be used to query the deployment using a Python-native API.
+Below is a basic example where the Ingress deployment can call into two downstream models.
+For a more comprehensive guide, see the model composition guide.
+from ray import serve
+from ray.serve.handle import DeploymentHandle
+
+
+@serve.deployment
+class Hello:
+    def __call__(self) -> str:
+        return "Hello"
+
+
+@serve.deployment
+class World:
+    def __call__(self) -> str:
+        return " world!"
+
+
+@serve.deployment
+class Ingress:
+    def __init__(self, hello_handle: DeploymentHandle, world_handle: DeploymentHandle):
+        self._hello_handle = hello_handle
+        self._world_handle = world_handle
+
+    async def __call__(self) -> str:
+        hello_response = self._hello_handle.remote()
+        world_response = self._world_handle.remote()
+        return (await hello_response) + (await world_response)
+
+
+hello = Hello.bind()
+world = World.bind()
+
+# The deployments passed to the Ingress constructor are replaced with handles.
+app = Ingress.bind(hello, world)
+
+# Deploys Hello, World, and Ingress.
+handle: DeploymentHandle = serve.run(app)
+
+# `DeploymentHandle`s can also be used to call the ingress deployment of an application.
+assert handle.remote().result() == "Hello world!"
+
+
+
+
+Ingress deployment (HTTP handling)#
+A Serve application can consist of multiple deployments that can be combined to perform model composition or complex business logic.
+However, one deployment is always the “top-level” one that is passed to serve.run to deploy the application.
+This deployment is called the “ingress deployment” because it serves as the entrypoint for all traffic to the application.
+Often, it then routes to other deployments or calls into them using the DeploymentHandle API, and composes the results before returning to the user.
+The ingress deployment defines the HTTP handling logic for the application.
+By default, the __call__ method of the class is called and passed in a Starlette request object.
+The response will be serialized as JSON, but other Starlette response objects can also be returned directly.
+Here’s an example:
+import requests
+from starlette.requests import Request
+
+from ray import serve
+
+
+@serve.deployment
+class MostBasicIngress:
+    async def __call__(self, request: Request) -> str:
+        name = (await request.json())["name"]
+        return f"Hello {name}!"
+
+
+app = MostBasicIngress.bind()
+serve.run(app)
+assert (
+    requests.get("http://127.0.0.1:8000/", json={"name": "Corey"}).text
+    == "Hello Corey!"
+)
+
+
+After binding the deployment and running serve.run(), it is now exposed by the HTTP server and handles requests using the specified class.
+We can query the model using requests to verify that it’s working.
+For more expressive HTTP handling, Serve also comes with a built-in integration with FastAPI.
+This allows you to use the full expressiveness of FastAPI to define more complex APIs:
+import requests
+from fastapi import FastAPI
+from fastapi.responses import PlainTextResponse
+
+from ray import serve
+
+fastapi_app = FastAPI()
+
+
+@serve.deployment
+@serve.ingress(fastapi_app)
+class FastAPIIngress:
+    @fastapi_app.get("/{name}")
+    async def say_hi(self, name: str) -> str:
+        return PlainTextResponse(f"Hello {name}!")
+
+
+app = FastAPIIngress.bind()
+serve.run(app)
+assert requests.get("http://127.0.0.1:8000/Corey").text == "Hello Corey!"
+
+
+
+
+What’s next?#
+Now that you have learned the key concepts, you can dive into these guides:
+
+Resource allocation
+Autoscaling guide
+Configuring HTTP logic and integrating with FastAPI
+Development workflow for Serve applications
+Composing deployments to perform model composition
+
+
+

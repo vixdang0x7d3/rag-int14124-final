@@ -1,0 +1,7 @@
+
+
+Architecture Whitepapers#
+For an in-depth overview of Ray internals, check out the Ray 2.0 Architecture whitepaper.
+The previous v1.0 whitepaper can be found here.
+For more about the scalability and performance of the Ray dataplane, see the Exoshuffle paper.
+

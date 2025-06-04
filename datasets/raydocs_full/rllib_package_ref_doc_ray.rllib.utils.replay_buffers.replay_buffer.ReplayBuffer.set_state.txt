@@ -1,0 +1,16 @@
+
+
+ray.rllib.utils.replay_buffers.replay_buffer.ReplayBuffer.set_state#
+
+
+ReplayBuffer.set_state(state: Dict[str, Any]) → None[source]#
+Restores all local state to the provided state.
+
+Parameters:
+state – The new state to set this buffer. Can be obtained by calling
+self.get_state().
+
+
+DeveloperAPI: This API may change across minor Ray releases.
+
+

@@ -1,0 +1,63 @@
+
+
+ray.rllib.utils.metrics.metrics_logger.MetricsLogger.log_time#
+
+
+MetricsLogger.log_time(key: str | Tuple[str, ...], *, reduce: str | None = 'mean', window: int | float | None = None, ema_coeff: float | None = None, clear_on_reduce: bool = False) → Stats[source]#
+Measures and logs a time delta value under key when used with a with-block.
+import time
+from ray.rllib.utils.metrics.metrics_logger import MetricsLogger
+
+logger = MetricsLogger()
+
+# First delta measurement:
+with logger.log_time("my_block_to_be_timed", ema_coeff=0.1):
+    time.sleep(1.0)
+
+# EMA should be ~1sec.
+assert 1.1 > logger.peek("my_block_to_be_timed") > 0.9
+
+# Second delta measurement (note that we don't have to repeat the args
+# again, as the stats under that name have already been created above with
+# the correct args).
+with logger.log_time("my_block_to_be_timed"):
+    time.sleep(2.0)
+
+# EMA should be ~1.1sec.
+assert 1.15 > logger.peek("my_block_to_be_timed") > 1.05
+
+# When calling `reduce()`, the latest, reduced value is returned.
+results = logger.reduce()
+# EMA should be ~1.1sec.
+assert 1.15 > results["my_block_to_be_timed"] > 1.05
+
+
+
+Parameters:
+
+key – The key (or tuple of keys) to log the measured time delta under.
+reduce – The reduction method to apply, once self.reduce() is called.
+If None, will collect all logged values under key in a list (and
+also return that list upon calling self.reduce()).
+window – An optional window size to reduce over.
+If not None, then the reduction operation is only applied to the most
+recent window items, and - after reduction - the internal values list
+under key is shortened to hold at most window items (the most
+recent ones).
+Must be None if ema_coeff is provided.
+If None (and ema_coeff is None), reduction must not be “mean”.
+ema_coeff – An optional EMA coefficient to use if reduce is “mean”
+and no window is provided. Note that if both window and ema_coeff
+are provided, an error is thrown. Also, if ema_coeff is provided,
+reduce must be “mean”.
+The reduction formula for EMA is:
+EMA(t1) = (1.0 - ema_coeff) * EMA(t0) + ema_coeff * new_value
+clear_on_reduce – If True, all values under key will be emptied after
+self.reduce() is called. Setting this to True is useful for cases,
+in which the internal values list would otherwise grow indefinitely,
+for example if reduce is None and there is no window provided.
+
+
+
+
+

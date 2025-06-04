@@ -13,23 +13,6 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-    Install the ChromaDB Evaluation Framework package
-
-    For `pip` users:
-
-
-    ```
-    pip add git+https://github.com/brandonstarxel/chunking_evaluation.git
-    ```
-    """
-    )
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
     mo.md(r"""### Imports""")
     return
 
@@ -54,7 +37,6 @@ def _():
         Path,
         RecursiveTokenChunker,
         embedding_functions,
-        pd,
         re,
         torch,
     )
@@ -143,16 +125,6 @@ def _(BaseChunker, re):
     return (SentenceChunker,)
 
 
-app._unparsable_cell(
-    r"""
-    import platform
-
-    print(platform.system()
-    """,
-    name="_"
-)
-
-
 @app.cell
 def _(SentenceChunker, embedding_function, general_set):
     sentence_chunker = SentenceChunker(sentences_per_chunk=10)
@@ -186,15 +158,16 @@ def _(mo):
 
 @app.cell
 def _(RecursiveTokenChunker, embedding_function, general_set):
-    chunker = RecursiveTokenChunker()
+    chunker = RecursiveTokenChunker(chunk_size=1000, chunk_overlap=200)
+
 
     collection, questions_collection = general_set.get_collections(
         chunker,
         embedding_function,
-        db_to_save_chunks="chroma_db/general_chunks_db/",
-        db_to_save_questions="chroma_db/general_questions_db/",
+        # db_to_save_chunks="chroma_db/general_chunks_db/",
+        # db_to_save_questions="chroma_db/general_questions_db/",
     )
-    return chunker, collection, questions_collection
+    return collection, questions_collection
 
 
 @app.cell
@@ -212,77 +185,47 @@ def _(Evaluation, collection, questions_collection):
 
 
 @app.cell
-def _(GeneralEvalSet, Path, RecursiveTokenChunker, embedding_function):
-    _chunkers = [
-        RecursiveTokenChunker(
-            chunk_size=800,
-            chunk_overlap=400,
-        ),
-        RecursiveTokenChunker(
-            chunk_size=800,
-            chunk_overlap=400,
-        ),
-        RecursiveTokenChunker(
-            chunk_size=400,
-            chunk_overlap=200,
-        ),
-        RecursiveTokenChunker(
-            chunk_size=200,
-            chunk_overlap=0,
-        ),
-    ]
-
-    collection_pairs = []
-
-    for _chunker in _chunkers:
-        _general_set = GeneralEvalSet(
-            Path("datasets/general_evaluation"),
-        )
-        c, q = _general_set.get_collections(
-            _chunker,
-            embedding_function,
-        )
-
-        collection_pairs.append((c, q))
-
-    return (collection_pairs,)
+def _(mo):
+    mo.md(r"""###  Synthetic Data Evaluation""")
+    return
 
 
 @app.cell
-def _(
-    Evaluation,
-    chunk_overlap,
-    chunk_size,
-    chunker,
-    collection_pairs,
-    pd,
-    result,
-    results,
-):
-    _results = []
-    _df = pd.DataFrame()
+def _(Path):
+    import os
+    from dotenv import load_dotenv
 
-    for c_collection, q_collection in collection_pairs:
-        eval = Evaluation(
-            "datasets/general_evaluation/questions_df.csv",
-            c_collection,
-            q_collection,
-        )
-        _result = eval.evaluate(retrieve=5)
+    load_dotenv()
+    openai_api_key = os.getenv("OPENAI_API_KEY")
 
-        del _result["corpora_scores"]  # Remove detailed scores for brevity
+    corpora_dir_path = Path('datasets/raydocs_full')
 
-        _chunk_size = chunker._chunk_size if hasattr(chunker, "_chunk_size") else 0
-        _chunk_overlap = (
-            chunker._chunk_overlap if hasattr(chunker, "_chunk_overlap") else 0
-        )
-        _result["chunker"] = (
-            chunker.__class__.__name__ + f"_{chunk_size}_{chunk_overlap}"
-        )
+    corpora_paths = [
+        path
+        for path in corpora_dir_path.rglob('*')
+        if path.is_file()
+    ]
 
-        _results.append(result)
+    queries_csv_path = 'datasets/raydocs-generated-queries-and-excerpts.csv'
+    return corpora_paths, openai_api_key, queries_csv_path
 
-    df = pd.DataFrame(results)
+
+@app.cell
+def _(corpora_paths, openai_api_key, queries_csv_path):
+    from evaluation import SyntheticEvalSet
+
+    synth_set = SyntheticEvalSet(
+        corpora_paths,
+        queries_csv_path,
+        openai_api_key=openai_api_key,
+        prompt_path="datasets/prompts"
+    )
+
+    synth_set.generate_queries_and_excerpts(
+        approximate_excerpts=True, 
+        num_rounds=1,
+        queries_per_corpus=3,
+    )
     return
 
 

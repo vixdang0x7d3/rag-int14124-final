@@ -1,0 +1,26 @@
+
+
+ray.rllib.core.rl_module.rl_module.RLModule.from_checkpoint#
+
+
+classmethod RLModule.from_checkpoint(path: str | Path, filesystem: pyarrow.fs.FileSystem | None = None, **kwargs) → Checkpointable#
+Creates a new Checkpointable instance from the given location and returns it.
+
+Parameters:
+
+path – The checkpoint path to load (a) the information on how to construct
+a new instance of the implementing class and (b) the state to restore
+the created instance to.
+filesystem – PyArrow FileSystem to use to access data at the path. If not
+specified, this is inferred from the URI scheme of path.
+kwargs – Forward compatibility kwargs. Note that these kwargs are sent to
+each subcomponent’s from_checkpoint() call.
+
+
+Returns:
+A new instance of the implementing class, already set to the state stored
+under path.
+
+
+
+

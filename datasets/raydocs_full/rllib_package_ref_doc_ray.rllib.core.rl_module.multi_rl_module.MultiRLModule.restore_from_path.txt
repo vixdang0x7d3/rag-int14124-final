@@ -1,0 +1,46 @@
+
+
+ray.rllib.core.rl_module.multi_rl_module.MultiRLModule.restore_from_path#
+
+
+MultiRLModule.restore_from_path(path: str | Path, *, component: str | None = None, filesystem: pyarrow.fs.FileSystem | None = None, **kwargs) → None#
+Restores the state of the implementing class from the given path.
+If the component arg is provided, path refers to a checkpoint of a
+subcomponent of self, thus allowing the user to load only the subcomponent’s
+state into self without affecting any of the other state information (for
+example, loading only the NN state into a Checkpointable, which contains such
+an NN, but also has other state information that should NOT be changed by
+calling this method).
+The given path should have the following structure and contain the following
+files:
+path/
+    [component1]/
+        [component1 subcomponentA]/
+            ...
+        [component1 subcomponentB]/
+            ...
+    [component2]/
+            ...
+    [cls.METADATA_FILE_NAME] (json)
+    [cls.STATE_FILE_NAME] (pkl|msgpack)
+
+
+Note that the self.METADATA_FILE_NAME file is not required to restore the state.
+
+Parameters:
+
+path – The path to load the implementing class’ state from or to load the
+state of only one subcomponent’s state of the implementing class (if
+component is provided).
+component – If provided, path is interpreted as the checkpoint path of only
+the subcomponent and thus, only that subcomponent’s state is
+restored/loaded. All other state of self remains unchanged in this
+case.
+filesystem – PyArrow FileSystem to use to access data at the path. If not
+specified, this is inferred from the URI scheme of path.
+**kwargs – Forward compatibility kwargs.
+
+
+
+
+

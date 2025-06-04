@@ -1,0 +1,120 @@
+
+
+User Guides#
+If you’re new to Ray Data, start with the
+Ray Data Quickstart.
+This user guide helps you navigate the Ray Data project and
+show you how achieve several tasks.
+
+
+Loading Data
+Reading files
+Loading data from other libraries
+Reading databases
+Creating synthetic data
+Loading other datasources
+Performance considerations
+
+
+Inspecting Data
+Describing datasets
+Inspecting rows
+Inspecting batches
+Inspecting execution statistics
+
+
+Transforming Data
+Transforming rows
+Transforming batches
+Ordering of rows
+Stateful Transforms
+Avoiding out-of-memory errors
+Groupby and transforming groups
+
+
+Iterating over Data
+Iterating over rows
+Iterating over batches
+Iterating over batches with shuffling
+Splitting datasets for distributed parallel training
+
+
+Shuffling Data
+Types of shuffling
+Advanced: Optimizing shuffles
+
+
+Saving Data
+Writing data to files
+Converting Datasets to other Python libraries
+
+
+Working with Images
+Reading images
+Transforming images
+Performing inference on images
+Saving images
+
+
+Working with Text
+Reading text files
+Transforming text
+Performing inference on text
+Saving text
+
+
+Working with Tensors / NumPy
+Tensor data representation
+Transforming tensor data
+Saving tensor data
+
+
+Working with PyTorch
+Iterating over Torch tensors for training
+Transformations with Torch tensors
+Batch inference with PyTorch
+Saving Datasets containing Torch tensors
+Migrating from PyTorch Datasets and DataLoaders
+
+
+Working with LLMs
+Perform batch inference with LLMs
+Configure vLLM for LLM inference
+Batch inference with an OpenAI-compatible endpoint
+Usage Data Collection
+Production guide
+
+
+Monitoring Your Workload
+Ray Data progress bars
+Ray Data dashboard
+Ray Data logs
+Ray Data stats
+
+
+Execution Configurations
+Configuring ExecutionOptions
+Configuring DataContext
+
+
+End-to-end: Offline Batch Inference
+Quickstart
+Configuration and troubleshooting
+
+
+Advanced: Performance Tips and Tuning
+Optimizing transforms
+Optimizing reads
+Reducing memory usage
+Configuring execution
+Reproducibility
+
+
+Advanced: Read and Write Custom File Types
+Read data from files
+Write data to files
+
+
+
+
+

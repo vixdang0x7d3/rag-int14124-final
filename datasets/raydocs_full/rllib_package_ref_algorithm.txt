@@ -1,0 +1,134 @@
+
+
+Algorithms#
+
+Note
+Ray 2.40 uses RLlib’s new API stack by default.
+The Ray team has mostly completed transitioning algorithms, example scripts, and
+documentation to the new code base.
+If you’re still using the old API stack, see New API stack migration guide for details on how to migrate.
+
+The Algorithm class is the highest-level API in RLlib responsible for WHEN and WHAT of RL algorithms.
+Things like WHEN should we sample the algorithm, WHEN should we perform a neural network update, and so on.
+The HOW will be delegated to components such as RolloutWorker, etc..
+It is the main entry point for RLlib users to interact with RLlib’s algorithms.
+It allows you to train and evaluate policies, save an experiment’s progress and restore from
+a prior saved experiment when continuing an RL run.
+Algorithm is a sub-class
+of Trainable
+and thus fully supports distributed hyperparameter tuning for RL.
+
+
+A typical RLlib Algorithm object: Algorithms are normally comprised of
+N RolloutWorkers that
+orchestrated via a EnvRunnerGroup object.
+Each worker own its own a set of Policy objects and their NN models per worker, plus a BaseEnv instance per worker.#
+
+
+
+Building Custom Algorithm Classes#
+
+Warning
+As of Ray >= 1.9, it is no longer recommended to use the build_trainer() utility
+function for creating custom Algorithm sub-classes.
+Instead, follow the simple guidelines here for directly sub-classing from
+Algorithm.
+
+In order to create a custom Algorithm, sub-class the
+Algorithm class
+and override one or more of its methods. Those are in particular:
+
+setup()
+get_default_config()
+get_default_policy_class()
+training_step()
+
+See here for an example on how to override Algorithm.
+
+
+Algorithm API#
+
+Construction and setup#
+
+
+Algorithm
+An RLlib algorithm responsible for training one or more neural network models.
+
+setup
+Subclasses should override this for custom initialization.
+
+get_default_config
+
+
+env_runner
+The local EnvRunner instance within the algo's EnvRunnerGroup.
+
+eval_env_runner
+The local EnvRunner instance within the algo's evaluation EnvRunnerGroup.
+
+
+
+
+
+Training#
+
+
+train
+Runs one logical iteration of training.
+
+training_step
+Default single iteration logic of an algorithm.
+
+
+
+
+
+Saving and restoring#
+
+
+save_to_path
+Saves the state of the implementing class (or state) to path.
+
+restore_from_path
+Restores the state of the implementing class from the given path.
+
+from_checkpoint
+Creates a new algorithm instance from a given checkpoint.
+
+get_state
+Returns the implementing class's current state as a dict.
+
+set_state
+Sets the implementing class' state to the given state dict.
+
+
+
+
+
+Evaluation#
+
+
+evaluate
+Evaluates current policy under evaluation_config settings.
+
+
+
+
+
+Multi Agent#
+
+
+get_module
+Returns the (single-agent) RLModule with model_id (None if ID not found).
+
+add_policy
+Adds a new policy to this Algorithm.
+
+remove_policy
+Removes a policy from this Algorithm.
+
+
+
+
+
+

@@ -1,0 +1,114 @@
+
+
+Offline RL API#
+
+Note
+Ray 2.40 uses RLlib’s new API stack by default.
+The Ray team has mostly completed transitioning algorithms, example scripts, and
+documentation to the new code base.
+If you’re still using the old API stack, see New API stack migration guide for details on how to migrate.
+
+
+Configuring Offline RL#
+
+
+AlgorithmConfig.offline_data
+Sets the config's offline data settings.
+
+AlgorithmConfig.learners
+Sets LearnerGroup and Learner worker related configurations.
+
+
+
+
+
+Configuring Offline Recording EnvRunners#
+
+
+AlgorithmConfig.env_runners
+Sets the rollout worker configuration.
+
+
+
+
+
+Constructing a Recording EnvRunner#
+
+
+OfflineSingleAgentEnvRunner
+The environment runner to record the single agent case.
+
+
+
+
+
+Constructing OfflineData#
+
+
+OfflineData
+PublicAPI (alpha): This API is in alpha and may change before becoming stable.
+
+OfflineData.__init__
+
+
+
+
+
+
+Sampling from Offline Data#
+
+
+OfflineData.sample
+
+
+OfflineData.default_map_batches_kwargs
+
+
+OfflineData.default_iter_batches_kwargs
+
+
+
+
+
+
+Constructing an OfflinePreLearner#
+
+
+OfflinePreLearner
+Class that coordinates data transformation from dataset to learner.
+
+OfflinePreLearner.__init__
+
+
+
+
+
+
+Transforming Data with an OfflinePreLearner#
+
+
+SCHEMA
+This is the default schema used if no input_read_schema is set in the config.
+
+OfflinePreLearner.__call__
+Prepares plain data batches for training with Learner's.
+
+OfflinePreLearner._map_to_episodes
+Maps a batch of data to episodes.
+
+OfflinePreLearner._map_sample_batch_to_episode
+Maps an old stack SampleBatch to new stack episodes.
+
+OfflinePreLearner._should_module_be_updated
+Checks which modules in a MultiRLModule should be updated.
+
+OfflinePreLearner.default_prelearner_buffer_class
+Sets the default replay buffer.
+
+OfflinePreLearner.default_prelearner_buffer_kwargs
+Sets the default arguments for the replay buffer.
+
+
+
+
+

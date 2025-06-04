@@ -1,0 +1,58 @@
+
+
+ray.rllib.callbacks.callbacks.RLlibCallback.on_env_runners_recreated#
+
+
+RLlibCallback.on_env_runners_recreated(*, algorithm: Algorithm, env_runner_group: EnvRunnerGroup, env_runner_indices: List[int], is_evaluation: bool, **kwargs) → None[source]#
+Callback run after one or more EnvRunner actors have been recreated.
+You can access and change the EnvRunners in question through the following code
+snippet inside your custom override of this method:
+class MyCallbacks(RLlibCallback):
+    def on_env_runners_recreated(
+        self,
+        *,
+        algorithm,
+        env_runner_group,
+        env_runner_indices,
+        is_evaluation,
+        **kwargs,
+    ):
+        # Define what you would like to do on the recreated EnvRunner:
+        def func(env_runner):
+            # Here, we just set some arbitrary property to 1.
+            if is_evaluation:
+                env_runner._custom_property_for_evaluation = 1
+            else:
+                env_runner._custom_property_for_training = 1
+
+        # Use the `foreach_env_runner` method of the worker set and
+        # only loop through those worker IDs that have been restarted.
+        # Note that we set `local_worker=False` to NOT include it (local
+        # workers are never recreated; if they fail, the entire Algorithm
+        # fails).
+        env_runner_group.foreach_env_runner(
+            func,
+            remote_worker_ids=env_runner_indices,
+            local_env_runner=False,
+        )
+
+
+
+Parameters:
+
+algorithm – Reference to the Algorithm instance.
+env_runner_group – The EnvRunnerGroup object in which the workers in question
+reside. You can use a env_runner_group.foreach_env_runner(
+remote_worker_ids=..., local_env_runner=False) method call to execute
+custom code on the recreated (remote) workers. Note that the local
+worker is never recreated as a failure of this would also crash the
+Algorithm.
+env_runner_indices – The list of (remote) worker IDs that have been
+recreated.
+is_evaluation – Whether worker_set is the evaluation EnvRunnerGroup
+(located in Algorithm.eval_env_runner_group) or not.
+
+
+
+
+

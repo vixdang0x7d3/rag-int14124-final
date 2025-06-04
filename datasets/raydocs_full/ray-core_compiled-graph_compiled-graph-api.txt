@@ -1,0 +1,59 @@
+
+
+Compiled Graph API#
+
+Input and Output Nodes#
+
+
+ray.dag.input_node.InputNode
+Ray dag node used in DAG building API to mark entrypoints of a DAG.
+
+ray.dag.output_node.MultiOutputNode
+Ray dag node used in DAG building API to mark the endpoint of DAG
+
+
+
+
+
+DAG Construction#
+
+
+ray.actor.ActorMethod.bind
+Bind arguments to the actor method for Ray DAG building.
+
+ray.dag.DAGNode.with_tensor_transport
+Configure the torch tensor transport for this node.
+
+ray.experimental.compiled_dag_ref.CompiledDAGRef
+A reference to a compiled DAG execution result.
+
+
+
+
+
+Compiled Graph Operations#
+
+
+ray.dag.DAGNode.experimental_compile
+Compile an accelerated execution path for this DAG.
+
+ray.dag.compiled_dag_node.CompiledDAG.execute
+Execute this DAG using the compiled execution path.
+
+ray.dag.compiled_dag_node.CompiledDAG.visualize
+Visualize the compiled graph by showing tasks and their dependencies.
+
+
+
+
+
+Configurations#
+
+
+ray.dag.context.DAGContext
+Global settings for Ray DAG.
+
+
+
+
+

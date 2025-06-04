@@ -1,0 +1,523 @@
+
+
+Input/Output#
+
+Synthetic Data#
+
+
+range
+Creates a Dataset from a range of integers [0..n).
+
+range_tensor
+Creates a Dataset tensors of the provided shape from range [0...n].
+
+
+
+
+
+Python Objects#
+
+
+from_items
+Create a Dataset from a list of local Python objects.
+
+
+
+
+
+Parquet#
+
+
+read_parquet
+Creates a Dataset from parquet files.
+
+read_parquet_bulk
+Create Dataset from parquet files without reading metadata.
+
+Dataset.write_parquet
+Writes the Dataset to parquet files under the provided path.
+
+
+
+
+
+CSV#
+
+
+read_csv
+Creates a Dataset from CSV files.
+
+Dataset.write_csv
+Writes the Dataset to CSV files.
+
+
+
+
+
+JSON#
+
+
+read_json
+Creates a Dataset from JSON and JSONL files.
+
+Dataset.write_json
+Writes the Dataset to JSON and JSONL files.
+
+
+
+
+
+Text#
+
+
+read_text
+Create a Dataset from lines stored in text files.
+
+
+
+
+
+Audio#
+
+
+read_audio
+Creates a Dataset from audio files.
+
+
+
+
+
+Avro#
+
+
+read_avro
+Create a Dataset from records stored in Avro files.
+
+
+
+
+
+Images#
+
+
+read_images
+Creates a Dataset from image files.
+
+Dataset.write_images
+Writes the Dataset to images.
+
+
+
+
+
+Binary#
+
+
+read_binary_files
+Create a Dataset from binary files of arbitrary contents.
+
+
+
+
+
+TFRecords#
+
+
+read_tfrecords
+Create a Dataset from TFRecord files that contain tf.train.Example messages.
+
+Dataset.write_tfrecords
+Write the Dataset to TFRecord files.
+
+TFXReadOptions
+Specifies read options when reading TFRecord files with TFX.
+
+
+
+
+
+Pandas#
+
+
+from_pandas
+Create a Dataset from a list of pandas dataframes.
+
+from_pandas_refs
+Create a Dataset from a list of Ray object references to pandas dataframes.
+
+Dataset.to_pandas
+Convert this Dataset to a single pandas DataFrame.
+
+Dataset.to_pandas_refs
+Converts this Dataset into a distributed set of Pandas dataframes.
+
+
+
+
+
+NumPy#
+
+
+read_numpy
+Create an Arrow dataset from numpy files.
+
+from_numpy
+Creates a Dataset from a list of NumPy ndarrays.
+
+from_numpy_refs
+Creates a Dataset from a list of Ray object references to NumPy ndarrays.
+
+Dataset.write_numpy
+Writes a column of the Dataset to .npy files.
+
+Dataset.to_numpy_refs
+Converts this Dataset into a distributed set of NumPy ndarrays or dictionary of NumPy ndarrays.
+
+
+
+
+
+Arrow#
+
+
+from_arrow
+Create a Dataset from a list of PyArrow tables.
+
+from_arrow_refs
+Create a Dataset from a list of Ray object references to PyArrow tables.
+
+Dataset.to_arrow_refs
+Convert this Dataset into a distributed set of PyArrow tables.
+
+
+
+
+
+MongoDB#
+
+
+read_mongo
+Create a Dataset from a MongoDB database.
+
+Dataset.write_mongo
+Writes the Dataset to a MongoDB database.
+
+
+
+
+
+BigQuery#
+
+
+read_bigquery(project_id[, dataset, query, ...])
+Create a dataset from BigQuery.
+
+Dataset.write_bigquery(project_id, dataset)
+Write the dataset to a BigQuery dataset table.
+
+
+
+
+
+SQL Databases#
+
+
+read_sql
+Read from a database that provides a Python DB API2-compliant connector.
+
+Dataset.write_sql
+Write to a database that provides a Python DB API2-compliant connector.
+
+
+
+
+
+
+Databricks#
+
+
+read_databricks_tables
+Read a Databricks unity catalog table or Databricks SQL execution result.
+
+
+
+
+
+Delta Sharing#
+
+
+read_delta_sharing_tables
+Read data from a Delta Sharing table.
+
+
+
+
+
+Hudi#
+
+
+read_hudi
+Create a Dataset from an Apache Hudi table.
+
+
+
+
+
+Iceberg#
+
+
+read_iceberg
+Create a Dataset from an Iceberg table.
+
+Dataset.write_iceberg
+Writes the Dataset to an Iceberg table.
+
+
+
+
+
+Lance#
+
+
+read_lance
+Create a Dataset from a Lance Dataset.
+
+Dataset.write_lance
+Write the dataset to a Lance dataset.
+
+
+
+
+
+ClickHouse#
+
+
+read_clickhouse
+Create a Dataset from a ClickHouse table or view.
+
+Dataset.write_clickhouse
+Write the dataset to a ClickHouse dataset table.
+
+
+
+
+
+Daft#
+
+
+from_daft
+Create a Dataset from a Daft DataFrame.
+
+Dataset.to_daft
+Convert this Dataset into a Daft DataFrame.
+
+
+
+
+
+
+Dask#
+
+
+from_dask
+Create a Dataset from a Dask DataFrame.
+
+Dataset.to_dask
+Convert this Dataset into a Dask DataFrame.
+
+
+
+
+
+
+Spark#
+
+
+from_spark
+Create a Dataset from a Spark DataFrame.
+
+Dataset.to_spark
+Convert this Dataset into a Spark DataFrame.
+
+
+
+
+
+
+Modin#
+
+
+from_modin
+Create a Dataset from a Modin DataFrame.
+
+Dataset.to_modin
+Convert this Dataset into a Modin DataFrame.
+
+
+
+
+
+
+Mars#
+
+
+from_mars
+Create a Dataset from a Mars DataFrame.
+
+Dataset.to_mars
+Convert this Dataset into a Mars DataFrame.
+
+
+
+
+
+
+Torch#
+
+
+from_torch
+Create a Dataset from a Torch Dataset.
+
+
+
+
+
+Hugging Face#
+
+
+from_huggingface
+Create a MaterializedDataset from a Hugging Face Datasets Dataset or a Dataset from a Hugging Face Datasets IterableDataset.
+
+
+
+
+
+TensorFlow#
+
+
+from_tf
+Create a Dataset from a TensorFlow Dataset.
+
+
+
+
+
+Video#
+
+
+read_videos
+Creates a Dataset from video files.
+
+
+
+
+
+WebDataset#
+
+
+read_webdataset
+Create a Dataset from WebDataset files.
+
+
+
+
+
+
+Datasource API#
+
+
+read_datasource
+Read a stream from a custom Datasource.
+
+Datasource
+Interface for defining a custom Dataset datasource.
+
+ReadTask
+A function used to read blocks from the Dataset.
+
+datasource.FilenameProvider
+Generates filenames when you write a Dataset.
+
+
+
+
+
+Datasink API#
+
+
+Dataset.write_datasink
+Writes the dataset to a custom Datasink.
+
+Datasink
+Interface for defining write-related logic.
+
+datasource.RowBasedFileDatasink
+A datasink that writes one row to each file.
+
+datasource.BlockBasedFileDatasink
+A datasink that writes multiple rows to each file.
+
+datasource.FileBasedDatasource
+File-based datasource for reading files.
+
+datasource.WriteResult
+Aggregated result of the Datasink write operations.
+
+datasource.WriteReturnType
+Type variable.
+
+
+
+
+
+Partitioning API#
+
+
+datasource.Partitioning
+Partition scheme used to describe path-based partitions.
+
+datasource.PartitionStyle
+Supported dataset partition styles.
+
+datasource.PathPartitionParser
+Partition parser for path-based partition formats.
+
+datasource.PathPartitionFilter
+Partition filter for path-based partition formats.
+
+
+
+
+
+MetadataProvider API#
+
+
+datasource.FileMetadataProvider
+Abstract callable that provides metadata for the files of a single dataset block.
+
+datasource.BaseFileMetadataProvider
+Abstract callable that provides metadata for FileBasedDatasource implementations that reuse the base prepare_read() method.
+
+datasource.DefaultFileMetadataProvider
+Default metadata provider for FileBasedDatasource implementations that reuse the base prepare_read method.
+
+datasource.ParquetMetadataProvider
+Provides block metadata for Arrow Parquet file fragments.
+
+datasource.FastFileMetadataProvider
+Fast Metadata provider for FileBasedDatasource implementations.
+
+
+
+
+
+Shuffling API#
+
+
+FileShuffleConfig
+Configuration for file shuffling.
+
+
+
+
+

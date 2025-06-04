@@ -1,0 +1,45 @@
+
+
+Aggregation API#
+Pass AggregateFn objects to
+Dataset.aggregate() or
+Dataset.groupby().aggregate() to
+compute aggregations.
+
+
+AggregateFnV2
+Provides an interface to implement efficient aggregations to be applied to the dataset.
+
+AggregateFn
+NOTE: THIS IS DEPRECATED, PLEASE USE AggregateFnV2 INSTEAD
+
+Count
+Defines count aggregation.
+
+Sum
+Defines sum aggregation.
+
+Min
+Defines min aggregation.
+
+Max
+Defines max aggregation.
+
+Mean
+Defines mean aggregation.
+
+Std
+Defines standard deviation aggregation.
+
+AbsMax
+Defines absolute max aggregation.
+
+Quantile
+Defines Quantile aggregation.
+
+Unique
+Defines unique aggregation.
+
+
+
+

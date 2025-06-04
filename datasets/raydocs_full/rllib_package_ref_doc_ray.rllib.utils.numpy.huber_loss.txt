@@ -1,0 +1,9 @@
+
+
+ray.rllib.utils.numpy.huber_loss#
+
+
+ray.rllib.utils.numpy.huber_loss(x: numpy.ndarray, delta: float = 1.0) → numpy.ndarray[source]#
+Reference: https://en.wikipedia.org/wiki/Huber_loss.
+
+

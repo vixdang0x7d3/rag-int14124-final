@@ -1,0 +1,14 @@
+
+
+Workflow Execution API#
+
+
+run(dag, *args[, workflow_id, metadata])
+Run a workflow.
+
+run_async(dag, *args[, workflow_id, metadata])
+Run a workflow asynchronously.
+
+
+
+

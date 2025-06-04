@@ -1,0 +1,455 @@
+
+
+Ray Jobs CLI API Reference#
+This section contains commands for Ray Job Submission.
+
+ray job submit#
+Submits a job to be run on the cluster.
+By default (if –no-wait is not set), streams logs to stdout until the job finishes.
+If the job succeeded, exits with 0. If it failed, exits with 1.
+
+Example:ray job submit -- python my_script.py --arg=val
+
+
+ray job submit [OPTIONS] ENTRYPOINT...
+
+
+Options
+
+
+--address <address>#
+Address of the Ray cluster to connect to. Can also be specified using the RAY_ADDRESS environment variable.
+
+
+
+--job-id <job_id>#
+DEPRECATED: Use --submission-id instead.
+
+
+
+--submission-id <submission_id>#
+Submission ID to specify for the job. If not provided, one will be generated.
+
+
+
+--runtime-env <runtime_env>#
+Path to a local YAML file containing a runtime_env definition.
+
+
+
+--runtime-env-json <runtime_env_json>#
+JSON-serialized runtime_env dictionary.
+
+
+
+--working-dir <working_dir>#
+Directory containing files that your job will run in. Can be a local directory or a remote URI to a .zip file (S3, GS, HTTP). If specified, this overrides the option in --runtime-env.
+
+
+
+--metadata-json <metadata_json>#
+JSON-serialized dictionary of metadata to attach to the job.
+
+
+
+--entrypoint-num-cpus <entrypoint_num_cpus>#
+the quantity of CPU cores to reserve for the entrypoint command, separately from any tasks or actors that are launched by it
+
+
+
+--entrypoint-num-gpus <entrypoint_num_gpus>#
+the quantity of GPUs to reserve for the entrypoint command, separately from any tasks or actors that are launched by it
+
+
+
+--entrypoint-memory <entrypoint_memory>#
+the amount of memory to reserve for the entrypoint command, separately from any tasks or actors that are launched by it
+
+
+
+--entrypoint-resources <entrypoint_resources>#
+a JSON-serialized dictionary mapping resource name to resource quantity describing resources to reserve for the entrypoint command, separately from any tasks or actors that are launched by it
+
+
+
+--no-wait#
+If set, will not stream logs and wait for the job to exit.
+
+
+
+--verify <verify>#
+Boolean indication to verify the server’s TLS certificate or a path to a file or directory of trusted certificates.
+
+Default:
+True
+
+
+
+
+
+--headers <headers>#
+Used to pass headers through http/s to the Ray Cluster.please follow JSON formatting formatting {“key”: “value”}
+
+
+
+--log-style <log_style>#
+If ‘pretty’, outputs with formatting and color. If ‘record’, outputs record-style without formatting. ‘auto’ defaults to ‘pretty’, and disables pretty logging if stdin is not a TTY.
+
+Options:
+auto | record | pretty
+
+
+
+
+
+--log-color <log_color>#
+Use color logging. Auto enables color logging if stdout is a TTY.
+
+Options:
+auto | false | true
+
+
+
+
+
+-v, --verbose#
+
+Arguments
+
+
+ENTRYPOINT#
+Required argument(s)
+
+
+
+Warning
+When using the CLI, do not wrap the entrypoint command in quotes.  For example, use
+ray job submit --working-dir="." -- python script.py instead of ray job submit --working-dir="." -- "python script.py".
+Otherwise you may encounter the error /bin/sh: 1: python script.py: not found.
+
+
+Warning
+You must provide the entrypoint command, python script.py, last (after the --), and any other arguments to ray job submit (e.g., --working-dir=".") must be provided before the  two hyphens (--).
+For example, use ray job submit --working-dir="." -- python script.py instead of ray job submit -- python script.py --working-dir=".".
+This syntax supports the use of -- to separate arguments to ray job submit from arguments to the entrypoint command.
+
+
+ray job status#
+Queries for the current status of a job.
+
+Example:ray job status <my_job_id>
+
+
+ray job status [OPTIONS] JOB_ID
+
+
+Options
+
+
+--address <address>#
+Address of the Ray cluster to connect to. Can also be specified using the RAY_ADDRESS environment variable.
+
+
+
+--verify <verify>#
+Boolean indication to verify the server’s TLS certificate or a path to a file or directory of trusted certificates.
+
+Default:
+True
+
+
+
+
+
+--headers <headers>#
+Used to pass headers through http/s to the Ray Cluster.please follow JSON formatting formatting {“key”: “value”}
+
+
+
+--log-style <log_style>#
+If ‘pretty’, outputs with formatting and color. If ‘record’, outputs record-style without formatting. ‘auto’ defaults to ‘pretty’, and disables pretty logging if stdin is not a TTY.
+
+Options:
+auto | record | pretty
+
+
+
+
+
+--log-color <log_color>#
+Use color logging. Auto enables color logging if stdout is a TTY.
+
+Options:
+auto | false | true
+
+
+
+
+
+-v, --verbose#
+
+Arguments
+
+
+JOB_ID#
+Required argument
+
+
+
+ray job stop#
+Attempts to stop a job.
+
+Example:ray job stop <my_job_id>
+
+
+ray job stop [OPTIONS] JOB_ID
+
+
+Options
+
+
+--address <address>#
+Address of the Ray cluster to connect to. Can also be specified using the RAY_ADDRESS environment variable.
+
+
+
+--no-wait#
+If set, will not wait for the job to exit.
+
+
+
+--verify <verify>#
+Boolean indication to verify the server’s TLS certificate or a path to a file or directory of trusted certificates.
+
+Default:
+True
+
+
+
+
+
+--headers <headers>#
+Used to pass headers through http/s to the Ray Cluster.please follow JSON formatting formatting {“key”: “value”}
+
+
+
+--log-style <log_style>#
+If ‘pretty’, outputs with formatting and color. If ‘record’, outputs record-style without formatting. ‘auto’ defaults to ‘pretty’, and disables pretty logging if stdin is not a TTY.
+
+Options:
+auto | record | pretty
+
+
+
+
+
+--log-color <log_color>#
+Use color logging. Auto enables color logging if stdout is a TTY.
+
+Options:
+auto | false | true
+
+
+
+
+
+-v, --verbose#
+
+Arguments
+
+
+JOB_ID#
+Required argument
+
+
+
+ray job logs#
+Gets the logs of a job.
+
+Example:ray job logs <my_job_id>
+
+
+ray job logs [OPTIONS] JOB_ID
+
+
+Options
+
+
+--address <address>#
+Address of the Ray cluster to connect to. Can also be specified using the RAY_ADDRESS environment variable.
+
+
+
+-f, --follow#
+If set, follow the logs (like tail -f).
+
+
+
+--verify <verify>#
+Boolean indication to verify the server’s TLS certificate or a path to a file or directory of trusted certificates.
+
+Default:
+True
+
+
+
+
+
+--headers <headers>#
+Used to pass headers through http/s to the Ray Cluster.please follow JSON formatting formatting {“key”: “value”}
+
+
+
+--log-style <log_style>#
+If ‘pretty’, outputs with formatting and color. If ‘record’, outputs record-style without formatting. ‘auto’ defaults to ‘pretty’, and disables pretty logging if stdin is not a TTY.
+
+Options:
+auto | record | pretty
+
+
+
+
+
+--log-color <log_color>#
+Use color logging. Auto enables color logging if stdout is a TTY.
+
+Options:
+auto | false | true
+
+
+
+
+
+-v, --verbose#
+
+Arguments
+
+
+JOB_ID#
+Required argument
+
+
+
+ray job list#
+Lists all running jobs and their information.
+
+Example:ray job list
+
+
+ray job list [OPTIONS]
+
+
+Options
+
+
+--address <address>#
+Address of the Ray cluster to connect to. Can also be specified using the RAY_ADDRESS environment variable.
+
+
+
+--verify <verify>#
+Boolean indication to verify the server’s TLS certificate or a path to a file or directory of trusted certificates.
+
+Default:
+True
+
+
+
+
+
+--headers <headers>#
+Used to pass headers through http/s to the Ray Cluster.please follow JSON formatting formatting {“key”: “value”}
+
+
+
+--log-style <log_style>#
+If ‘pretty’, outputs with formatting and color. If ‘record’, outputs record-style without formatting. ‘auto’ defaults to ‘pretty’, and disables pretty logging if stdin is not a TTY.
+
+Options:
+auto | record | pretty
+
+
+
+
+
+--log-color <log_color>#
+Use color logging. Auto enables color logging if stdout is a TTY.
+
+Options:
+auto | false | true
+
+
+
+
+
+-v, --verbose#
+
+
+
+ray job delete#
+Deletes a stopped job and its associated data from memory.
+Only supported for jobs that are already in a terminal state.
+Fails with exit code 1 if the job is not already stopped.
+Does not delete job logs from disk.
+Submitting a job with the same submission ID as a previously
+deleted job is not supported and may lead to unexpected behavior.
+
+Example:ray job delete <my_job_id>
+
+
+ray job delete [OPTIONS] JOB_ID
+
+
+Options
+
+
+--address <address>#
+Address of the Ray cluster to connect to. Can also be specified using the RAY_ADDRESS environment variable.
+
+
+
+--verify <verify>#
+Boolean indication to verify the server’s TLS certificate or a path to a file or directory of trusted certificates.
+
+Default:
+True
+
+
+
+
+
+--headers <headers>#
+Used to pass headers through http/s to the Ray Cluster.please follow JSON formatting formatting {“key”: “value”}
+
+
+
+--log-style <log_style>#
+If ‘pretty’, outputs with formatting and color. If ‘record’, outputs record-style without formatting. ‘auto’ defaults to ‘pretty’, and disables pretty logging if stdin is not a TTY.
+
+Options:
+auto | record | pretty
+
+
+
+
+
+--log-color <log_color>#
+Use color logging. Auto enables color logging if stdout is a TTY.
+
+Options:
+auto | false | true
+
+
+
+
+
+-v, --verbose#
+
+Arguments
+
+
+JOB_ID#
+Required argument
+
+
+

@@ -1,0 +1,683 @@
+
+
+Multi-Agent Environments#
+
+Note
+Ray 2.40 uses RLlib’s new API stack by default.
+The Ray team has mostly completed transitioning algorithms, example scripts, and
+documentation to the new code base.
+If you’re still using the old API stack, see New API stack migration guide for details on how to migrate.
+
+In a multi-agent environment, multiple “agents” act simultaneously, in a turn-based
+sequence, or through an arbitrary combination of both.
+For instance, in a traffic simulation, there might be multiple “car” and
+“traffic light” agents interacting simultaneously, whereas in a board game,
+two or more agents may act in a turn-based sequence.
+Several different policy networks may be used to control the various agents.
+Thereby, each of the agents in the environment maps to exactly one particular policy. This mapping is
+determined by a user-provided function, called the “mapping function”. Note that if there
+are N agents mapping to M policies, N is always larger or equal to M,
+allowing for any policy to control more than one agent.
+
+
+
+Multi-agent setup: N agents live in the environment and take actions computed by M policy networks.
+The mapping from agent to policy is flexible and determined by a user-provided mapping function. Here, agent_1
+and agent_3 both map to policy_1, whereas agent_2 maps to policy_2.#
+
+
+
+RLlib’s MultiAgentEnv API#
+
+Hint
+This paragraph describes RLlib’s own :py:class`~ray.rllib.env.multi_agent_env.MultiAgentEnv` API, which is the
+recommended way of defining your own multi-agent environment logic. However, if you are already using a
+third-party multi-agent API, RLlib offers wrappers for Farama’s PettingZoo API as well
+as DeepMind’s OpenSpiel API.
+
+The :py:class`~ray.rllib.env.multi_agent_env.MultiAgentEnv` API of RLlib closely follows the
+conventions and APIs of Farama’s gymnasium (single-agent) envs and even subclasses
+from gymnasium.Env, however, instead of publishing individual observations, rewards, and termination/truncation flags
+from reset() and step(), a custom :py:class`~ray.rllib.env.multi_agent_env.MultiAgentEnv` implementation
+outputs dictionaries, one for observations, one for rewards, etc..in which agent IDs map
+In each such multi-agent dictionary, agent IDs map to the respective individual agent’s observation/reward/etc..
+Here is a first draft of an example :py:class`~ray.rllib.env.multi_agent_env.MultiAgentEnv` implementation:
+from ray.rllib.env.multi_agent_env import MultiAgentEnv
+
+class MyMultiAgentEnv(MultiAgentEnv):
+
+    def __init__(self, config=None):
+        super().__init__()
+        ...
+
+    def reset(self, *, seed=None, options=None):
+        ...
+        # return observation dict and infos dict.
+        return {"agent_1": [obs of agent_1], "agent_2": [obs of agent_2]}, {}
+
+    def step(self, action_dict):
+        # return observation dict, rewards dict, termination/truncation dicts, and infos dict
+        return {"agent_1": [obs of agent_1]}, {...}, ...
+
+
+
+Agent Definitions#
+The number of agents in your environment and their IDs are entirely controlled by your :py:class`~ray.rllib.env.multi_agent_env.MultiAgentEnv`
+code. Your env decides, which agents start after an episode reset, which agents enter the episode at a later point, which agents
+terminate the episode early, and which agents stay in the episode until the entire episode ends.
+To define, which agent IDs might even show up in your episodes, set the self.possible_agents attribute to a list of
+all possible agent ID.
+def __init__(self, config=None):
+    super().__init__()
+    ...
+    # Define all agent IDs that might even show up in your episodes.
+    self.possible_agents = ["agent_1", "agent_2"]
+    ...
+
+
+In case your environment only starts with a subset of agent IDs and/or terminates some agent IDs before the end of the episode,
+you also need to permanently adjust the self.agents attribute throughout the course of your episode.
+If - on the other hand - all agent IDs are static throughout your episodes, you can set self.agents to be the same
+as self.possible_agents and don’t change its value throughout the rest of your code:
+def __init__(self, config=None):
+    super().__init__()
+    ...
+    # If your agents never change throughout the episode, set
+    # `self.agents` to the same list as `self.possible_agents`.
+    self.agents = self.possible_agents = ["agent_1", "agent_2"]
+    # Otherwise, you will have to adjust `self.agents` in `reset()` and `step()` to whatever the
+    # currently "alive" agents are.
+    ...
+
+
+
+
+Observation- and Action Spaces#
+Next, you should set the observation- and action-spaces of each (possible) agent ID in your constructor.
+Use the self.observation_spaces and self.action_spaces attributes to define dictionaries mapping
+agent IDs to the individual agents’ spaces. For example:
+import gymnasium as gym
+import numpy as np
+
+...
+
+    def __init__(self, config=None):
+        super().__init__()
+        ...
+        self.observation_spaces = {
+            "agent_1": gym.spaces.Box(-1.0, 1.0, (4,), np.float32),
+            "agent_2": gym.spaces.Box(-1.0, 1.0, (3,), np.float32),
+        }
+        self.action_spaces = {
+            "agent_1": gym.spaces.Discrete(2),
+            "agent_2": gym.spaces.Box(0.0, 1.0, (1,), np.float32),
+        }
+        ...
+
+
+In case your episodes hosts a lot of agents, some sharing the same observation- or action
+spaces, and you don’t want to create very large spaces dicts, you can also override the
+get_observation_space() and
+get_action_space() methods and implement the mapping logic
+from agent ID to space yourself. For example:
+def get_observation_space(self, agent_id):
+    if agent_id.startswith("robot_"):
+        return gym.spaces.Box(0, 255, (84, 84, 3), np.uint8)
+    elif agent_id.startswith("decision_maker"):
+        return gym.spaces.Discrete(2)
+    else:
+        raise ValueError(f"bad agent id: {agent_id}!")
+
+
+
+
+Observation-, Reward-, and Termination Dictionaries#
+The remaining two things you need to implement in your custom MultiAgentEnv
+are the reset() and step() methods. Equivalently to a single-agent gymnasium.Env,
+you have to return observations and infos from reset(), and return observations, rewards, termination/truncation flags, and infos
+from step(), however, instead of individual values, these all have to be dictionaries mapping agent IDs to the respective
+individual agents’ values.
+Let’s take a look at an example reset() implementation first:
+def reset(self, *, seed=None, options=None):
+    ...
+    return {
+        "agent_1": np.array([0.0, 1.0, 0.0, 0.0]),
+        "agent_2": np.array([0.0, 0.0, 1.0]),
+    }, {}  # <- empty info dict
+
+
+Here, your episode starts with both agents in it, and both expected to compute and send actions
+for the following step() call.
+In general, the returned observations dict must contain those agents (and only those agents)
+that should act next. Agent IDs that should NOT act in the next step() call must NOT have
+their observations in the returned observations dict.
+
+
+
+Env with simultaneously acting agents: Both agents receive their observations at each
+time step, including right after reset(). Note that an agent must compute and send an action
+into the next step() call whenever an observation is present for that agent in the returned
+observations dict.#
+
+
+Note that the rule of observation dicts determining the exact order of agent moves doesn’t equally apply to
+either reward dicts nor termination/truncation dicts, all of which
+may contain any agent ID at any time step regardless of whether that agent ID is expected to act or not
+in the next step() call. This is so that an action taken by agent A may trigger a reward for agent B, even
+though agent B currently isn’t acting itself. The same is true for termination flags: Agent A may act in a way
+that terminates agent B from the episode without agent B having acted itself.
+
+Note
+Use the special agent ID __all__ in the termination dicts and/or truncation dicts to indicate
+that the episode should end for all agent IDs, regardless of which agents are still active at that point.
+RLlib automatically terminates all agents in this case and ends the episode.
+
+In summary, the exact order and synchronization of agent actions in your multi-agent episode is determined
+through the agent IDs contained in (or missing from) your observations dicts.
+Only those agent IDs that are expected to compute and send actions into the next step() call must be part of the
+returned observation dict.
+
+
+
+Env with agents taking turns: The two agents act by taking alternating turns. agent_1 receives the
+first observation after the reset() and thus has to compute and send an action first. Upon receiving
+this action, the env responds with an observation for agent_2, who now has to act. After receiving the action
+for agent_2, a next observation for agent_1 is returned and so on and so forth.#
+
+
+This simple rule allows you to design any type of multi-agent environment, from turn-based games to
+environments where all agents always act simultaneously, to any arbitrarily complex combination of these two patterns:
+
+
+
+Env with a complex order of turns: Three agents act in a seemingly chaotic order. agent_1 and agent_3 receive their
+initial observation after the reset() and thus has to compute and send actions first. Upon receiving
+these two actions, the env responds with an observation for agent_1 and agent_2, who now have to act simultaneously.
+After receiving the actions for agent_1 and agent_2, observations for agent_2 and agent_3 are returned and so on and
+so forth.#
+
+
+Let’s take a look at two specific, complete MultiAgentEnv example implementations,
+one where agents always act simultaneously and one where agents act in a turn-based sequence.
+
+
+Example: Environment with Simultaneously Stepping Agents#
+A good and simple example for a multi-agent env, in which all agents always step simultaneously
+is the Rock-Paper-Scissors game, in which two agents have to play N moves altogether, each choosing between
+the actions “Rock”, “Paper”, or “Scissors”. After each move, the action choices are compared.
+Rock beats Scissors, Paper beats Rock, and Scissors beats Paper. The player winning the move receives
+a +1 reward, the losing player -1.
+Here is the initial class scaffold for your Rock-Paper-Scissors Game:
+import gymnasium as gym
+
+from ray.rllib.env.multi_agent_env import MultiAgentEnv
+
+
+class RockPaperScissors(MultiAgentEnv):
+    """Two-player environment for the famous rock paper scissors game.
+
+
+
+    Both players always move simultaneously over a course of 10 timesteps in total.
+    The winner of each timestep receives reward of +1, the losing player -1.0.
+
+    The observation of each player is the last opponent action.
+    """
+
+    ROCK = 0
+    PAPER = 1
+    SCISSORS = 2
+    LIZARD = 3
+    SPOCK = 4
+
+    WIN_MATRIX = {
+        (ROCK, ROCK): (0, 0),
+        (ROCK, PAPER): (-1, 1),
+        (ROCK, SCISSORS): (1, -1),
+        (PAPER, ROCK): (1, -1),
+        (PAPER, PAPER): (0, 0),
+        (PAPER, SCISSORS): (-1, 1),
+        (SCISSORS, ROCK): (-1, 1),
+        (SCISSORS, PAPER): (1, -1),
+        (SCISSORS, SCISSORS): (0, 0),
+    }
+
+
+Next, you can implement the constructor of your class:
+    def __init__(self, config=None):
+        super().__init__()
+
+        self.agents = self.possible_agents = ["player1", "player2"]
+
+        # The observations are always the last taken actions. Hence observation- and
+        # action spaces are identical.
+        self.observation_spaces = self.action_spaces = {
+            "player1": gym.spaces.Discrete(3),
+            "player2": gym.spaces.Discrete(3),
+        }
+        self.last_move = None
+        self.num_moves = 0
+
+
+Note that we specify self.agents = self.possible_agents in the constructor to indicate
+that the agents don’t change over the course of an episode and stay fixed at [player1, player2].
+The reset logic is to simply add both players in the returned observations dict (both players are
+expected to act simultaneously in the next step() call) and reset a num_moves counter
+that keeps track of the number of moves being played in order to terminate the episode after exactly
+10 timesteps (10 actions by either player):
+    def reset(self, *, seed=None, options=None):
+        self.num_moves = 0
+
+        # The first observation should not matter (none of the agents has moved yet).
+        # Set them to 0.
+        return {
+            "player1": 0,
+            "player2": 0,
+        }, {}  # <- empty infos dict
+
+
+
+Finally, your step method should handle the next observations (each player observes the action
+the opponent just chose), the rewards (+1 or -1 according to the winner/loser rules explained above),
+and the termination dict (you set the special __all__ agent ID to True iff the number of moves
+has reached 10). The truncateds- and infos dicts always remain empty:
+    def step(self, action_dict):
+        self.num_moves += 1
+
+        move1 = action_dict["player1"]
+        move2 = action_dict["player2"]
+
+        # Set the next observations (simply use the other player's action).
+        # Note that because we are publishing both players in the observations dict,
+        # we expect both players to act in the next `step()` (simultaneous stepping).
+        observations = {"player1": move2, "player2": move1}
+
+        # Compute rewards for each player based on the win-matrix.
+        r1, r2 = self.WIN_MATRIX[move1, move2]
+        rewards = {"player1": r1, "player2": r2}
+
+        # Terminate the entire episode (for all agents) once 10 moves have been made.
+        terminateds = {"__all__": self.num_moves >= 10}
+
+        # Leave truncateds and infos empty.
+        return observations, rewards, terminateds, {}, {}
+
+
+
+
+See here
+for a complete end-to-end example script showing how to run a multi-agent RLlib setup against your
+RockPaperScissors env.
+
+
+Example: Turn-Based Environments#
+Let’s now walk through another multi-agent env example implementation, but this time you
+implement a turn-based game, in which you have two players (A and B), where A starts the game,
+then B makes a move, then again A, and so on and so forth.
+We implement the famous Tic-Tac-Toe game (with one slight aberration), played on a 3x3 field.
+Each player adds one of their pieces to the field at a time. Pieces can’t be moved once placed.
+The player that first completes one row (horizontal, diagonal, or vertical) wins the game and
+receives +1 reward. The losing player receives a -1 reward.
+To make the implementation easier, the aberration from the original game is that trying to
+place a piece on an already occupied field results in the board not changing at all, but the
+moving player receiving a -5 reward as a penalty (in the original game, this move is
+simply not allowed and therefor can never happen).
+Here is your initial class scaffold for the Tic-Tac-Toe game:
+import gymnasium as gym
+import numpy as np
+
+from ray.rllib.env.multi_agent_env import MultiAgentEnv
+
+
+class TicTacToe(MultiAgentEnv):
+    """A two-player game in which any player tries to complete one row in a 3x3 field.
+
+    The observation space is Box(0.0, 1.0, (9,)), where each index represents a distinct
+    field on a 3x3 board and values of 0.0 mean the field is empty, -1.0 means
+    the opponend owns the field, and 1.0 means we occupy the field:
+    ----------
+    | 0| 1| 2|
+    ----------
+    | 3| 4| 5|
+    ----------
+    | 6| 7| 8|
+    ----------
+
+    The action space is Discrete(9) and actions landing on an already occupied field
+    are simply ignored (and thus useless to the player taking these actions).
+
+    Once a player completes a row, they receive +1.0 reward, the losing player receives
+    -1.0 reward. In all other cases, both players receive 0.0 reward.
+    """
+
+
+
+In your constructor, make sure you define all possible agent IDs that can ever show up
+in your game (“player1” and “player2”), the currently active agent IDs (same as all
+possible agents), and each agent’s observation- and action space.
+    def __init__(self, config=None):
+        super().__init__()
+
+        # Define the agents in the game.
+        self.agents = self.possible_agents = ["player1", "player2"]
+
+        # Each agent observes a 9D tensor, representing the 3x3 fields of the board.
+        # A 0 means an empty field, a 1 represents a piece of player 1, a -1 a piece of
+        # player 2.
+        self.observation_spaces = {
+            "player1": gym.spaces.Box(-1.0, 1.0, (9,), np.float32),
+            "player2": gym.spaces.Box(-1.0, 1.0, (9,), np.float32),
+        }
+        # Each player has 9 actions, encoding the 9 fields each player can place a piece
+        # on during their turn.
+        self.action_spaces = {
+            "player1": gym.spaces.Discrete(9),
+            "player2": gym.spaces.Discrete(9),
+        }
+
+        self.board = None
+        self.current_player = None
+
+
+
+Now let’s implement your reset() method, in which you empty the board (set it to all 0s),
+pick a random start player, and return this start player’s first observation.
+Note that you don’t return the other player’s observation as this player isn’t
+acting next.
+    def reset(self, *, seed=None, options=None):
+        self.board = [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+        ]
+        # Pick a random player to start the game.
+        self.current_player = np.random.choice(["player1", "player2"])
+        # Return observations dict (only with the starting player, which is the one
+        # we expect to act next).
+        return {
+            self.current_player: np.array(self.board, np.float32),
+        }, {}
+
+
+
+From here on, in each step(), you always flip between the two agents (you use the
+self.current_player attribute for keeping track) and return only the current agent’s
+observation, because that’s the player you want to act next.
+You also compute the both agents’ rewards based on three criteria:
+Did the current player win (the opponent lost)?
+Did the current player place a piece on an already occupied field (gets penalized)?
+Is the game done because the board is full (both agents receive 0 reward)?
+    def step(self, action_dict):
+        action = action_dict[self.current_player]
+
+        # Create a rewards-dict (containing the rewards of the agent that just acted).
+        rewards = {self.current_player: 0.0}
+        # Create a terminateds-dict with the special `__all__` agent ID, indicating that
+        # if True, the episode ends for all agents.
+        terminateds = {"__all__": False}
+
+        opponent = "player1" if self.current_player == "player2" else "player2"
+
+        # Penalize trying to place a piece on an already occupied field.
+        if self.board[action] != 0:
+            rewards[self.current_player] -= 5.0
+        # Change the board according to the (valid) action taken.
+        else:
+            self.board[action] = 1 if self.current_player == "player1" else -1
+
+            # After having placed a new piece, figure out whether the current player
+            # won or not.
+            if self.current_player == "player1":
+                win_val = [1, 1, 1]
+            else:
+                win_val = [-1, -1, -1]
+            if (
+                # Horizontal win.
+                self.board[:3] == win_val
+                or self.board[3:6] == win_val
+                or self.board[6:] == win_val
+                # Vertical win.
+                or self.board[0:7:3] == win_val
+                or self.board[1:8:3] == win_val
+                or self.board[2:9:3] == win_val
+                # Diagonal win.
+                or self.board[::3] == win_val
+                or self.board[2:7:2] == win_val
+            ):
+                # Final reward is +5 for victory and -5 for a loss.
+                rewards[self.current_player] += 5.0
+                rewards[opponent] = -5.0
+
+                # Episode is done and needs to be reset for a new game.
+                terminateds["__all__"] = True
+
+            # The board might also be full w/o any player having won/lost.
+            # In this case, we simply end the episode and none of the players receives
+            # +1 or -1 reward.
+            elif 0 not in self.board:
+                terminateds["__all__"] = True
+
+        # Flip players and return an observations dict with only the next player to
+        # make a move in it.
+        self.current_player = opponent
+
+        return (
+            {self.current_player: np.array(self.board, np.float32)},
+            rewards,
+            terminateds,
+            {},
+            {},
+        )
+
+
+
+
+
+
+Grouping Agents#
+It is common to have groups of agents in multi-agent RL, where each group is treated
+like a single agent with Tuple action- and observation spaces (one item in the tuple
+for each individual agent in the group).
+Such a group of agents can then be assigned to a single policy for centralized execution,
+or to specialized multi-agent policies that implement centralized training, but
+decentralized execution.
+You can use the with_agent_groups()
+method to define these groups:
+    def with_agent_groups(
+        self,
+        groups: Dict[str, List[AgentID]],
+        obs_space: gym.Space = None,
+        act_space: gym.Space = None,
+    ) -> "MultiAgentEnv":
+        """Convenience method for grouping together agents in this env.
+
+        An agent group is a list of agent IDs that are mapped to a single
+        logical agent. All agents of the group must act at the same time in the
+        environment. The grouped agent exposes Tuple action and observation
+        spaces that are the concatenated action and obs spaces of the
+        individual agents.
+
+        The rewards of all the agents in a group are summed. The individual
+        agent rewards are available under the "individual_rewards" key of the
+        group info return.
+
+        Agent grouping is required to leverage algorithms such as Q-Mix.
+
+        Args:
+            groups: Mapping from group id to a list of the agent ids
+                of group members. If an agent id is not present in any group
+                value, it will be left ungrouped. The group id becomes a new agent ID
+                in the final environment.
+            obs_space: Optional observation space for the grouped
+                env. Must be a tuple space. If not provided, will infer this to be a
+                Tuple of n individual agents spaces (n=num agents in a group).
+            act_space: Optional action space for the grouped env.
+                Must be a tuple space. If not provided, will infer this to be a Tuple
+                of n individual agents spaces (n=num agents in a group).
+
+        .. testcode::
+            :skipif: True
+
+            from ray.rllib.env.multi_agent_env import MultiAgentEnv
+            class MyMultiAgentEnv(MultiAgentEnv):
+                # define your env here
+                ...
+            env = MyMultiAgentEnv(...)
+            grouped_env = env.with_agent_groups(env, {
+              "group1": ["agent1", "agent2", "agent3"],
+              "group2": ["agent4", "agent5"],
+            })
+
+        """
+
+        from ray.rllib.env.wrappers.group_agents_wrapper import \
+            GroupAgentsWrapper
+        return GroupAgentsWrapper(self, groups, obs_space, act_space)
+
+
+
+For environments with multiple groups, or mixtures of agent groups and individual agents,
+you can use grouping in conjunction with the policy mapping API described in prior sections.
+
+
+
+Third Party Multi-Agent Env APIs#
+Besides RLlib’s own :py:class`~ray.rllib.env.multi_agent_env.MultiAgentEnv` API, you can also use
+various third-party APIs and libraries to implement custom multi-agent envs.
+
+Farama PettingZoo#
+PettingZoo offers a repository of over 50 diverse
+multi-agent environments, directly compatible with RLlib through the built-in
+PettingZooEnv wrapper:
+from pettingzoo.butterfly import pistonball_v6
+
+from ray.rllib.algorithms.ppo import PPOConfig
+from ray.rllib.env.wrappers.pettingzoo_env import PettingZooEnv
+from ray.tune.registry import register_env
+
+register_env(
+    "pistonball",
+    lambda cfg: PettingZooEnv(pistonball_v6.env(num_floors=cfg.get("n_pistons", 20))),
+)
+
+config = (
+    PPOConfig()
+    .environment("pistonball", env_config={"n_pistons": 30})
+)
+
+
+See this example script here
+for an end-to-env example with the water world env
+Also, see here for an example on the pistonball env with RLlib.
+
+
+DeepMind OpenSpiel#
+The OpenSpiel API by DeepMind is a comprehensive framework
+designed for research and development in multi-agent reinforcement learning, game theory, and decision-making.
+The API is directly compatible with RLlib through the built-in
+PettingZooEnv wrapper:
+import pyspiel  # pip install open_spiel
+
+from ray.rllib.algorithms.ppo import PPOConfig
+from ray.rllib.env.wrappers.open_spiel import OpenSpielEnv
+from ray.tune.registry import register_env
+
+register_env(
+    "open_spiel_env",
+    lambda cfg: OpenSpielEnv(pyspiel.load_game("connect_four")),
+)
+
+config = PPOConfig().environment("open_spiel_env")
+
+
+See here for an end-to-end example with the Connect-4 env
+of OpenSpiel trained by an RLlib algorithm, using a self-play strategy.
+
+
+
+Running actual Training Experiments with a MultiAgentEnv#
+If all agents use the same algorithm class to train their policies, configure
+multi-agent training as follows:
+from ray.rllib.algorithm.ppo import PPOConfig
+from ray.rllib.core.rl_module.multi_rl_module import MultiRLModuleSpec
+from ray.rllib.core.rl_module.rl_module import RLModuleSpec
+
+config = (
+    PPOConfig()
+    .environment(env="my_multiagent_env")
+    .multi_agent(
+        policy_mapping_fn=lambda agent_id, episode, **kwargs: (
+            "traffic_light" if agent_id.startswith("traffic_light_")
+            else random.choice(["car1", "car2"])
+        ),
+        algorithm_config_overrides_per_module={
+            "car1": PPOConfig.overrides(gamma=0.85),
+            "car2": PPOConfig.overrides(lr=0.00001),
+        },
+    )
+    .rl_module(
+        rl_module_spec=MultiRLModuleSpec(rl_module_specs={
+            "car1": RLModuleSpec(),
+            "car2": RLModuleSpec(),
+            "traffic_light": RLModuleSpec(),
+        }),
+    )
+)
+
+algo = config.build()
+print(algo.train())
+
+
+To exclude certain policies from being updated, use the config.multi_agent(policies_to_train=[..]) config setting.
+This allows running in multi-agent environments with a mix of non-learning and learning policies:
+def policy_mapping_fn(agent_id, episode, **kwargs):
+    agent_idx = int(agent_id[-1])  # 0 (player1) or 1 (player2)
+    return "learning_policy" if episode.id_ % 2 == agent_idx else "random_policy"
+
+config = (
+    PPOConfig()
+    .environment(env="two_player_game")
+    .multi_agent(
+        policy_mapping_fn=policy_mapping_fn,
+        policies_to_train=["learning_policy"],
+    )
+    .rl_module(
+        rl_module_spec=MultiRLModuleSpec(rl_module_specs={
+            "learning_policy": RLModuleSpec(),
+            "random_policy": RLModuleSpec(rl_module_class=RandomRLModule),
+        }),
+    )
+)
+
+algo = config.build()
+print(algo.train())
+
+
+RLlib will create and route decisions to each policy based on the provided
+policy_mapping_fn. Training statistics for each policy are reported
+separately in the result-dict returned by train().
+The example scripts rock_paper_scissors_heuristic_vs_learned.py
+and rock_paper_scissors_learned_vs_learned.py
+demonstrate competing policies with heuristic and learned strategies.
+
+Scaling to Many MultiAgentEnvs per EnvRunner#
+
+Note
+Unlike for single-agent environments, multi-agent setups are not vectorizable yet.
+The Ray team is working on a solution for this restriction by utilizing
+gymnasium >= 1.x custom vectorization feature.
+
+
+
+Variable-Sharing Between Policies#
+RLlib supports variable-sharing across policies.
+See the PettingZoo parameter sharing example for details.
+
+
+

@@ -1,0 +1,139 @@
+
+
+Ray Core CLI#
+
+Debugging applications#
+This section contains commands for inspecting and debugging the current cluster.
+
+ray stack#
+Take a stack dump of all Python workers on the local machine.
+ray stack [OPTIONS]
+
+
+
+
+ray memory#
+Print object references held in a Ray cluster.
+ray memory [OPTIONS]
+
+
+Options
+
+
+--address <address>#
+Override the address to connect to.
+
+
+
+--group-by <group_by>#
+Group object references by a GroupByType (e.g. NODE_ADDRESS or STACK_TRACE).
+
+Options:
+NODE_ADDRESS | STACK_TRACE
+
+
+
+
+
+--sort-by <sort_by>#
+Sort object references in ascending order by a SortingType (e.g. PID, OBJECT_SIZE, or REFERENCE_TYPE).
+
+Options:
+PID | OBJECT_SIZE | REFERENCE_TYPE
+
+
+
+
+
+--units <units>#
+Specify unit metrics for displaying object sizes (e.g. B, KB, MB, GB).
+
+Options:
+B | KB | MB | GB
+
+
+
+
+
+--no-format#
+Display unformatted results. Defaults to true when terminal width is less than 137 characters.
+
+
+
+--stats-only#
+Display plasma store stats only.
+
+
+
+--num-entries, --n <num_entries>#
+Specify number of sorted entries per group.
+
+
+
+ray timeline#
+Take a Chrome tracing timeline for a Ray cluster.
+ray timeline [OPTIONS]
+
+
+Options
+
+
+--address <address>#
+Override the Ray address to connect to.
+
+
+
+ray status#
+Print cluster status, including autoscaling info.
+ray status [OPTIONS]
+
+
+Options
+
+
+--address <address>#
+Override the address to connect to.
+
+
+
+ray debug#
+Show all active breakpoints and exceptions in the Ray debugger.
+ray debug [OPTIONS]
+
+
+Options
+
+
+--address <address>#
+Override the address to connect to.
+
+
+
+-v, --verbose#
+Shows additional fields in breakpoint selection page.
+
+
+
+
+Usage Stats#
+This section contains commands to enable/disable Ray usage stats.
+
+ray disable-usage-stats#
+Disable usage stats collection.
+This will not affect the current running clusters
+but clusters launched in the future.
+ray disable-usage-stats [OPTIONS]
+
+
+
+
+ray enable-usage-stats#
+Enable usage stats collection.
+This will not affect the current running clusters
+but clusters launched in the future.
+ray enable-usage-stats [OPTIONS]
+
+
+
+
+

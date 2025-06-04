@@ -1,0 +1,22 @@
+
+
+ray.rllib.callbacks.callbacks.RLlibCallback.on_evaluate_end#
+
+
+RLlibCallback.on_evaluate_end(*, algorithm: Algorithm, metrics_logger: MetricsLogger | None = None, evaluation_metrics: dict, **kwargs) → None[source]#
+Runs when the evaluation is done.
+Runs at the end of Algorithm.evaluate().
+
+Parameters:
+
+algorithm – Reference to the algorithm instance.
+metrics_logger – The MetricsLogger object inside the Algorithm. Can be
+used to log custom metrics after the most recent evaluation round.
+evaluation_metrics – Results dict to be returned from algorithm.evaluate().
+You can mutate this object to add additional metrics.
+kwargs – Forward compatibility placeholder.
+
+
+
+
+

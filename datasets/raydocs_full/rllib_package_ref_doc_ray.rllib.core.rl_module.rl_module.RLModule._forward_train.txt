@@ -1,0 +1,13 @@
+
+
+ray.rllib.core.rl_module.rl_module.RLModule._forward_train#
+
+
+RLModule._forward_train(batch: Dict[str, Any], **kwargs) → Dict[str, Any][source]#
+Forward-pass used before the loss computation (training).
+Override this method only, if you need specific behavior and outputs for your
+loss computations. If you have only one generic behavior for all
+phases of training and evaluation, override self._forward() instead.
+By default, this calls the generic self._forward() method.
+
+

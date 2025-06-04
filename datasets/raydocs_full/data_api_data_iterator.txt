@@ -1,0 +1,47 @@
+
+
+DataIterator API#
+
+DataIterator#
+
+
+class ray.data.DataIterator[source]#
+An iterator for reading records from a Dataset.
+For Datasets, each iteration call represents a complete read of all items in the
+Dataset.
+If using Ray Train, each trainer actor should get its own iterator by calling
+ray.train.get_dataset_shard("train").
+Examples
+>>> import ray
+>>> ds = ray.data.range(5)
+>>> ds
+Dataset(num_rows=5, schema={id: int64})
+>>> ds.iterator()
+DataIterator(Dataset(num_rows=5, schema={id: int64}))
+
+
+
+
+
+DataIterator.iter_batches
+Return a batched iterable over the dataset.
+
+DataIterator.iter_rows
+Return a local row iterable over the dataset.
+
+DataIterator.iter_torch_batches
+Return a batched iterable of Torch Tensors over the dataset.
+
+DataIterator.materialize
+Execute and materialize this data iterator into object store memory.
+
+DataIterator.stats
+Returns a string containing execution timing information.
+
+DataIterator.to_tf
+Return a TF Dataset over this dataset.
+
+
+
+
+

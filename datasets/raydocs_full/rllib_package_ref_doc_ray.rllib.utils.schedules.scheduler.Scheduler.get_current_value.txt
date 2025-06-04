@@ -1,0 +1,16 @@
+
+
+ray.rllib.utils.schedules.scheduler.Scheduler.get_current_value#
+
+
+Scheduler.get_current_value() → numpy.array | jnp.ndarray | tf.Tensor | torch.Tensor[source]#
+Returns the current value (as a tensor variable).
+This method should be used in loss functions of other (in-graph) places
+where the current value is needed.
+
+Returns:
+The tensor variable (holding the current value to be used).
+
+
+
+

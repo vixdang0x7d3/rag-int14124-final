@@ -1,0 +1,50 @@
+
+
+Tune Experiment Results (tune.ResultGrid)#
+
+ResultGrid (tune.ResultGrid)#
+
+
+ResultGrid
+A set of Result objects for interacting with Ray Tune results.
+
+
+
+
+
+get_best_result
+Get the best result from all the trials run.
+
+get_dataframe
+Return dataframe of all trials with their configs and reported results.
+
+
+
+
+
+Result (tune.Result)#
+
+
+Result
+The final result of a ML training run or a Tune trial.
+
+
+
+
+
+ExperimentAnalysis (tune.ExperimentAnalysis)#
+
+Note
+An ExperimentAnalysis is the output of the tune.run API.
+It’s now recommended to use Tuner.fit,
+which outputs a ResultGrid object.
+
+
+
+ExperimentAnalysis
+Analyze results from a Ray Train/Tune experiment.
+
+
+
+
+

@@ -1,0 +1,754 @@
+
+
+Cluster Management CLI#
+This section contains commands for managing Ray clusters.
+
+ray start#
+Start Ray processes manually on the local machine.
+ray start [OPTIONS]
+
+
+Options
+
+
+--node-ip-address <node_ip_address>#
+the IP address of this node
+
+
+
+--address <address>#
+the address to use for Ray
+
+
+
+--port <port>#
+the port of the head ray process. If not provided, defaults to 6379; if port is set to 0, we will allocate an available port.
+
+
+
+--object-manager-port <object_manager_port>#
+the port to use for starting the object manager
+
+
+
+--node-manager-port <node_manager_port>#
+the port to use for starting the node manager
+
+
+
+--gcs-server-port <gcs_server_port>#
+Port number for the GCS server.
+
+
+
+--min-worker-port <min_worker_port>#
+the lowest port number that workers will bind on. If not set, random ports will be chosen.
+
+
+
+--max-worker-port <max_worker_port>#
+the highest port number that workers will bind on. If set, ‘–min-worker-port’ must also be set.
+
+
+
+--worker-port-list <worker_port_list>#
+a comma-separated list of open ports for workers to bind on. Overrides ‘–min-worker-port’ and ‘–max-worker-port’.
+
+
+
+--ray-client-server-port <ray_client_server_port>#
+the port number the ray client server binds on, default to 10001, or None if ray[client] is not installed.
+
+
+
+--object-store-memory <object_store_memory>#
+The amount of memory (in bytes) to start the object store with. By default, this is 30% of available system memory capped by the shm size and 200G but can be set higher.
+
+
+
+--num-cpus <num_cpus>#
+the number of CPUs on this node
+
+
+
+--num-gpus <num_gpus>#
+the number of GPUs on this node
+
+
+
+--resources <resources>#
+A JSON serialized dictionary mapping resource name to resource quantity.
+
+
+
+--head#
+provide this argument for the head node
+
+
+
+--include-dashboard <include_dashboard>#
+provide this argument to start the Ray dashboard GUI
+
+
+
+--dashboard-host <dashboard_host>#
+the host to bind the dashboard server to, either localhost (127.0.0.1) or 0.0.0.0 (available from all interfaces). By default, this is 127.0.0.1
+
+
+
+--dashboard-port <dashboard_port>#
+the port to bind the dashboard server to–defaults to 8265
+
+
+
+--dashboard-agent-listen-port <dashboard_agent_listen_port>#
+the port for dashboard agents to listen for http on.
+
+
+
+--dashboard-agent-grpc-port <dashboard_agent_grpc_port>#
+the port for dashboard agents to listen for grpc on.
+
+
+
+--dashboard-grpc-port <dashboard_grpc_port>#
+(Deprecated) No longer used and will be removed in a future version of Ray.
+
+
+
+--runtime-env-agent-port <runtime_env_agent_port>#
+The port for the runtime enviroment agents to listen for http on.
+
+
+
+--block#
+provide this argument to block forever in this command
+
+
+
+--plasma-directory <plasma_directory>#
+object store directory for memory mapped files
+
+
+
+--object-spilling-directory <object_spilling_directory>#
+The path to spill objects to. This path will also be used as the fallback directory when the object store is full of in-use objects and cannot spill.
+
+
+
+--autoscaling-config <autoscaling_config>#
+the file that contains the autoscaling config
+
+
+
+--no-redirect-output#
+do not redirect non-worker stdout and stderr to files
+
+
+
+--plasma-store-socket-name <plasma_store_socket_name>#
+manually specify the socket name of the plasma store
+
+
+
+--raylet-socket-name <raylet_socket_name>#
+manually specify the socket path of the raylet process
+
+
+
+--temp-dir <temp_dir>#
+manually specify the root temporary dir of the Ray process, only works when –head is specified
+
+
+
+--storage <storage>#
+[DEPRECATED] Cluster-wide storage is deprecated and will be removed in a future version of Ray.
+
+
+
+--metrics-export-port <metrics_export_port>#
+the port to use to expose Ray metrics through a Prometheus endpoint.
+
+
+
+--ray-debugger-external#
+Make the Ray debugger available externally to the node. This is only safe to activate if the node is behind a firewall.
+
+
+
+--disable-usage-stats#
+If True, the usage stats collection will be disabled.
+
+
+
+--include-log-monitor <include_log_monitor>#
+If set to True or left unset, a log monitor will start monitoring the log files of all processes on this node and push their contents to GCS. Only one log monitor should be started per physical host to avoid log duplication on the driver process.
+
+
+
+--enable-resource-isolation#
+Enable resource isolation through cgroupv2 by reserving memory and cpu resources for ray system processes. To use, only cgroupv2 (not cgroupv1) must be enabled with read and write permissions for the raylet. Cgroup memory and cpu controllers must also be enabled.
+
+
+
+--system-reserved-cpu <system_reserved_cpu>#
+The amount of cpu cores to reserve for ray system processes. Cores can be fractional i.e. 0.5 means half a cpu core. By default, the min of 20% and 1 core will be reserved.Must be >= 0.5 and < total number of available cores. This option only works if –enable-resource-isolation is set.
+
+
+
+--system-reserved-memory <system_reserved_memory>#
+The amount of memory (in bytes) to reserve for ray system processes. By default, the min of 10% and 25GB plus object_store_memory will be reserved. Must be >= 100MB and system-reserved-memory + object-store-bytes < total available memory This option only works if –enable-resource-isolation is set.
+
+
+
+--log-style <log_style>#
+If ‘pretty’, outputs with formatting and color. If ‘record’, outputs record-style without formatting. ‘auto’ defaults to ‘pretty’, and disables pretty logging if stdin is not a TTY.
+
+Options:
+auto | record | pretty
+
+
+
+
+
+--log-color <log_color>#
+Use color logging. Auto enables color logging if stdout is a TTY.
+
+Options:
+auto | false | true
+
+
+
+
+
+-v, --verbose#
+
+
+
+ray stop#
+Stop Ray processes manually on the local machine.
+ray stop [OPTIONS]
+
+
+Options
+
+
+-f, --force#
+If set, ray will send SIGKILL instead of SIGTERM.
+
+
+
+-g, --grace-period <grace_period>#
+The time in seconds ray waits for processes to be properly terminated. If processes are not terminated within the grace period, they are forcefully terminated after the grace period.
+
+
+
+--log-style <log_style>#
+If ‘pretty’, outputs with formatting and color. If ‘record’, outputs record-style without formatting. ‘auto’ defaults to ‘pretty’, and disables pretty logging if stdin is not a TTY.
+
+Options:
+auto | record | pretty
+
+
+
+
+
+--log-color <log_color>#
+Use color logging. Auto enables color logging if stdout is a TTY.
+
+Options:
+auto | false | true
+
+
+
+
+
+-v, --verbose#
+
+
+
+ray up#
+Create or update a Ray cluster.
+ray up [OPTIONS] CLUSTER_CONFIG_FILE
+
+
+Options
+
+
+--min-workers <min_workers>#
+Override the configured min worker node count for the cluster.
+
+
+
+--max-workers <max_workers>#
+Override the configured max worker node count for the cluster.
+
+
+
+--no-restart#
+Whether to skip restarting Ray services during the update. This avoids interrupting running jobs.
+
+
+
+--restart-only#
+Whether to skip running setup commands and only restart Ray. This cannot be used with ‘no-restart’.
+
+
+
+-y, --yes#
+Don’t ask for confirmation.
+
+
+
+-n, --cluster-name <cluster_name>#
+Override the configured cluster name.
+
+
+
+--no-config-cache#
+Disable the local cluster config cache.
+
+
+
+--redirect-command-output#
+Whether to redirect command output to a file.
+
+
+
+--use-login-shells, --use-normal-shells#
+Ray uses login shells (bash –login -i) to run cluster commands by default. If your workflow is compatible with normal shells, this can be disabled for a better user experience.
+
+
+
+--disable-usage-stats#
+If True, the usage stats collection will be disabled.
+
+
+
+--log-style <log_style>#
+If ‘pretty’, outputs with formatting and color. If ‘record’, outputs record-style without formatting. ‘auto’ defaults to ‘pretty’, and disables pretty logging if stdin is not a TTY.
+
+Options:
+auto | record | pretty
+
+
+
+
+
+--log-color <log_color>#
+Use color logging. Auto enables color logging if stdout is a TTY.
+
+Options:
+auto | false | true
+
+
+
+
+
+-v, --verbose#
+
+Arguments
+
+
+CLUSTER_CONFIG_FILE#
+Required argument
+
+
+
+ray down#
+Tear down a Ray cluster.
+ray down [OPTIONS] CLUSTER_CONFIG_FILE
+
+
+Options
+
+
+-y, --yes#
+Don’t ask for confirmation.
+
+
+
+--workers-only#
+Only destroy the workers.
+
+
+
+-n, --cluster-name <cluster_name>#
+Override the configured cluster name.
+
+
+
+--keep-min-workers#
+Retain the minimal amount of workers specified in the config.
+
+
+
+--log-style <log_style>#
+If ‘pretty’, outputs with formatting and color. If ‘record’, outputs record-style without formatting. ‘auto’ defaults to ‘pretty’, and disables pretty logging if stdin is not a TTY.
+
+Options:
+auto | record | pretty
+
+
+
+
+
+--log-color <log_color>#
+Use color logging. Auto enables color logging if stdout is a TTY.
+
+Options:
+auto | false | true
+
+
+
+
+
+-v, --verbose#
+
+Arguments
+
+
+CLUSTER_CONFIG_FILE#
+Required argument
+
+
+
+ray exec#
+Execute a command via SSH on a Ray cluster.
+ray exec [OPTIONS] CLUSTER_CONFIG_FILE CMD
+
+
+Options
+
+
+--run-env <run_env>#
+Choose whether to execute this command in a container or directly on the cluster head. Only applies when docker is configured in the YAML.
+
+Options:
+auto | host | docker
+
+
+
+
+
+--stop#
+Stop the cluster after the command finishes running.
+
+
+
+--start#
+Start the cluster if needed.
+
+
+
+--screen#
+Run the command in a screen.
+
+
+
+--tmux#
+Run the command in tmux.
+
+
+
+-n, --cluster-name <cluster_name>#
+Override the configured cluster name.
+
+
+
+--no-config-cache#
+Disable the local cluster config cache.
+
+
+
+-p, --port-forward <port_forward>#
+Port to forward. Use this multiple times to forward multiple ports.
+
+
+
+--disable-usage-stats#
+If True, the usage stats collection will be disabled.
+
+
+
+--log-style <log_style>#
+If ‘pretty’, outputs with formatting and color. If ‘record’, outputs record-style without formatting. ‘auto’ defaults to ‘pretty’, and disables pretty logging if stdin is not a TTY.
+
+Options:
+auto | record | pretty
+
+
+
+
+
+--log-color <log_color>#
+Use color logging. Auto enables color logging if stdout is a TTY.
+
+Options:
+auto | false | true
+
+
+
+
+
+-v, --verbose#
+
+Arguments
+
+
+CLUSTER_CONFIG_FILE#
+Required argument
+
+
+
+CMD#
+Required argument
+
+
+
+ray submit#
+Uploads and runs a script on the specified cluster.
+The script is automatically synced to the following location:
+
+os.path.join(“~”, os.path.basename(script))
+
+
+Example:ray submit [CLUSTER.YAML] experiment.py – –smoke-test
+
+
+ray submit [OPTIONS] CLUSTER_CONFIG_FILE SCRIPT [SCRIPT_ARGS]...
+
+
+Options
+
+
+--stop#
+Stop the cluster after the command finishes running.
+
+
+
+--start#
+Start the cluster if needed.
+
+
+
+--screen#
+Run the command in a screen.
+
+
+
+--tmux#
+Run the command in tmux.
+
+
+
+-n, --cluster-name <cluster_name>#
+Override the configured cluster name.
+
+
+
+--no-config-cache#
+Disable the local cluster config cache.
+
+
+
+-p, --port-forward <port_forward>#
+Port to forward. Use this multiple times to forward multiple ports.
+
+
+
+--args <args>#
+(deprecated) Use ‘– –arg1 –arg2’ for script args.
+
+
+
+--disable-usage-stats#
+If True, the usage stats collection will be disabled.
+
+
+
+--extra-screen-args <extra_screen_args>#
+if screen is enabled, add the provided args to it. A useful example usage scenario is passing –extra-screen-args=’-Logfile /full/path/blah_log.txt’ as it redirects screen output also to a custom file
+
+
+
+--log-style <log_style>#
+If ‘pretty’, outputs with formatting and color. If ‘record’, outputs record-style without formatting. ‘auto’ defaults to ‘pretty’, and disables pretty logging if stdin is not a TTY.
+
+Options:
+auto | record | pretty
+
+
+
+
+
+--log-color <log_color>#
+Use color logging. Auto enables color logging if stdout is a TTY.
+
+Options:
+auto | false | true
+
+
+
+
+
+-v, --verbose#
+
+Arguments
+
+
+CLUSTER_CONFIG_FILE#
+Required argument
+
+
+
+SCRIPT#
+Required argument
+
+
+
+SCRIPT_ARGS#
+Optional argument(s)
+
+
+
+ray attach#
+Create or attach to a SSH session to a Ray cluster.
+ray attach [OPTIONS] CLUSTER_CONFIG_FILE
+
+
+Options
+
+
+--start#
+Start the cluster if needed.
+
+
+
+--screen#
+Run the command in screen.
+
+
+
+--tmux#
+Run the command in tmux.
+
+
+
+-n, --cluster-name <cluster_name>#
+Override the configured cluster name.
+
+
+
+--no-config-cache#
+Disable the local cluster config cache.
+
+
+
+-N, --new#
+Force creation of a new screen.
+
+
+
+-p, --port-forward <port_forward>#
+Port to forward. Use this multiple times to forward multiple ports.
+
+
+
+--log-style <log_style>#
+If ‘pretty’, outputs with formatting and color. If ‘record’, outputs record-style without formatting. ‘auto’ defaults to ‘pretty’, and disables pretty logging if stdin is not a TTY.
+
+Options:
+auto | record | pretty
+
+
+
+
+
+--log-color <log_color>#
+Use color logging. Auto enables color logging if stdout is a TTY.
+
+Options:
+auto | false | true
+
+
+
+
+
+-v, --verbose#
+
+Arguments
+
+
+CLUSTER_CONFIG_FILE#
+Required argument
+
+
+
+ray get_head_ip#
+Return the head node IP of a Ray cluster.
+ray get_head_ip [OPTIONS] CLUSTER_CONFIG_FILE
+
+
+Options
+
+
+-n, --cluster-name <cluster_name>#
+Override the configured cluster name.
+
+Arguments
+
+
+CLUSTER_CONFIG_FILE#
+Required argument
+
+
+
+ray monitor#
+Tails the autoscaler logs of a Ray cluster.
+ray monitor [OPTIONS] CLUSTER_CONFIG_FILE
+
+
+Options
+
+
+--lines <lines>#
+Number of lines to tail.
+
+
+
+-n, --cluster-name <cluster_name>#
+Override the configured cluster name.
+
+
+
+--log-style <log_style>#
+If ‘pretty’, outputs with formatting and color. If ‘record’, outputs record-style without formatting. ‘auto’ defaults to ‘pretty’, and disables pretty logging if stdin is not a TTY.
+
+Options:
+auto | record | pretty
+
+
+
+
+
+--log-color <log_color>#
+Use color logging. Auto enables color logging if stdout is a TTY.
+
+Options:
+auto | false | true
+
+
+
+
+
+-v, --verbose#
+
+Arguments
+
+
+CLUSTER_CONFIG_FILE#
+Required argument
+
+
+

@@ -1,0 +1,32 @@
+
+
+ray.rllib.utils.replay_buffers.replay_buffer.StorageUnit#
+
+
+class ray.rllib.utils.replay_buffers.replay_buffer.StorageUnit(value, names=<not given>, *values, module=None, qualname=None, type=None, start=1, boundary=None)[source]#
+Bases: Enum
+Specifies how batches are structured in a ReplayBuffer.
+timesteps: One buffer slot per timestep.
+sequences: One buffer slot per sequence.
+episodes: One buffer slot per episode.
+fragemts: One buffer slot per incoming batch.
+DeveloperAPI: This API may change across minor Ray releases.
+Attributes
+
+
+TIMESTEPS
+
+
+SEQUENCES
+
+
+EPISODES
+
+
+FRAGMENTS
+
+
+
+
+
+

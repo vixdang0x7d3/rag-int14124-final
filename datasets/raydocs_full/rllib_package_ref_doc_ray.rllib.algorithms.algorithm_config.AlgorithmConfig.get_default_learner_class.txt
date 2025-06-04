@@ -1,0 +1,17 @@
+
+
+ray.rllib.algorithms.algorithm_config.AlgorithmConfig.get_default_learner_class#
+
+
+AlgorithmConfig.get_default_learner_class() → Type[Learner] | str[source]#
+Returns the Learner class to use for this algorithm.
+Override this method in the sub-class to return the Learner class type given
+the input framework.
+
+Returns:
+The Learner class to use for this algorithm either as a class type or as
+a string (e.g. “ray.rllib.algorithms.ppo.ppo_learner.PPOLearner”).
+
+
+
+

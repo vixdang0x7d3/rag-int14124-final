@@ -1,0 +1,22 @@
+
+
+ray.rllib.algorithms.algorithm.Algorithm.evaluate#
+
+
+Algorithm.evaluate(parallel_train_future: ThreadPoolExecutor | None = None) → Dict[source]#
+Evaluates current policy under evaluation_config settings.
+
+Parameters:
+parallel_train_future – In case, we are training and avaluating in parallel,
+this arg carries the currently running ThreadPoolExecutor object that
+runs the training iteration. Use parallel_train_future.done() to
+check, whether the parallel training job has completed and
+parallel_train_future.result() to get its return values.
+
+Returns:
+A ResultDict only containing the evaluation results from the current
+iteration.
+
+
+
+

@@ -1,0 +1,59 @@
+
+
+Tune Stopping Mechanisms (tune.stopper)#
+In addition to Trial Schedulers like ASHA, where a number of
+trials are stopped if they perform subpar, Ray Tune also supports custom stopping mechanisms to stop trials early. They can also stop the entire experiment after a condition is met.
+For instance, stopping mechanisms can specify to stop trials when they reached a plateau and the metric
+doesn’t change anymore.
+Ray Tune comes with several stopping mechanisms out of the box. For custom stopping behavior, you can
+inherit from the Stopper class.
+Other stopping behaviors are described in the user guide.
+
+Stopper Interface (tune.Stopper)#
+
+
+Stopper
+Base class for implementing a Tune experiment stopper.
+
+
+
+
+
+Stopper.__call__
+Returns true if the trial should be terminated given the result.
+
+Stopper.stop_all
+Returns true if the experiment should be terminated.
+
+
+
+
+
+Tune Built-in Stoppers#
+
+
+MaximumIterationStopper
+Stop trials after reaching a maximum number of iterations
+
+ExperimentPlateauStopper
+Early stop the experiment when a metric plateaued across trials.
+
+TrialPlateauStopper
+Early stop single trials when they reached a plateau.
+
+TimeoutStopper
+Stops all trials after a certain timeout.
+
+CombinedStopper
+Combine several stoppers via 'OR'.
+
+FunctionStopper
+Provide a custom function to check if trial should be stopped.
+
+NoopStopper
+
+
+
+
+
+

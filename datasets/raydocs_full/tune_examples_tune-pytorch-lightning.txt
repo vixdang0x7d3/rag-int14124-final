@@ -1,0 +1,1022 @@
+
+
+Using PyTorch Lightning with Tune#
+
+
+
+
+PyTorch Lightning is a framework which brings structure into training PyTorch models. It aims to avoid boilerplate code, so you don’t have to write the same training loops all over again when building a new model.
+
+The main abstraction of PyTorch Lightning is the LightningModule class, which should be extended by your application. There is a great post on how to transfer your models from vanilla PyTorch to Lightning.
+The class structure of PyTorch Lightning makes it very easy to define and tune model parameters. This tutorial will show you how to use Tune with Ray Train’s TorchTrainer to find the best set of parameters for your application on the example of training a MNIST classifier. Notably, the LightningModule does not have to be altered at all for this - so you can use it plug and play for your existing models, assuming their parameters are configurable!
+
+Note
+To run this example, you will need to install the following:
+$ pip install -q "ray[tune]" torch torchvision pytorch_lightning
+
+
+
+
+
+PyTorch Lightning classifier for MNIST
+Tuning the model parameters
+
+Configuring the search space
+Selecting a scheduler
+Training with GPUs
+Putting it together
+
+
+More PyTorch Lightning Examples
+
+
+
+PyTorch Lightning classifier for MNIST#
+Let’s first start with the basic PyTorch Lightning implementation of an MNIST classifier. This classifier does not include any tuning code at this point.
+First, we run some imports:
+
+
+import os
+import torch
+import tempfile
+import pytorch_lightning as pl
+import torch.nn.functional as F
+from filelock import FileLock
+from torchmetrics import Accuracy
+from torch.utils.data import DataLoader, random_split
+from torchvision.datasets import MNIST
+from torchvision import transforms
+
+
+
+
+Our example builds on the MNIST example from the blog post we mentioned before. We adapted the original model and dataset definitions into MNISTClassifier and MNISTDataModule.
+
+
+class MNISTClassifier(pl.LightningModule):
+    def __init__(self, config):
+        super(MNISTClassifier, self).__init__()
+        self.accuracy = Accuracy(task="multiclass", num_classes=10, top_k=1)
+        self.layer_1_size = config["layer_1_size"]
+        self.layer_2_size = config["layer_2_size"]
+        self.lr = config["lr"]
+
+        # mnist images are (1, 28, 28) (channels, width, height)
+        self.layer_1 = torch.nn.Linear(28 * 28, self.layer_1_size)
+        self.layer_2 = torch.nn.Linear(self.layer_1_size, self.layer_2_size)
+        self.layer_3 = torch.nn.Linear(self.layer_2_size, 10)
+        self.eval_loss = []
+        self.eval_accuracy = []
+
+    def cross_entropy_loss(self, logits, labels):
+        return F.nll_loss(logits, labels)
+
+    def forward(self, x):
+        batch_size, channels, width, height = x.size()
+        x = x.view(batch_size, -1)
+
+        x = self.layer_1(x)
+        x = torch.relu(x)
+
+        x = self.layer_2(x)
+        x = torch.relu(x)
+
+        x = self.layer_3(x)
+        x = torch.log_softmax(x, dim=1)
+
+        return x
+
+    def training_step(self, train_batch, batch_idx):
+        x, y = train_batch
+        logits = self.forward(x)
+        loss = self.cross_entropy_loss(logits, y)
+        accuracy = self.accuracy(logits, y)
+
+        self.log("ptl/train_loss", loss)
+        self.log("ptl/train_accuracy", accuracy)
+        return loss
+
+    def validation_step(self, val_batch, batch_idx):
+        x, y = val_batch
+        logits = self.forward(x)
+        loss = self.cross_entropy_loss(logits, y)
+        accuracy = self.accuracy(logits, y)
+        self.eval_loss.append(loss)
+        self.eval_accuracy.append(accuracy)
+        return {"val_loss": loss, "val_accuracy": accuracy}
+
+    def on_validation_epoch_end(self):
+        avg_loss = torch.stack(self.eval_loss).mean()
+        avg_acc = torch.stack(self.eval_accuracy).mean()
+        self.log("ptl/val_loss", avg_loss, sync_dist=True)
+        self.log("ptl/val_accuracy", avg_acc, sync_dist=True)
+        self.eval_loss.clear()
+        self.eval_accuracy.clear()
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
+        return optimizer
+
+
+class MNISTDataModule(pl.LightningDataModule):
+    def __init__(self, batch_size=128):
+        super().__init__()
+        self.data_dir = tempfile.mkdtemp()
+        self.batch_size = batch_size
+        self.transform = transforms.Compose(
+            [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
+        )
+
+    def setup(self, stage=None):
+        with FileLock(f"{self.data_dir}.lock"):
+            mnist = MNIST(
+                self.data_dir, train=True, download=True, transform=self.transform
+            )
+            self.mnist_train, self.mnist_val = random_split(mnist, [55000, 5000])
+
+            self.mnist_test = MNIST(
+                self.data_dir, train=False, download=True, transform=self.transform
+            )
+
+    def train_dataloader(self):
+        return DataLoader(self.mnist_train, batch_size=self.batch_size, num_workers=4)
+
+    def val_dataloader(self):
+        return DataLoader(self.mnist_val, batch_size=self.batch_size, num_workers=4)
+
+    def test_dataloader(self):
+        return DataLoader(self.mnist_test, batch_size=self.batch_size, num_workers=4)
+
+
+
+
+
+
+default_config = {
+    "layer_1_size": 128,
+    "layer_2_size": 256,
+    "lr": 1e-3,
+}
+
+
+
+
+Define a training function that creates model, datamodule, and lightning trainer with Ray Train utilities.
+
+
+from ray.train.lightning import (
+    RayDDPStrategy,
+    RayLightningEnvironment,
+    RayTrainReportCallback,
+    prepare_trainer,
+)
+
+
+def train_func(config):
+    dm = MNISTDataModule(batch_size=config["batch_size"])
+    model = MNISTClassifier(config)
+
+    trainer = pl.Trainer(
+        devices="auto",
+        accelerator="auto",
+        strategy=RayDDPStrategy(),
+        callbacks=[RayTrainReportCallback()],
+        plugins=[RayLightningEnvironment()],
+        enable_progress_bar=False,
+    )
+    trainer = prepare_trainer(trainer)
+    trainer.fit(model, datamodule=dm)
+
+
+
+
+
+
+Tuning the model parameters#
+The parameters above should give you a good accuracy of over 90% already. However, we might improve on this simply by changing some of the hyperparameters. For instance, maybe we get an even higher accuracy if we used a smaller learning rate and larger middle layer size.
+Instead of manually loop through all the parameter combinitions, let’s use Tune to systematically try out parameter combinations and find the best performing set.
+First, we need some additional imports:
+
+
+from ray import tune
+from ray.tune.schedulers import ASHAScheduler
+
+
+
+
+
+Configuring the search space#
+Now we configure the parameter search space. We would like to choose between different layer dimensions, learning rate, and batch sizes. The learning rate should be sampled uniformly between 0.0001 and 0.1. The tune.loguniform() function is syntactic sugar to make sampling between these different orders of magnitude easier, specifically we are able to also sample small values. Similarly for tune.choice(), which samples from all the provided options.
+
+
+search_space = {
+    "layer_1_size": tune.choice([32, 64, 128]),
+    "layer_2_size": tune.choice([64, 128, 256]),
+    "lr": tune.loguniform(1e-4, 1e-1),
+    "batch_size": tune.choice([32, 64]),
+}
+
+
+
+
+
+
+Selecting a scheduler#
+In this example, we use an Asynchronous Hyperband
+scheduler. This scheduler decides at each iteration which trials are likely to perform
+badly, and stops these trials. This way we don’t waste any resources on bad hyperparameter
+configurations.
+
+
+# The maximum training epochs
+num_epochs = 5
+
+# Number of samples from parameter space
+num_samples = 10
+
+
+
+
+If you have more resources available, you can modify the above parameters accordingly. e.g. more epochs, more parameter samples.
+
+
+scheduler = ASHAScheduler(max_t=num_epochs, grace_period=1, reduction_factor=2)
+
+
+
+
+
+
+Training with GPUs#
+We can specify the number of resources, including GPUs, that Tune should request for each trial.
+TorchTrainer takes care of environment setup for Distributed Data Parallel training, the model and data will automatically get distributed across GPUs. You only need to set the number of GPUs per worker in ScalingConfig and also set accelerator="auto" in your training function.
+
+
+from ray.train import RunConfig, ScalingConfig, CheckpointConfig
+
+scaling_config = ScalingConfig(
+    num_workers=3, use_gpu=True, resources_per_worker={"CPU": 1, "GPU": 1}
+)
+
+run_config = RunConfig(
+    checkpoint_config=CheckpointConfig(
+        num_to_keep=2,
+        checkpoint_score_attribute="ptl/val_accuracy",
+        checkpoint_score_order="max",
+    ),
+)
+
+
+
+
+
+
+from ray.train.torch import TorchTrainer
+
+# Define a TorchTrainer without hyper-parameters for Tuner
+ray_trainer = TorchTrainer(
+    train_func,
+    scaling_config=scaling_config,
+    run_config=run_config,
+)
+
+
+
+
+
+
+Putting it together#
+Lastly, we need to create a Tuner() object and start Ray Tune with tuner.fit(). The full code looks like this:
+
+
+def tune_mnist_asha(num_samples=10):
+    scheduler = ASHAScheduler(max_t=num_epochs, grace_period=1, reduction_factor=2)
+
+    tuner = tune.Tuner(
+        ray_trainer,
+        param_space={"train_loop_config": search_space},
+        tune_config=tune.TuneConfig(
+            metric="ptl/val_accuracy",
+            mode="max",
+            num_samples=num_samples,
+            scheduler=scheduler,
+        ),
+    )
+    return tuner.fit()
+
+
+results = tune_mnist_asha(num_samples=num_samples)
+
+
+
+
+
+Show code cell output
+Hide code cell output
+
+
+
+
+
+Tune Status
+
+
+Current time:2023-09-07 14:03:52
+Running for: 00:05:13.92        
+Memory:      20.5/186.6 GiB     
+
+
+
+
+
+System Info
+      Using AsyncHyperBand: num_stopped=10Bracket: Iter 4.000: 0.9709362387657166 | Iter 2.000: 0.9617255330085754 | Iter 1.000: 0.9477165043354034Logical resource usage: 4.0/48 CPUs, 3.0/4 GPUs (0.0/1.0 accelerator_type:None)
+    
+
+
+
+Trial Status
+
+
+Trial name              status    loc                train_loop_config/ba
+tch_size    train_loop_config/la
+yer_1_size    train_loop_config/la
+yer_2_size  train_loop_config/lr  iter  total time (s)  ptl/train_loss  ptl/train_accuracy  ptl/val_loss
+
+
+TorchTrainer_5144b_00000TERMINATED10.0.0.84:63990 32 64256           0.0316233       5         29.3336      0.973613              0.766667     0.580943 
+TorchTrainer_5144b_00001TERMINATED10.0.0.84:71294 64128 64           0.0839278       1         12.2275      2.19514               0.266667     1.56644  
+TorchTrainer_5144b_00002TERMINATED10.0.0.84:73540 32 64256           0.000233034     5         29.1314      0.146903              0.933333     0.114229 
+TorchTrainer_5144b_00003TERMINATED10.0.0.84:80840 64128 64           0.00109259      5         21.6534      0.0474913             0.966667     0.0714878
+TorchTrainer_5144b_00004TERMINATED10.0.0.84:88077 32 32128           0.00114083      5         29.6367      0.0990443             0.966667     0.0891999
+TorchTrainer_5144b_00005TERMINATED10.0.0.84:95388 32 64 64           0.00924264      4         25.7089      0.0349707             1            0.153937 
+TorchTrainer_5144b_00006TERMINATED10.0.0.84:10143432128256           0.00325671      5         29.5763      0.0708755             0.966667     0.0820903
+TorchTrainer_5144b_00007TERMINATED10.0.0.84:10875032 32 64           0.000123766     1         13.9326      0.27464               0.966667     0.401102 
+TorchTrainer_5144b_00008TERMINATED10.0.0.84:11101964128256           0.00371762      5         21.8337      0.00108961            1            0.0579874
+TorchTrainer_5144b_00009TERMINATED10.0.0.84:11825532128128           0.00397956      5         29.8334      0.00940019            1            0.0685028
+
+
+
+
+
+(TrainTrainable pid=63990) 2023-09-07 13:58:43.025064: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(TrainTrainable pid=63990) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(TrainTrainable pid=63990) 2023-09-07 13:58:43.165187: I tensorflow/core/util/port.cc:104] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+(TrainTrainable pid=63990) 2023-09-07 13:58:43.907088: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer.so.7'; dlerror: libnvinfer.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(TrainTrainable pid=63990) 2023-09-07 13:58:43.907153: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(TrainTrainable pid=63990) 2023-09-07 13:58:43.907160: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+(TorchTrainer pid=63990) Starting distributed worker processes: ['64101 (10.0.0.84)', '64102 (10.0.0.84)', '64103 (10.0.0.84)']
+(RayTrainWorker pid=64101) Setting up process group for: env:// [rank=0, world_size=3]
+(RayTrainWorker pid=64102) 2023-09-07 13:58:50.419714: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(RayTrainWorker pid=64102) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=64101) 2023-09-07 13:58:50.419718: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(RayTrainWorker pid=64101) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=64102) 2023-09-07 13:58:50.555450: I tensorflow/core/util/port.cc:104] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+(RayTrainWorker pid=64102) 2023-09-07 13:58:51.317522: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer.so.7'; dlerror: libnvinfer.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(RayTrainWorker pid=64102) 2023-09-07 13:58:51.317610: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(RayTrainWorker pid=64102) 2023-09-07 13:58:51.317618: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+(RayTrainWorker pid=64102) Missing logger folder: /home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00000_0_batch_size=32,layer_1_size=64,layer_2_size=256,lr=0.0316_2023-09-07_13-58-38/lightning_logs
+(RayTrainWorker pid=64101) /home/ray/anaconda3/lib/python3.9/site-packages/pytorch_lightning/loops/utilities.py:92: PossibleUserWarning: `max_epochs` was not set. Setting it to 1000 epochs. To train without an epoch limit, set `max_epochs=-1`.
+(RayTrainWorker pid=64101)   rank_zero_warn(
+(RayTrainWorker pid=64101) GPU available: True, used: True
+(RayTrainWorker pid=64101) TPU available: False, using: 0 TPU cores
+(RayTrainWorker pid=64101) IPU available: False, using: 0 IPUs
+(RayTrainWorker pid=64101) HPU available: False, using: 0 HPUs
+
+
+(RayTrainWorker pid=64102) Downloading http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz
+(RayTrainWorker pid=64102) Downloading http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz to /tmp/tmpydcy4598/MNIST/raw/train-images-idx3-ubyte.gz
+
+
+100%|██████████| 9912422/9912422 [00:00<00:00, 120812916.07it/s]
+100%|██████████| 9912422/9912422 [00:00<00:00, 101305832.98it/s]
+
+
+(RayTrainWorker pid=64102) Extracting /tmp/tmpydcy4598/MNIST/raw/train-images-idx3-ubyte.gz to /tmp/tmpydcy4598/MNIST/raw
+(RayTrainWorker pid=64102) 
+
+
+(RayTrainWorker pid=64102) LOCAL_RANK: 1 - CUDA_VISIBLE_DEVICES: [0,1,2]
+(RayTrainWorker pid=64101) 
+(RayTrainWorker pid=64101)   | Name     | Type               | Params
+(RayTrainWorker pid=64101) ------------------------------------------------
+(RayTrainWorker pid=64101) 0 | accuracy | MulticlassAccuracy | 0     
+(RayTrainWorker pid=64101) 1 | layer_1  | Linear             | 50.2 K
+(RayTrainWorker pid=64101) 2 | layer_2  | Linear             | 16.6 K
+(RayTrainWorker pid=64101) 3 | layer_3  | Linear             | 2.6 K 
+(RayTrainWorker pid=64101) ------------------------------------------------
+(RayTrainWorker pid=64101) 69.5 K    Trainable params
+(RayTrainWorker pid=64101) 0         Non-trainable params
+(RayTrainWorker pid=64101) 69.5 K    Total params
+(RayTrainWorker pid=64101) 0.278     Total estimated model params size (MB)
+(RayTrainWorker pid=64102) [W reducer.cpp:1300] Warning: find_unused_parameters=True was specified in DDP constructor, but did not find any unused parameters in the forward pass. This flag results in an extra traversal of the autograd graph every iteration,  which can adversely affect performance. If your model indeed never has any unused parameters in the forward pass, consider turning this flag off. Note that this warning may be a false positive if your model has flow control causing later iterations to have unused parameters. (function operator())
+
+
+(autoscaler +7m33s) [autoscaler] Current infeasible resource requests: {"resourcesBundle":{"bundle_group_289661bddaad4820732f117e33d702000000":0.001}}, {"resourcesBundle":{"bundle_group_d14ed93ffcb267f77984fc5e097c02000000":0.001}}, {"resourcesBundle":{"bundle_group_9d0f0584af89d9185ad87362359402000000":0.001}}, {"resourcesBundle":{"bundle_group_b8fdebe2246b003d6e5d0451465b02000000":0.001}}, {"resourcesBundle":{"bundle_group_35d0a11b5707ef020363a907e5fc02000000":0.001}}, {"resourcesBundle":{"bundle_group_ba2b3c448809cad351fc7dc545a402000000":0.001}}, {"resourcesBundle":{"bundle_group_05283c0cbfbb775ad68aacf47bc702000000":0.001}}, {"resourcesBundle":{"bundle_group_2cd0e3d931d1e356a1ab0f3afb6a02000000":0.001}}, {"resourcesBundle":{"bundle_group_14f2bd9329dfcde35c77e8474b0f02000000":0.001}}
+
+
+(RayTrainWorker pid=64102) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00000_0_batch_size=32,layer_1_size=64,layer_2_size=256,lr=0.0316_2023-09-07_13-58-38/checkpoint_000000)
+(RayTrainWorker pid=64103) 2023-09-07 13:58:50.448640: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(RayTrainWorker pid=64103) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=64101) 2023-09-07 13:58:50.555450: I tensorflow/core/util/port.cc:104] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`. [repeated 2x across cluster]
+(RayTrainWorker pid=64101) 2023-09-07 13:58:51.317611: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64 [repeated 4x across cluster]
+(RayTrainWorker pid=64101) 2023-09-07 13:58:51.317618: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly. [repeated 2x across cluster]
+(RayTrainWorker pid=64101) Missing logger folder: /home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00000_0_batch_size=32,layer_1_size=64,layer_2_size=256,lr=0.0316_2023-09-07_13-58-38/lightning_logs [repeated 2x across cluster]
+100%|██████████| 4542/4542 [00:00<00:00, 42147187.54it/s] [repeated 11x across cluster]
+(RayTrainWorker pid=64101) LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0,1,2] [repeated 2x across cluster]
+(RayTrainWorker pid=64101) [W reducer.cpp:1300] Warning: find_unused_parameters=True was specified in DDP constructor, but did not find any unused parameters in the forward pass. This flag results in an extra traversal of the autograd graph every iteration,  which can adversely affect performance. If your model indeed never has any unused parameters in the forward pass, consider turning this flag off. Note that this warning may be a false positive if your model has flow control causing later iterations to have unused parameters. (function operator()) [repeated 2x across cluster]
+(RayTrainWorker pid=64102) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00000_0_batch_size=32,layer_1_size=64,layer_2_size=256,lr=0.0316_2023-09-07_13-58-38/checkpoint_000002) [repeated 6x across cluster]
+(RayTrainWorker pid=64102) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00000_0_batch_size=32,layer_1_size=64,layer_2_size=256,lr=0.0316_2023-09-07_13-58-38/checkpoint_000004) [repeated 6x across cluster]
+(TrainTrainable pid=71294) 2023-09-07 13:59:19.340985: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(TrainTrainable pid=71294) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=64101) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00000_0_batch_size=32,layer_1_size=64,layer_2_size=256,lr=0.0316_2023-09-07_13-58-38/checkpoint_000004) [repeated 2x across cluster]
+(TrainTrainable pid=71294) 2023-09-07 13:59:19.479380: I tensorflow/core/util/port.cc:104] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+(TrainTrainable pid=71294) 2023-09-07 13:59:20.227539: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer.so.7'; dlerror: libnvinfer.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(TrainTrainable pid=71294) 2023-09-07 13:59:20.227616: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(TrainTrainable pid=71294) 2023-09-07 13:59:20.227623: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+(TorchTrainer pid=71294) Starting distributed worker processes: ['71407 (10.0.0.84)', '71408 (10.0.0.84)', '71409 (10.0.0.84)']
+(RayTrainWorker pid=71407) Setting up process group for: env:// [rank=0, world_size=3]
+(RayTrainWorker pid=71408) 2023-09-07 13:59:26.852631: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(RayTrainWorker pid=71408) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=71407) 2023-09-07 13:59:26.854221: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(RayTrainWorker pid=71407) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=71408) 2023-09-07 13:59:26.986178: I tensorflow/core/util/port.cc:104] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+(RayTrainWorker pid=71408) 2023-09-07 13:59:27.752593: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer.so.7'; dlerror: libnvinfer.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(RayTrainWorker pid=71408) 2023-09-07 13:59:27.752672: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(RayTrainWorker pid=71408) 2023-09-07 13:59:27.752679: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+(RayTrainWorker pid=71407) /home/ray/anaconda3/lib/python3.9/site-packages/pytorch_lightning/loops/utilities.py:92: PossibleUserWarning: `max_epochs` was not set. Setting it to 1000 epochs. To train without an epoch limit, set `max_epochs=-1`.
+(RayTrainWorker pid=71407)   rank_zero_warn(
+(RayTrainWorker pid=71407) GPU available: True, used: True
+(RayTrainWorker pid=71407) TPU available: False, using: 0 TPU cores
+(RayTrainWorker pid=71407) IPU available: False, using: 0 IPUs
+(RayTrainWorker pid=71407) HPU available: False, using: 0 HPUs
+(RayTrainWorker pid=71408) Missing logger folder: /home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00001_1_batch_size=64,layer_1_size=128,layer_2_size=64,lr=0.0839_2023-09-07_13-58-38/lightning_logs
+
+
+(RayTrainWorker pid=71408) Downloading http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz [repeated 12x across cluster]
+(RayTrainWorker pid=64101) Downloading http://yann.lecun.com/exdb/mnist/t10k-labels-idx1-ubyte.gz to /tmp/tmpt8k8jglf/MNIST/raw/t10k-labels-idx1-ubyte.gz [repeated 11x across cluster]
+(RayTrainWorker pid=64101) Extracting /tmp/tmpt8k8jglf/MNIST/raw/t10k-labels-idx1-ubyte.gz to /tmp/tmpt8k8jglf/MNIST/raw [repeated 11x across cluster]
+(RayTrainWorker pid=64101)  [repeated 11x across cluster]
+
+
+  0%|          | 0/9912422 [00:00<?, ?it/s]
+100%|██████████| 9912422/9912422 [00:00<00:00, 100664900.56it/s]
+100%|██████████| 9912422/9912422 [00:00<00:00, 86590268.41it/s]
+(RayTrainWorker pid=71408) LOCAL_RANK: 1 - CUDA_VISIBLE_DEVICES: [0,1,2]
+(RayTrainWorker pid=71407)   | Name     | Type               | Params
+(RayTrainWorker pid=71407) ------------------------------------------------
+(RayTrainWorker pid=71407) 0 | accuracy | MulticlassAccuracy | 0     
+(RayTrainWorker pid=71407) 1 | layer_1  | Linear             | 100 K 
+(RayTrainWorker pid=71407) 2 | layer_2  | Linear             | 8.3 K 
+(RayTrainWorker pid=71407) 3 | layer_3  | Linear             | 650   
+(RayTrainWorker pid=71407) ------------------------------------------------
+(RayTrainWorker pid=71407) 109 K     Trainable params
+(RayTrainWorker pid=71407) 0         Non-trainable params
+(RayTrainWorker pid=71407) 109 K     Total params
+(RayTrainWorker pid=71407) 0.438     Total estimated model params size (MB)
+(RayTrainWorker pid=71407) [W reducer.cpp:1300] Warning: find_unused_parameters=True was specified in DDP constructor, but did not find any unused parameters in the forward pass. This flag results in an extra traversal of the autograd graph every iteration,  which can adversely affect performance. If your model indeed never has any unused parameters in the forward pass, consider turning this flag off. Note that this warning may be a false positive if your model has flow control causing later iterations to have unused parameters. (function operator())
+(RayTrainWorker pid=71408) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00001_1_batch_size=64,layer_1_size=128,layer_2_size=64,lr=0.0839_2023-09-07_13-58-38/checkpoint_000000)
+(RayTrainWorker pid=71409) 2023-09-07 13:59:26.851614: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(RayTrainWorker pid=71409) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=71409) 2023-09-07 13:59:26.986178: I tensorflow/core/util/port.cc:104] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`. [repeated 2x across cluster]
+(RayTrainWorker pid=71409) 2023-09-07 13:59:27.752674: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64 [repeated 4x across cluster]
+(RayTrainWorker pid=71409) 2023-09-07 13:59:27.752681: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly. [repeated 2x across cluster]
+(TrainTrainable pid=73540) 2023-09-07 13:59:38.336002: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(TrainTrainable pid=73540) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=71409) Missing logger folder: /home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00001_1_batch_size=64,layer_1_size=128,layer_2_size=64,lr=0.0839_2023-09-07_13-58-38/lightning_logs [repeated 2x across cluster]
+100%|██████████| 4542/4542 [00:00<00:00, 23461242.33it/s] [repeated 11x across cluster]
+(RayTrainWorker pid=71407)  [repeated 5x across cluster]
+(RayTrainWorker pid=71409) LOCAL_RANK: 2 - CUDA_VISIBLE_DEVICES: [0,1,2] [repeated 2x across cluster]
+(RayTrainWorker pid=71408) [W reducer.cpp:1300] Warning: find_unused_parameters=True was specified in DDP constructor, but did not find any unused parameters in the forward pass. This flag results in an extra traversal of the autograd graph every iteration,  which can adversely affect performance. If your model indeed never has any unused parameters in the forward pass, consider turning this flag off. Note that this warning may be a false positive if your model has flow control causing later iterations to have unused parameters. (function operator()) [repeated 2x across cluster]
+(RayTrainWorker pid=71409) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00001_1_batch_size=64,layer_1_size=128,layer_2_size=64,lr=0.0839_2023-09-07_13-58-38/checkpoint_000000) [repeated 2x across cluster]
+(TrainTrainable pid=73540) 2023-09-07 13:59:38.476177: I tensorflow/core/util/port.cc:104] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+(TrainTrainable pid=73540) 2023-09-07 13:59:39.222782: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64 [repeated 2x across cluster]
+(TrainTrainable pid=73540) 2023-09-07 13:59:39.222788: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+(TorchTrainer pid=73540) Starting distributed worker processes: ['73647 (10.0.0.84)', '73648 (10.0.0.84)', '73649 (10.0.0.84)']
+(RayTrainWorker pid=73647) Setting up process group for: env:// [rank=0, world_size=3]
+(RayTrainWorker pid=73648) 2023-09-07 13:59:45.901023: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(RayTrainWorker pid=73648) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=73648) 2023-09-07 13:59:46.041760: I tensorflow/core/util/port.cc:104] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+(RayTrainWorker pid=73649) 2023-09-07 13:59:45.964229: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(RayTrainWorker pid=73649) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=73648) 2023-09-07 13:59:46.807096: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer.so.7'; dlerror: libnvinfer.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(RayTrainWorker pid=73648) 2023-09-07 13:59:46.807173: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(RayTrainWorker pid=73648) 2023-09-07 13:59:46.807180: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+(RayTrainWorker pid=73648) Missing logger folder: /home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00002_2_batch_size=32,layer_1_size=64,layer_2_size=256,lr=0.0002_2023-09-07_13-58-38/lightning_logs
+(RayTrainWorker pid=73647) /home/ray/anaconda3/lib/python3.9/site-packages/pytorch_lightning/loops/utilities.py:92: PossibleUserWarning: `max_epochs` was not set. Setting it to 1000 epochs. To train without an epoch limit, set `max_epochs=-1`.
+(RayTrainWorker pid=73647)   rank_zero_warn(
+(RayTrainWorker pid=73647) GPU available: True, used: True
+(RayTrainWorker pid=73647) TPU available: False, using: 0 TPU cores
+(RayTrainWorker pid=73647) IPU available: False, using: 0 IPUs
+(RayTrainWorker pid=73647) HPU available: False, using: 0 HPUs
+  0%|          | 0/9912422 [00:00<?, ?it/s]
+100%|██████████| 9912422/9912422 [00:00<00:00, 88411180.44it/s]
+ 60%|█████▉    | 5931008/9912422 [00:00<00:00, 57942493.14it/s]
+
+
+(RayTrainWorker pid=73648) Downloading http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz [repeated 12x across cluster]
+(RayTrainWorker pid=73648) Downloading http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz to /tmp/tmpcy67mfe_/MNIST/raw/train-images-idx3-ubyte.gz [repeated 13x across cluster]
+(RayTrainWorker pid=71409) Extracting /tmp/tmpmxchio03/MNIST/raw/t10k-labels-idx1-ubyte.gz to /tmp/tmpmxchio03/MNIST/raw [repeated 12x across cluster]
+(RayTrainWorker pid=71409)  [repeated 12x across cluster]
+
+
+(RayTrainWorker pid=73648) LOCAL_RANK: 1 - CUDA_VISIBLE_DEVICES: [0,1,2]
+(RayTrainWorker pid=73647)   | Name     | Type               | Params
+(RayTrainWorker pid=73647) ------------------------------------------------
+(RayTrainWorker pid=73647) 0 | accuracy | MulticlassAccuracy | 0     
+(RayTrainWorker pid=73647) 1 | layer_1  | Linear             | 50.2 K
+(RayTrainWorker pid=73647) 2 | layer_2  | Linear             | 16.6 K
+(RayTrainWorker pid=73647) 3 | layer_3  | Linear             | 2.6 K 
+(RayTrainWorker pid=73647) ------------------------------------------------
+(RayTrainWorker pid=73647) 69.5 K    Trainable params
+(RayTrainWorker pid=73647) 0         Non-trainable params
+(RayTrainWorker pid=73647) 69.5 K    Total params
+(RayTrainWorker pid=73647) 0.278     Total estimated model params size (MB)
+(RayTrainWorker pid=73648) [W reducer.cpp:1300] Warning: find_unused_parameters=True was specified in DDP constructor, but did not find any unused parameters in the forward pass. This flag results in an extra traversal of the autograd graph every iteration,  which can adversely affect performance. If your model indeed never has any unused parameters in the forward pass, consider turning this flag off. Note that this warning may be a false positive if your model has flow control causing later iterations to have unused parameters. (function operator())
+(RayTrainWorker pid=73648) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00002_2_batch_size=32,layer_1_size=64,layer_2_size=256,lr=0.0002_2023-09-07_13-58-38/checkpoint_000000)
+(RayTrainWorker pid=73647) 2023-09-07 13:59:46.102948: I tensorflow/core/util/port.cc:104] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`. [repeated 2x across cluster]
+(RayTrainWorker pid=73647) 2023-09-07 13:59:45.969366: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(RayTrainWorker pid=73647) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=73647) 2023-09-07 13:59:46.898646: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64 [repeated 4x across cluster]
+(RayTrainWorker pid=73647) 2023-09-07 13:59:46.898654: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly. [repeated 2x across cluster]
+(RayTrainWorker pid=73647) Missing logger folder: /home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00002_2_batch_size=32,layer_1_size=64,layer_2_size=256,lr=0.0002_2023-09-07_13-58-38/lightning_logs [repeated 2x across cluster]
+100%|██████████| 4542/4542 [00:00<00:00, 45575427.67it/s] [repeated 11x across cluster]
+(RayTrainWorker pid=73647)  [repeated 4x across cluster]
+(RayTrainWorker pid=73647) LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0,1,2] [repeated 2x across cluster]
+(RayTrainWorker pid=73647) [W reducer.cpp:1300] Warning: find_unused_parameters=True was specified in DDP constructor, but did not find any unused parameters in the forward pass. This flag results in an extra traversal of the autograd graph every iteration,  which can adversely affect performance. If your model indeed never has any unused parameters in the forward pass, consider turning this flag off. Note that this warning may be a false positive if your model has flow control causing later iterations to have unused parameters. (function operator()) [repeated 2x across cluster]
+(RayTrainWorker pid=73648) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00002_2_batch_size=32,layer_1_size=64,layer_2_size=256,lr=0.0002_2023-09-07_13-58-38/checkpoint_000002) [repeated 6x across cluster]
+(RayTrainWorker pid=73648) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00002_2_batch_size=32,layer_1_size=64,layer_2_size=256,lr=0.0002_2023-09-07_13-58-38/checkpoint_000004) [repeated 6x across cluster]
+(TrainTrainable pid=80840) 2023-09-07 14:00:14.333330: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(TrainTrainable pid=80840) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(TrainTrainable pid=80840) 2023-09-07 14:00:14.472277: I tensorflow/core/util/port.cc:104] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+(RayTrainWorker pid=73647) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00002_2_batch_size=32,layer_1_size=64,layer_2_size=256,lr=0.0002_2023-09-07_13-58-38/checkpoint_000004) [repeated 2x across cluster]
+(TrainTrainable pid=80840) 2023-09-07 14:00:15.216259: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer.so.7'; dlerror: libnvinfer.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(TrainTrainable pid=80840) 2023-09-07 14:00:15.216329: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(TrainTrainable pid=80840) 2023-09-07 14:00:15.216336: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+(TorchTrainer pid=80840) Starting distributed worker processes: ['80950 (10.0.0.84)', '80951 (10.0.0.84)', '80952 (10.0.0.84)']
+(RayTrainWorker pid=80950) Setting up process group for: env:// [rank=0, world_size=3]
+(RayTrainWorker pid=80950) 2023-09-07 14:00:21.817341: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(RayTrainWorker pid=80950) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=80951) 2023-09-07 14:00:21.817340: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(RayTrainWorker pid=80951) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=80950) 2023-09-07 14:00:21.952950: I tensorflow/core/util/port.cc:104] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+(RayTrainWorker pid=80950) 2023-09-07 14:00:22.721445: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer.so.7'; dlerror: libnvinfer.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(RayTrainWorker pid=80950) 2023-09-07 14:00:22.721524: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(RayTrainWorker pid=80950) 2023-09-07 14:00:22.721531: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+(RayTrainWorker pid=80950) /home/ray/anaconda3/lib/python3.9/site-packages/pytorch_lightning/loops/utilities.py:92: PossibleUserWarning: `max_epochs` was not set. Setting it to 1000 epochs. To train without an epoch limit, set `max_epochs=-1`.
+(RayTrainWorker pid=80950)   rank_zero_warn(
+(RayTrainWorker pid=80950) GPU available: True, used: True
+(RayTrainWorker pid=80950) TPU available: False, using: 0 TPU cores
+(RayTrainWorker pid=80950) IPU available: False, using: 0 IPUs
+(RayTrainWorker pid=80950) HPU available: False, using: 0 HPUs
+(RayTrainWorker pid=80950) Missing logger folder: /home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00003_3_batch_size=64,layer_1_size=128,layer_2_size=64,lr=0.0011_2023-09-07_13-58-38/lightning_logs
+
+
+(RayTrainWorker pid=80950) Downloading http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz [repeated 12x across cluster]
+(RayTrainWorker pid=80950) Downloading http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz to /tmp/tmpdj6sv23q/MNIST/raw/train-images-idx3-ubyte.gz [repeated 12x across cluster]
+(RayTrainWorker pid=73647) Extracting /tmp/tmpjm0jv6rr/MNIST/raw/t10k-labels-idx1-ubyte.gz to /tmp/tmpjm0jv6rr/MNIST/raw [repeated 12x across cluster]
+(RayTrainWorker pid=73647)  [repeated 12x across cluster]
+
+
+100%|██████████| 9912422/9912422 [00:00<00:00, 120421348.01it/s]
+100%|██████████| 9912422/9912422 [00:00<00:00, 111998101.50it/s]
+(RayTrainWorker pid=80950) LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0,1,2]
+(RayTrainWorker pid=80950)   | Name     | Type               | Params
+(RayTrainWorker pid=80950) ------------------------------------------------
+(RayTrainWorker pid=80950) 0 | accuracy | MulticlassAccuracy | 0     
+(RayTrainWorker pid=80950) 1 | layer_1  | Linear             | 100 K 
+(RayTrainWorker pid=80950) 2 | layer_2  | Linear             | 8.3 K 
+(RayTrainWorker pid=80950) 3 | layer_3  | Linear             | 650   
+(RayTrainWorker pid=80950) ------------------------------------------------
+(RayTrainWorker pid=80950) 109 K     Trainable params
+(RayTrainWorker pid=80950) 0         Non-trainable params
+(RayTrainWorker pid=80950) 109 K     Total params
+(RayTrainWorker pid=80950) 0.438     Total estimated model params size (MB)
+(RayTrainWorker pid=80950) [W reducer.cpp:1300] Warning: find_unused_parameters=True was specified in DDP constructor, but did not find any unused parameters in the forward pass. This flag results in an extra traversal of the autograd graph every iteration,  which can adversely affect performance. If your model indeed never has any unused parameters in the forward pass, consider turning this flag off. Note that this warning may be a false positive if your model has flow control causing later iterations to have unused parameters. (function operator())
+(RayTrainWorker pid=80950) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00003_3_batch_size=64,layer_1_size=128,layer_2_size=64,lr=0.0011_2023-09-07_13-58-38/checkpoint_000000)
+(RayTrainWorker pid=80952) 2023-09-07 14:00:21.817339: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(RayTrainWorker pid=80952) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=80952) 2023-09-07 14:00:21.952959: I tensorflow/core/util/port.cc:104] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`. [repeated 2x across cluster]
+(RayTrainWorker pid=80952) 2023-09-07 14:00:22.721494: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64 [repeated 4x across cluster]
+(RayTrainWorker pid=80952) 2023-09-07 14:00:22.721502: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly. [repeated 2x across cluster]
+(RayTrainWorker pid=80952) Missing logger folder: /home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00003_3_batch_size=64,layer_1_size=128,layer_2_size=64,lr=0.0011_2023-09-07_13-58-38/lightning_logs [repeated 2x across cluster]
+100%|██████████| 4542/4542 [00:00<00:00, 39279440.76it/s] [repeated 11x across cluster]
+(RayTrainWorker pid=80950) 
+(RayTrainWorker pid=80952) LOCAL_RANK: 2 - CUDA_VISIBLE_DEVICES: [0,1,2] [repeated 2x across cluster]
+(RayTrainWorker pid=80952) [W reducer.cpp:1300] Warning: find_unused_parameters=True was specified in DDP constructor, but did not find any unused parameters in the forward pass. This flag results in an extra traversal of the autograd graph every iteration,  which can adversely affect performance. If your model indeed never has any unused parameters in the forward pass, consider turning this flag off. Note that this warning may be a false positive if your model has flow control causing later iterations to have unused parameters. (function operator()) [repeated 2x across cluster]
+(RayTrainWorker pid=80950) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00003_3_batch_size=64,layer_1_size=128,layer_2_size=64,lr=0.0011_2023-09-07_13-58-38/checkpoint_000003) [repeated 9x across cluster]
+(TrainTrainable pid=88077) 2023-09-07 14:00:43.334099: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(TrainTrainable pid=88077) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=80952) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00003_3_batch_size=64,layer_1_size=128,layer_2_size=64,lr=0.0011_2023-09-07_13-58-38/checkpoint_000004) [repeated 5x across cluster]
+(TrainTrainable pid=88077) 2023-09-07 14:00:43.474522: I tensorflow/core/util/port.cc:104] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+(TrainTrainable pid=88077) 2023-09-07 14:00:44.217911: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer.so.7'; dlerror: libnvinfer.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(TrainTrainable pid=88077) 2023-09-07 14:00:44.217986: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(TrainTrainable pid=88077) 2023-09-07 14:00:44.217994: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+(TorchTrainer pid=88077) Starting distributed worker processes: ['88184 (10.0.0.84)', '88185 (10.0.0.84)', '88186 (10.0.0.84)']
+(RayTrainWorker pid=88184) Setting up process group for: env:// [rank=0, world_size=3]
+(RayTrainWorker pid=88186) 2023-09-07 14:00:50.980950: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(RayTrainWorker pid=88186) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=88185) 2023-09-07 14:00:50.969448: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(RayTrainWorker pid=88185) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=88186) 2023-09-07 14:00:51.106653: I tensorflow/core/util/port.cc:104] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+(RayTrainWorker pid=88186) 2023-09-07 14:00:51.878087: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer.so.7'; dlerror: libnvinfer.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(RayTrainWorker pid=88186) 2023-09-07 14:00:51.878157: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(RayTrainWorker pid=88186) 2023-09-07 14:00:51.878165: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+(RayTrainWorker pid=88186) Missing logger folder: /home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00004_4_batch_size=32,layer_1_size=32,layer_2_size=128,lr=0.0011_2023-09-07_13-58-38/lightning_logs
+(RayTrainWorker pid=88184) /home/ray/anaconda3/lib/python3.9/site-packages/pytorch_lightning/loops/utilities.py:92: PossibleUserWarning: `max_epochs` was not set. Setting it to 1000 epochs. To train without an epoch limit, set `max_epochs=-1`.
+(RayTrainWorker pid=88184)   rank_zero_warn(
+(RayTrainWorker pid=88184) GPU available: True, used: True
+(RayTrainWorker pid=88184) TPU available: False, using: 0 TPU cores
+(RayTrainWorker pid=88184) IPU available: False, using: 0 IPUs
+(RayTrainWorker pid=88184) HPU available: False, using: 0 HPUs
+
+
+(RayTrainWorker pid=88186) Downloading http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz [repeated 12x across cluster]
+(RayTrainWorker pid=88186) Downloading http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz to /tmp/tmpd1qkzrfz/MNIST/raw/train-images-idx3-ubyte.gz [repeated 12x across cluster]
+(RayTrainWorker pid=80951) Extracting /tmp/tmpyrcbok27/MNIST/raw/t10k-labels-idx1-ubyte.gz to /tmp/tmpyrcbok27/MNIST/raw [repeated 12x across cluster]
+(RayTrainWorker pid=80951)  [repeated 12x across cluster]
+
+
+  0%|          | 0/9912422 [00:00<?, ?it/s]
+100%|██████████| 9912422/9912422 [00:00<00:00, 135946084.34it/s]
+ 61%|██████▏   | 6094848/9912422 [00:00<00:00, 60581952.53it/s]
+(RayTrainWorker pid=88186) LOCAL_RANK: 2 - CUDA_VISIBLE_DEVICES: [0,1,2]
+(RayTrainWorker pid=88184)   | Name     | Type               | Params
+(RayTrainWorker pid=88184) ------------------------------------------------
+(RayTrainWorker pid=88184) 0 | accuracy | MulticlassAccuracy | 0     
+(RayTrainWorker pid=88184) 1 | layer_1  | Linear             | 25.1 K
+(RayTrainWorker pid=88184) 2 | layer_2  | Linear             | 4.2 K 
+(RayTrainWorker pid=88184) 3 | layer_3  | Linear             | 1.3 K 
+(RayTrainWorker pid=88184) ------------------------------------------------
+(RayTrainWorker pid=88184) 30.6 K    Trainable params
+(RayTrainWorker pid=88184) 0         Non-trainable params
+(RayTrainWorker pid=88184) 30.6 K    Total params
+(RayTrainWorker pid=88184) 0.123     Total estimated model params size (MB)
+(RayTrainWorker pid=88186) [W reducer.cpp:1300] Warning: find_unused_parameters=True was specified in DDP constructor, but did not find any unused parameters in the forward pass. This flag results in an extra traversal of the autograd graph every iteration,  which can adversely affect performance. If your model indeed never has any unused parameters in the forward pass, consider turning this flag off. Note that this warning may be a false positive if your model has flow control causing later iterations to have unused parameters. (function operator())
+(RayTrainWorker pid=88186) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00004_4_batch_size=32,layer_1_size=32,layer_2_size=128,lr=0.0011_2023-09-07_13-58-38/checkpoint_000000)
+(RayTrainWorker pid=88184) 2023-09-07 14:00:50.969450: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(RayTrainWorker pid=88184) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=88184) 2023-09-07 14:00:51.106653: I tensorflow/core/util/port.cc:104] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`. [repeated 2x across cluster]
+(RayTrainWorker pid=88184) 2023-09-07 14:00:51.876301: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64 [repeated 4x across cluster]
+(RayTrainWorker pid=88184) 2023-09-07 14:00:51.876309: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly. [repeated 2x across cluster]
+(RayTrainWorker pid=88184) Missing logger folder: /home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00004_4_batch_size=32,layer_1_size=32,layer_2_size=128,lr=0.0011_2023-09-07_13-58-38/lightning_logs [repeated 2x across cluster]
+100%|██████████| 4542/4542 [00:00<00:00, 47154774.18it/s] [repeated 11x across cluster]
+(RayTrainWorker pid=88184)  [repeated 2x across cluster]
+100%|██████████| 9912422/9912422 [00:00<00:00, 87231776.04it/s]
+(RayTrainWorker pid=88184) LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0,1,2] [repeated 2x across cluster]
+(RayTrainWorker pid=88184) [W reducer.cpp:1300] Warning: find_unused_parameters=True was specified in DDP constructor, but did not find any unused parameters in the forward pass. This flag results in an extra traversal of the autograd graph every iteration,  which can adversely affect performance. If your model indeed never has any unused parameters in the forward pass, consider turning this flag off. Note that this warning may be a false positive if your model has flow control causing later iterations to have unused parameters. (function operator()) [repeated 2x across cluster]
+(RayTrainWorker pid=88186) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00004_4_batch_size=32,layer_1_size=32,layer_2_size=128,lr=0.0011_2023-09-07_13-58-38/checkpoint_000002) [repeated 6x across cluster]
+(RayTrainWorker pid=88186) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00004_4_batch_size=32,layer_1_size=32,layer_2_size=128,lr=0.0011_2023-09-07_13-58-38/checkpoint_000004) [repeated 6x across cluster]
+(TrainTrainable pid=95388) 2023-09-07 14:01:20.343383: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(TrainTrainable pid=95388) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=88184) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00004_4_batch_size=32,layer_1_size=32,layer_2_size=128,lr=0.0011_2023-09-07_13-58-38/checkpoint_000004) [repeated 2x across cluster]
+(TrainTrainable pid=95388) 2023-09-07 14:01:20.484476: I tensorflow/core/util/port.cc:104] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+(TrainTrainable pid=95388) 2023-09-07 14:01:21.230226: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer.so.7'; dlerror: libnvinfer.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(TrainTrainable pid=95388) 2023-09-07 14:01:21.230300: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(TrainTrainable pid=95388) 2023-09-07 14:01:21.230307: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+(TorchTrainer pid=95388) Starting distributed worker processes: ['95492 (10.0.0.84)', '95493 (10.0.0.84)', '95494 (10.0.0.84)']
+(RayTrainWorker pid=95492) Setting up process group for: env:// [rank=0, world_size=3]
+(RayTrainWorker pid=95494) 2023-09-07 14:01:27.861861: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(RayTrainWorker pid=95494) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=95492) 2023-09-07 14:01:27.861862: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(RayTrainWorker pid=95492) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=95494) 2023-09-07 14:01:27.995553: I tensorflow/core/util/port.cc:104] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+(RayTrainWorker pid=95494) 2023-09-07 14:01:28.761910: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer.so.7'; dlerror: libnvinfer.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(RayTrainWorker pid=95494) 2023-09-07 14:01:28.761983: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(RayTrainWorker pid=95494) 2023-09-07 14:01:28.761990: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+(RayTrainWorker pid=95492) /home/ray/anaconda3/lib/python3.9/site-packages/pytorch_lightning/loops/utilities.py:92: PossibleUserWarning: `max_epochs` was not set. Setting it to 1000 epochs. To train without an epoch limit, set `max_epochs=-1`.
+(RayTrainWorker pid=95492)   rank_zero_warn(
+(RayTrainWorker pid=95492) GPU available: True, used: True
+(RayTrainWorker pid=95492) TPU available: False, using: 0 TPU cores
+(RayTrainWorker pid=95492) IPU available: False, using: 0 IPUs
+(RayTrainWorker pid=95492) HPU available: False, using: 0 HPUs
+(RayTrainWorker pid=95492) Missing logger folder: /home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00005_5_batch_size=32,layer_1_size=64,layer_2_size=64,lr=0.0092_2023-09-07_13-58-38/lightning_logs
+
+
+(RayTrainWorker pid=95494) Downloading http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz [repeated 12x across cluster]
+(RayTrainWorker pid=95494) Downloading http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz to /tmp/tmpkvf1rrst/MNIST/raw/train-images-idx3-ubyte.gz [repeated 12x across cluster]
+(RayTrainWorker pid=88184) Extracting /tmp/tmppk4zrz1w/MNIST/raw/t10k-labels-idx1-ubyte.gz to /tmp/tmppk4zrz1w/MNIST/raw [repeated 12x across cluster]
+(RayTrainWorker pid=88184)  [repeated 12x across cluster]
+
+
+  0%|          | 0/9912422 [00:00<?, ?it/s]
+100%|██████████| 9912422/9912422 [00:00<00:00, 117459779.70it/s]
+ 74%|███████▍  | 7372800/9912422 [00:00<00:00, 73213483.02it/s]
+(RayTrainWorker pid=95494) LOCAL_RANK: 2 - CUDA_VISIBLE_DEVICES: [0,1,2]
+(RayTrainWorker pid=95492)   | Name     | Type               | Params
+(RayTrainWorker pid=95492) ------------------------------------------------
+(RayTrainWorker pid=95492) 0 | accuracy | MulticlassAccuracy | 0     
+(RayTrainWorker pid=95492) 1 | layer_1  | Linear             | 50.2 K
+(RayTrainWorker pid=95492) 2 | layer_2  | Linear             | 4.2 K 
+(RayTrainWorker pid=95492) 3 | layer_3  | Linear             | 650   
+(RayTrainWorker pid=95492) ------------------------------------------------
+(RayTrainWorker pid=95492) 55.1 K    Trainable params
+(RayTrainWorker pid=95492) 0         Non-trainable params
+(RayTrainWorker pid=95492) 55.1 K    Total params
+(RayTrainWorker pid=95492) 0.220     Total estimated model params size (MB)
+(RayTrainWorker pid=95494) [W reducer.cpp:1300] Warning: find_unused_parameters=True was specified in DDP constructor, but did not find any unused parameters in the forward pass. This flag results in an extra traversal of the autograd graph every iteration,  which can adversely affect performance. If your model indeed never has any unused parameters in the forward pass, consider turning this flag off. Note that this warning may be a false positive if your model has flow control causing later iterations to have unused parameters. (function operator())
+(RayTrainWorker pid=95494) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00005_5_batch_size=32,layer_1_size=64,layer_2_size=64,lr=0.0092_2023-09-07_13-58-38/checkpoint_000000)
+(RayTrainWorker pid=95493) 2023-09-07 14:01:27.861861: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(RayTrainWorker pid=95493) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=95493) 2023-09-07 14:01:27.995552: I tensorflow/core/util/port.cc:104] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`. [repeated 2x across cluster]
+(RayTrainWorker pid=95493) 2023-09-07 14:01:28.758718: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64 [repeated 4x across cluster]
+(RayTrainWorker pid=95493) 2023-09-07 14:01:28.758742: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly. [repeated 2x across cluster]
+(RayTrainWorker pid=95494) Missing logger folder: /home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00005_5_batch_size=32,layer_1_size=64,layer_2_size=64,lr=0.0092_2023-09-07_13-58-38/lightning_logs [repeated 2x across cluster]
+100%|██████████| 4542/4542 [00:00<00:00, 48598287.67it/s] [repeated 10x across cluster]
+(RayTrainWorker pid=95492)  [repeated 4x across cluster]
+(RayTrainWorker pid=95493) LOCAL_RANK: 1 - CUDA_VISIBLE_DEVICES: [0,1,2] [repeated 2x across cluster]
+(RayTrainWorker pid=95493) [W reducer.cpp:1300] Warning: find_unused_parameters=True was specified in DDP constructor, but did not find any unused parameters in the forward pass. This flag results in an extra traversal of the autograd graph every iteration,  which can adversely affect performance. If your model indeed never has any unused parameters in the forward pass, consider turning this flag off. Note that this warning may be a false positive if your model has flow control causing later iterations to have unused parameters. (function operator()) [repeated 2x across cluster]
+(RayTrainWorker pid=95494) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00005_5_batch_size=32,layer_1_size=64,layer_2_size=64,lr=0.0092_2023-09-07_13-58-38/checkpoint_000002) [repeated 6x across cluster]
+(TrainTrainable pid=101434) 2023-09-07 14:01:53.326795: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(TrainTrainable pid=101434) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=95493) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00005_5_batch_size=32,layer_1_size=64,layer_2_size=64,lr=0.0092_2023-09-07_13-58-38/checkpoint_000003) [repeated 5x across cluster]
+(TrainTrainable pid=101434) 2023-09-07 14:01:53.463803: I tensorflow/core/util/port.cc:104] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+(TrainTrainable pid=101434) 2023-09-07 14:01:54.201636: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer.so.7'; dlerror: libnvinfer.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(TrainTrainable pid=101434) 2023-09-07 14:01:54.201711: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(TrainTrainable pid=101434) 2023-09-07 14:01:54.201718: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+(TorchTrainer pid=101434) Starting distributed worker processes: ['101544 (10.0.0.84)', '101545 (10.0.0.84)', '101546 (10.0.0.84)']
+(RayTrainWorker pid=101544) Setting up process group for: env:// [rank=0, world_size=3]
+(RayTrainWorker pid=101545) 2023-09-07 14:02:00.834273: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(RayTrainWorker pid=101545) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=101544) 2023-09-07 14:02:00.834274: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(RayTrainWorker pid=101544) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=101545) 2023-09-07 14:02:00.968155: I tensorflow/core/util/port.cc:104] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+(RayTrainWorker pid=101545) 2023-09-07 14:02:01.736107: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer.so.7'; dlerror: libnvinfer.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(RayTrainWorker pid=101545) 2023-09-07 14:02:01.736184: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(RayTrainWorker pid=101545) 2023-09-07 14:02:01.736191: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+(RayTrainWorker pid=101545) Missing logger folder: /home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00006_6_batch_size=32,layer_1_size=128,layer_2_size=256,lr=0.0033_2023-09-07_13-58-38/lightning_logs
+(RayTrainWorker pid=101544) /home/ray/anaconda3/lib/python3.9/site-packages/pytorch_lightning/loops/utilities.py:92: PossibleUserWarning: `max_epochs` was not set. Setting it to 1000 epochs. To train without an epoch limit, set `max_epochs=-1`.
+(RayTrainWorker pid=101544)   rank_zero_warn(
+(RayTrainWorker pid=101544) GPU available: True, used: True
+(RayTrainWorker pid=101544) TPU available: False, using: 0 TPU cores
+(RayTrainWorker pid=101544) IPU available: False, using: 0 IPUs
+(RayTrainWorker pid=101544) HPU available: False, using: 0 HPUs
+
+
+(RayTrainWorker pid=101545) Downloading http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz [repeated 12x across cluster]
+(RayTrainWorker pid=95492) Downloading http://yann.lecun.com/exdb/mnist/t10k-labels-idx1-ubyte.gz to /tmp/tmpyy7a6r11/MNIST/raw/t10k-labels-idx1-ubyte.gz [repeated 11x across cluster]
+(RayTrainWorker pid=95492) Extracting /tmp/tmpyy7a6r11/MNIST/raw/t10k-labels-idx1-ubyte.gz to /tmp/tmpyy7a6r11/MNIST/raw [repeated 12x across cluster]
+(RayTrainWorker pid=95492)  [repeated 12x across cluster]
+
+
+  0%|          | 0/9912422 [00:00<?, ?it/s]
+100%|██████████| 9912422/9912422 [00:00<00:00, 104607984.65it/s]
+
+
+(RayTrainWorker pid=101545) Extracting /tmp/tmpxobpdr_p/MNIST/raw/train-images-idx3-ubyte.gz to /tmp/tmpxobpdr_p/MNIST/raw
+(RayTrainWorker pid=101545) Extracting /tmp/tmpxobpdr_p/MNIST/raw/train-labels-idx1-ubyte.gz to /tmp/tmpxobpdr_p/MNIST/raw
+(RayTrainWorker pid=101545) Extracting /tmp/tmpxobpdr_p/MNIST/raw/t10k-images-idx3-ubyte.gz to /tmp/tmpxobpdr_p/MNIST/raw
+(RayTrainWorker pid=101545) Extracting /tmp/tmpxobpdr_p/MNIST/raw/t10k-labels-idx1-ubyte.gz to /tmp/tmpxobpdr_p/MNIST/raw
+
+
+(RayTrainWorker pid=101545) LOCAL_RANK: 1 - CUDA_VISIBLE_DEVICES: [0,1,2]
+(RayTrainWorker pid=101544)   | Name     | Type               | Params
+(RayTrainWorker pid=101544) ------------------------------------------------
+(RayTrainWorker pid=101544) 0 | accuracy | MulticlassAccuracy | 0     
+(RayTrainWorker pid=101544) 1 | layer_1  | Linear             | 100 K 
+(RayTrainWorker pid=101544) 2 | layer_2  | Linear             | 33.0 K
+(RayTrainWorker pid=101544) 3 | layer_3  | Linear             | 2.6 K 
+(RayTrainWorker pid=101544) ------------------------------------------------
+(RayTrainWorker pid=101544) 136 K     Trainable params
+(RayTrainWorker pid=101544) 0         Non-trainable params
+(RayTrainWorker pid=101544) 136 K     Total params
+(RayTrainWorker pid=101544) 0.544     Total estimated model params size (MB)
+(RayTrainWorker pid=101545) [W reducer.cpp:1300] Warning: find_unused_parameters=True was specified in DDP constructor, but did not find any unused parameters in the forward pass. This flag results in an extra traversal of the autograd graph every iteration,  which can adversely affect performance. If your model indeed never has any unused parameters in the forward pass, consider turning this flag off. Note that this warning may be a false positive if your model has flow control causing later iterations to have unused parameters. (function operator())
+(RayTrainWorker pid=101545) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00006_6_batch_size=32,layer_1_size=128,layer_2_size=256,lr=0.0033_2023-09-07_13-58-38/checkpoint_000000)
+(RayTrainWorker pid=101546) 2023-09-07 14:02:00.834275: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(RayTrainWorker pid=101546) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=101546) 2023-09-07 14:02:00.968160: I tensorflow/core/util/port.cc:104] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`. [repeated 2x across cluster]
+(RayTrainWorker pid=101546) 2023-09-07 14:02:01.736182: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64 [repeated 4x across cluster]
+(RayTrainWorker pid=101546) 2023-09-07 14:02:01.736190: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly. [repeated 2x across cluster]
+(RayTrainWorker pid=101546) Missing logger folder: /home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00006_6_batch_size=32,layer_1_size=128,layer_2_size=256,lr=0.0033_2023-09-07_13-58-38/lightning_logs [repeated 2x across cluster]
+100%|██████████| 4542/4542 [00:00<00:00, 38642046.18it/s] [repeated 11x across cluster]
+(RayTrainWorker pid=101544)  [repeated 3x across cluster]
+(RayTrainWorker pid=101546) LOCAL_RANK: 2 - CUDA_VISIBLE_DEVICES: [0,1,2] [repeated 2x across cluster]
+(RayTrainWorker pid=101544) [W reducer.cpp:1300] Warning: find_unused_parameters=True was specified in DDP constructor, but did not find any unused parameters in the forward pass. This flag results in an extra traversal of the autograd graph every iteration,  which can adversely affect performance. If your model indeed never has any unused parameters in the forward pass, consider turning this flag off. Note that this warning may be a false positive if your model has flow control causing later iterations to have unused parameters. (function operator()) [repeated 2x across cluster]
+(RayTrainWorker pid=101545) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00006_6_batch_size=32,layer_1_size=128,layer_2_size=256,lr=0.0033_2023-09-07_13-58-38/checkpoint_000002) [repeated 6x across cluster]
+(RayTrainWorker pid=101545) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00006_6_batch_size=32,layer_1_size=128,layer_2_size=256,lr=0.0033_2023-09-07_13-58-38/checkpoint_000004) [repeated 6x across cluster]
+(TrainTrainable pid=108750) 2023-09-07 14:02:30.387715: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(TrainTrainable pid=108750) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=101546) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00006_6_batch_size=32,layer_1_size=128,layer_2_size=256,lr=0.0033_2023-09-07_13-58-38/checkpoint_000004) [repeated 2x across cluster]
+(TrainTrainable pid=108750) 2023-09-07 14:02:30.526490: I tensorflow/core/util/port.cc:104] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+(TrainTrainable pid=108750) 2023-09-07 14:02:31.271200: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer.so.7'; dlerror: libnvinfer.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(TrainTrainable pid=108750) 2023-09-07 14:02:31.271270: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(TrainTrainable pid=108750) 2023-09-07 14:02:31.271277: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+(TorchTrainer pid=108750) Starting distributed worker processes: ['108861 (10.0.0.84)', '108862 (10.0.0.84)', '108863 (10.0.0.84)']
+(RayTrainWorker pid=108861) Setting up process group for: env:// [rank=0, world_size=3]
+(RayTrainWorker pid=108862) 2023-09-07 14:02:38.000239: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(RayTrainWorker pid=108862) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=108863) 2023-09-07 14:02:38.000240: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(RayTrainWorker pid=108863) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=108862) 2023-09-07 14:02:38.137493: I tensorflow/core/util/port.cc:104] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+(RayTrainWorker pid=108862) 2023-09-07 14:02:38.911788: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer.so.7'; dlerror: libnvinfer.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(RayTrainWorker pid=108862) 2023-09-07 14:02:38.911870: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(RayTrainWorker pid=108862) 2023-09-07 14:02:38.911877: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+(RayTrainWorker pid=108861) /home/ray/anaconda3/lib/python3.9/site-packages/pytorch_lightning/loops/utilities.py:92: PossibleUserWarning: `max_epochs` was not set. Setting it to 1000 epochs. To train without an epoch limit, set `max_epochs=-1`.
+(RayTrainWorker pid=108861)   rank_zero_warn(
+(RayTrainWorker pid=108861) GPU available: True, used: True
+(RayTrainWorker pid=108861) TPU available: False, using: 0 TPU cores
+(RayTrainWorker pid=108861) IPU available: False, using: 0 IPUs
+(RayTrainWorker pid=108861) HPU available: False, using: 0 HPUs
+(RayTrainWorker pid=108862) Missing logger folder: /home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00007_7_batch_size=32,layer_1_size=32,layer_2_size=64,lr=0.0001_2023-09-07_13-58-38/lightning_logs
+
+
+(RayTrainWorker pid=108863) Downloading http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz [repeated 12x across cluster]
+(RayTrainWorker pid=101546) Downloading http://yann.lecun.com/exdb/mnist/t10k-labels-idx1-ubyte.gz to /tmp/tmpt_if2tuu/MNIST/raw/t10k-labels-idx1-ubyte.gz [repeated 12x across cluster]
+(RayTrainWorker pid=101546) Extracting /tmp/tmpt_if2tuu/MNIST/raw/t10k-labels-idx1-ubyte.gz to /tmp/tmpt_if2tuu/MNIST/raw [repeated 8x across cluster]
+(RayTrainWorker pid=101546)  [repeated 12x across cluster]
+
+
+  0%|          | 0/9912422 [00:00<?, ?it/s]
+100%|██████████| 9912422/9912422 [00:00<00:00, 111226266.99it/s]
+100%|██████████| 9912422/9912422 [00:00<00:00, 89971437.39it/s]
+(RayTrainWorker pid=108862) LOCAL_RANK: 1 - CUDA_VISIBLE_DEVICES: [0,1,2]
+(RayTrainWorker pid=108861)   | Name     | Type               | Params
+(RayTrainWorker pid=108861) ------------------------------------------------
+(RayTrainWorker pid=108861) 0 | accuracy | MulticlassAccuracy | 0     
+(RayTrainWorker pid=108861) 1 | layer_1  | Linear             | 25.1 K
+(RayTrainWorker pid=108861) 2 | layer_2  | Linear             | 2.1 K 
+(RayTrainWorker pid=108861) 3 | layer_3  | Linear             | 650   
+(RayTrainWorker pid=108861) ------------------------------------------------
+(RayTrainWorker pid=108861) 27.9 K    Trainable params
+(RayTrainWorker pid=108861) 0         Non-trainable params
+(RayTrainWorker pid=108861) 27.9 K    Total params
+(RayTrainWorker pid=108861) 0.112     Total estimated model params size (MB)
+(RayTrainWorker pid=108862) [W reducer.cpp:1300] Warning: find_unused_parameters=True was specified in DDP constructor, but did not find any unused parameters in the forward pass. This flag results in an extra traversal of the autograd graph every iteration,  which can adversely affect performance. If your model indeed never has any unused parameters in the forward pass, consider turning this flag off. Note that this warning may be a false positive if your model has flow control causing later iterations to have unused parameters. (function operator())
+(RayTrainWorker pid=108862) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00007_7_batch_size=32,layer_1_size=32,layer_2_size=64,lr=0.0001_2023-09-07_13-58-38/checkpoint_000000)
+(RayTrainWorker pid=108861) 2023-09-07 14:02:38.000239: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(RayTrainWorker pid=108861) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=108861) 2023-09-07 14:02:38.137493: I tensorflow/core/util/port.cc:104] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`. [repeated 2x across cluster]
+(RayTrainWorker pid=108861) 2023-09-07 14:02:38.911832: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64 [repeated 4x across cluster]
+(RayTrainWorker pid=108861) 2023-09-07 14:02:38.911839: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly. [repeated 2x across cluster]
+(RayTrainWorker pid=108861) Missing logger folder: /home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00007_7_batch_size=32,layer_1_size=32,layer_2_size=64,lr=0.0001_2023-09-07_13-58-38/lightning_logs [repeated 2x across cluster]
+100%|██████████| 4542/4542 [00:00<00:00, 42054147.39it/s] [repeated 11x across cluster]
+
+
+(autoscaler +11m23s) [workspace snapshot] New snapshot created successfully (Size: 327.01 KB)
+
+
+(TrainTrainable pid=111019) 2023-09-07 14:02:51.352608: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(TrainTrainable pid=111019) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=108861)  [repeated 3x across cluster]
+(RayTrainWorker pid=108861) LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0,1,2] [repeated 2x across cluster]
+(RayTrainWorker pid=108861) [W reducer.cpp:1300] Warning: find_unused_parameters=True was specified in DDP constructor, but did not find any unused parameters in the forward pass. This flag results in an extra traversal of the autograd graph every iteration,  which can adversely affect performance. If your model indeed never has any unused parameters in the forward pass, consider turning this flag off. Note that this warning may be a false positive if your model has flow control causing later iterations to have unused parameters. (function operator()) [repeated 2x across cluster]
+(RayTrainWorker pid=108861) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00007_7_batch_size=32,layer_1_size=32,layer_2_size=64,lr=0.0001_2023-09-07_13-58-38/checkpoint_000000) [repeated 2x across cluster]
+(TrainTrainable pid=111019) 2023-09-07 14:02:51.493509: I tensorflow/core/util/port.cc:104] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+(TrainTrainable pid=111019) 2023-09-07 14:02:52.239731: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer.so.7'; dlerror: libnvinfer.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(TrainTrainable pid=111019) 2023-09-07 14:02:52.239805: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(TrainTrainable pid=111019) 2023-09-07 14:02:52.239812: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+(TorchTrainer pid=111019) Starting distributed worker processes: ['111129 (10.0.0.84)', '111130 (10.0.0.84)', '111131 (10.0.0.84)']
+(RayTrainWorker pid=111129) Setting up process group for: env:// [rank=0, world_size=3]
+(RayTrainWorker pid=111131) 2023-09-07 14:02:58.909958: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(RayTrainWorker pid=111131) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=111130) 2023-09-07 14:02:58.910530: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(RayTrainWorker pid=111130) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=111131) 2023-09-07 14:02:59.041760: I tensorflow/core/util/port.cc:104] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+(RayTrainWorker pid=111131) 2023-09-07 14:02:59.809607: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer.so.7'; dlerror: libnvinfer.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(RayTrainWorker pid=111131) 2023-09-07 14:02:59.809682: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(RayTrainWorker pid=111131) 2023-09-07 14:02:59.809690: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+(RayTrainWorker pid=111129) /home/ray/anaconda3/lib/python3.9/site-packages/pytorch_lightning/loops/utilities.py:92: PossibleUserWarning: `max_epochs` was not set. Setting it to 1000 epochs. To train without an epoch limit, set `max_epochs=-1`.
+(RayTrainWorker pid=111129)   rank_zero_warn(
+(RayTrainWorker pid=111129) GPU available: True, used: True
+(RayTrainWorker pid=111129) TPU available: False, using: 0 TPU cores
+(RayTrainWorker pid=111129) IPU available: False, using: 0 IPUs
+(RayTrainWorker pid=111129) HPU available: False, using: 0 HPUs
+(RayTrainWorker pid=111131) Missing logger folder: /home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00008_8_batch_size=64,layer_1_size=128,layer_2_size=256,lr=0.0037_2023-09-07_13-58-38/lightning_logs
+
+
+(RayTrainWorker pid=111131) Downloading http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz [repeated 12x across cluster]
+(RayTrainWorker pid=111131) Downloading http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz to /tmp/tmpddnnc0iv/MNIST/raw/train-images-idx3-ubyte.gz [repeated 13x across cluster]
+(RayTrainWorker pid=108863) Extracting /tmp/tmpxcg0v86z/MNIST/raw/t10k-labels-idx1-ubyte.gz to /tmp/tmpxcg0v86z/MNIST/raw [repeated 12x across cluster]
+(RayTrainWorker pid=108863)  [repeated 12x across cluster]
+
+
+100%|██████████| 9912422/9912422 [00:00<00:00, 109686001.97it/s]
+100%|██████████| 9912422/9912422 [00:00<00:00, 81254614.76it/s]
+100%|██████████| 1648877/1648877 [00:00<00:00, 35741410.23it/s]
+(RayTrainWorker pid=111131) LOCAL_RANK: 2 - CUDA_VISIBLE_DEVICES: [0,1,2]
+(RayTrainWorker pid=111129)   | Name     | Type               | Params
+(RayTrainWorker pid=111129) ------------------------------------------------
+(RayTrainWorker pid=111129) 0 | accuracy | MulticlassAccuracy | 0     
+(RayTrainWorker pid=111129) 1 | layer_1  | Linear             | 100 K 
+(RayTrainWorker pid=111129) 2 | layer_2  | Linear             | 33.0 K
+(RayTrainWorker pid=111129) 3 | layer_3  | Linear             | 2.6 K 
+(RayTrainWorker pid=111129) ------------------------------------------------
+(RayTrainWorker pid=111129) 136 K     Trainable params
+(RayTrainWorker pid=111129) 0         Non-trainable params
+(RayTrainWorker pid=111129) 136 K     Total params
+(RayTrainWorker pid=111129) 0.544     Total estimated model params size (MB)
+(RayTrainWorker pid=111131) [W reducer.cpp:1300] Warning: find_unused_parameters=True was specified in DDP constructor, but did not find any unused parameters in the forward pass. This flag results in an extra traversal of the autograd graph every iteration,  which can adversely affect performance. If your model indeed never has any unused parameters in the forward pass, consider turning this flag off. Note that this warning may be a false positive if your model has flow control causing later iterations to have unused parameters. (function operator())
+(RayTrainWorker pid=111131) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00008_8_batch_size=64,layer_1_size=128,layer_2_size=256,lr=0.0037_2023-09-07_13-58-38/checkpoint_000000)
+(RayTrainWorker pid=111129) 2023-09-07 14:02:58.906403: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(RayTrainWorker pid=111129) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=111129) 2023-09-07 14:02:59.041757: I tensorflow/core/util/port.cc:104] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`. [repeated 2x across cluster]
+(RayTrainWorker pid=111129) 2023-09-07 14:02:59.809306: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64 [repeated 4x across cluster]
+(RayTrainWorker pid=111129) 2023-09-07 14:02:59.809314: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly. [repeated 2x across cluster]
+(RayTrainWorker pid=111129) Missing logger folder: /home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00008_8_batch_size=64,layer_1_size=128,layer_2_size=256,lr=0.0037_2023-09-07_13-58-38/lightning_logs [repeated 2x across cluster]
+100%|██████████| 4542/4542 [00:00<00:00, 37135533.66it/s] [repeated 11x across cluster]
+100%|██████████| 9912422/9912422 [00:00<00:00, 92298990.88it/s]
+(RayTrainWorker pid=111129)  [repeated 2x across cluster]
+(RayTrainWorker pid=111129) LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0,1,2] [repeated 2x across cluster]
+(RayTrainWorker pid=111129) [W reducer.cpp:1300] Warning: find_unused_parameters=True was specified in DDP constructor, but did not find any unused parameters in the forward pass. This flag results in an extra traversal of the autograd graph every iteration,  which can adversely affect performance. If your model indeed never has any unused parameters in the forward pass, consider turning this flag off. Note that this warning may be a false positive if your model has flow control causing later iterations to have unused parameters. (function operator()) [repeated 2x across cluster]
+(RayTrainWorker pid=111131) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00008_8_batch_size=64,layer_1_size=128,layer_2_size=256,lr=0.0037_2023-09-07_13-58-38/checkpoint_000003) [repeated 9x across cluster]
+(TrainTrainable pid=118255) 2023-09-07 14:03:20.351292: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(TrainTrainable pid=118255) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=111129) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00008_8_batch_size=64,layer_1_size=128,layer_2_size=256,lr=0.0037_2023-09-07_13-58-38/checkpoint_000004) [repeated 5x across cluster]
+(TrainTrainable pid=118255) 2023-09-07 14:03:20.492641: I tensorflow/core/util/port.cc:104] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+(TrainTrainable pid=118255) 2023-09-07 14:03:21.239037: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer.so.7'; dlerror: libnvinfer.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(TrainTrainable pid=118255) 2023-09-07 14:03:21.239106: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(TrainTrainable pid=118255) 2023-09-07 14:03:21.239113: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+(TorchTrainer pid=118255) Starting distributed worker processes: ['118362 (10.0.0.84)', '118363 (10.0.0.84)', '118364 (10.0.0.84)']
+(RayTrainWorker pid=118362) Setting up process group for: env:// [rank=0, world_size=3]
+(RayTrainWorker pid=118363) 2023-09-07 14:03:27.930188: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(RayTrainWorker pid=118363) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=118364) 2023-09-07 14:03:27.917602: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(RayTrainWorker pid=118364) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=118363) 2023-09-07 14:03:28.052415: I tensorflow/core/util/port.cc:104] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+(RayTrainWorker pid=118363) 2023-09-07 14:03:28.822569: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer.so.7'; dlerror: libnvinfer.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(RayTrainWorker pid=118363) 2023-09-07 14:03:28.822644: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+(RayTrainWorker pid=118363) 2023-09-07 14:03:28.822652: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+(RayTrainWorker pid=118363) Missing logger folder: /home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00009_9_batch_size=32,layer_1_size=128,layer_2_size=128,lr=0.0040_2023-09-07_13-58-38/lightning_logs
+(RayTrainWorker pid=118362) /home/ray/anaconda3/lib/python3.9/site-packages/pytorch_lightning/loops/utilities.py:92: PossibleUserWarning: `max_epochs` was not set. Setting it to 1000 epochs. To train without an epoch limit, set `max_epochs=-1`.
+(RayTrainWorker pid=118362)   rank_zero_warn(
+(RayTrainWorker pid=118362) GPU available: True, used: True
+(RayTrainWorker pid=118362) TPU available: False, using: 0 TPU cores
+(RayTrainWorker pid=118362) IPU available: False, using: 0 IPUs
+(RayTrainWorker pid=118362) HPU available: False, using: 0 HPUs
+
+
+(RayTrainWorker pid=118364) Downloading http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz [repeated 12x across cluster]
+(RayTrainWorker pid=118364) Downloading http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz to /tmp/tmp0sbwiedt/MNIST/raw/train-images-idx3-ubyte.gz [repeated 12x across cluster]
+(RayTrainWorker pid=111130) Extracting /tmp/tmpfmuq9_qh/MNIST/raw/t10k-labels-idx1-ubyte.gz to /tmp/tmpfmuq9_qh/MNIST/raw [repeated 12x across cluster]
+(RayTrainWorker pid=111130)  [repeated 12x across cluster]
+
+
+  0%|          | 0/9912422 [00:00<?, ?it/s]
+100%|██████████| 9912422/9912422 [00:00<00:00, 109752309.17it/s]
+100%|██████████| 9912422/9912422 [00:00<00:00, 92575620.67it/s]
+(RayTrainWorker pid=118363) LOCAL_RANK: 1 - CUDA_VISIBLE_DEVICES: [0,1,2]
+(RayTrainWorker pid=118362)   | Name     | Type               | Params
+(RayTrainWorker pid=118362) ------------------------------------------------
+(RayTrainWorker pid=118362) 0 | accuracy | MulticlassAccuracy | 0     
+(RayTrainWorker pid=118362) 1 | layer_1  | Linear             | 100 K 
+(RayTrainWorker pid=118362) 2 | layer_2  | Linear             | 16.5 K
+(RayTrainWorker pid=118362) 3 | layer_3  | Linear             | 1.3 K 
+(RayTrainWorker pid=118362) ------------------------------------------------
+(RayTrainWorker pid=118362) 118 K     Trainable params
+(RayTrainWorker pid=118362) 0         Non-trainable params
+(RayTrainWorker pid=118362) 118 K     Total params
+(RayTrainWorker pid=118362) 0.473     Total estimated model params size (MB)
+(RayTrainWorker pid=118363) [W reducer.cpp:1300] Warning: find_unused_parameters=True was specified in DDP constructor, but did not find any unused parameters in the forward pass. This flag results in an extra traversal of the autograd graph every iteration,  which can adversely affect performance. If your model indeed never has any unused parameters in the forward pass, consider turning this flag off. Note that this warning may be a false positive if your model has flow control causing later iterations to have unused parameters. (function operator())
+(RayTrainWorker pid=118363) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00009_9_batch_size=32,layer_1_size=128,layer_2_size=128,lr=0.0040_2023-09-07_13-58-38/checkpoint_000000)
+(RayTrainWorker pid=118362) 2023-09-07 14:03:27.912682: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F AVX512_VNNI FMA
+(RayTrainWorker pid=118362) To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+(RayTrainWorker pid=118362) 2023-09-07 14:03:28.050355: I tensorflow/core/util/port.cc:104] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`. [repeated 2x across cluster]
+(RayTrainWorker pid=118362) 2023-09-07 14:03:28.816159: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64 [repeated 4x across cluster]
+(RayTrainWorker pid=118362) 2023-09-07 14:03:28.816166: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly. [repeated 2x across cluster]
+(RayTrainWorker pid=118362) Missing logger folder: /home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00009_9_batch_size=32,layer_1_size=128,layer_2_size=128,lr=0.0040_2023-09-07_13-58-38/lightning_logs [repeated 2x across cluster]
+100%|██████████| 4542/4542 [00:00<00:00, 42810177.01it/s] [repeated 11x across cluster]
+(RayTrainWorker pid=118362)  [repeated 4x across cluster]
+(RayTrainWorker pid=118362) LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0,1,2] [repeated 2x across cluster]
+(RayTrainWorker pid=118362) [W reducer.cpp:1300] Warning: find_unused_parameters=True was specified in DDP constructor, but did not find any unused parameters in the forward pass. This flag results in an extra traversal of the autograd graph every iteration,  which can adversely affect performance. If your model indeed never has any unused parameters in the forward pass, consider turning this flag off. Note that this warning may be a false positive if your model has flow control causing later iterations to have unused parameters. (function operator()) [repeated 2x across cluster]
+(RayTrainWorker pid=118363) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00009_9_batch_size=32,layer_1_size=128,layer_2_size=128,lr=0.0040_2023-09-07_13-58-38/checkpoint_000002) [repeated 6x across cluster]
+(RayTrainWorker pid=118363) Checkpoint successfully created at: Checkpoint(filesystem=local, path=/home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00009_9_batch_size=32,layer_1_size=128,layer_2_size=128,lr=0.0040_2023-09-07_13-58-38/checkpoint_000004) [repeated 6x across cluster]
+2023-09-07 14:03:52,186	INFO tune.py:1143 -- Total run time: 313.94 seconds (313.92 seconds for the tuning loop).
+
+
+
+
+
+
+
+results.get_best_result(metric="ptl/val_accuracy", mode="max")
+
+
+
+
+Result(
+  metrics={'ptl/train_loss': 0.00108961365185678, 'ptl/train_accuracy': 1.0, 'ptl/val_loss': 0.05798737704753876, 'ptl/val_accuracy': 0.9820601940155029, 'epoch': 4, 'step': 1435},
+  path='/home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00008_8_batch_size=64,layer_1_size=128,layer_2_size=256,lr=0.0037_2023-09-07_13-58-38',
+  filesystem='local',
+  checkpoint=Checkpoint(filesystem=local, path=/home/ray/ray_results/TorchTrainer_2023-09-07_13-58-38/TorchTrainer_5144b_00008_8_batch_size=64,layer_1_size=128,layer_2_size=256,lr=0.0037_2023-09-07_13-58-38/checkpoint_000004)
+)
+
+
+
+
+In the example above, Tune runs 10 trials with different hyperparameter configurations.
+As you can see in the training_iteration column, trials with a high loss (and low accuracy) have been terminated early. The best performing trial used
+batch_size=64, layer_1_size=128, layer_2_size=256, and lr=0.0037.
+
+
+
+More PyTorch Lightning Examples#
+
+[Basic] Train a PyTorch Lightning Image Classifier with Ray Train.
+[Intermediate] Fine-tune a BERT Text Classifier with PyTorch Lightning and Ray Train
+[Advanced] Fine-tune dolly-v2-7b with PyTorch Lightning and FSDP
+MLflow PyTorch Lightning Example: Example for using MLflow
+and Pytorch Lightning with Ray Tune.
+
+
+

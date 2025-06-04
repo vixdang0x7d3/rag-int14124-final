@@ -1,0 +1,28 @@
+
+
+Reproducibility#
+
+
+
+PyTorch
+To limit sources of nondeterministic behavior, add
+ray.train.torch.enable_reproducibility() to the top of your training
+function.
+ def train_func():
++    train.torch.enable_reproducibility()
+
+     model = NeuralNetwork()
+     model = train.torch.prepare_model(model)
+
+     ...
+
+
+
+Warning
+ray.train.torch.enable_reproducibility() can’t guarantee
+completely reproducible results across executions. To learn more, read
+the PyTorch notes on randomness.
+
+
+
+

@@ -1,0 +1,21 @@
+
+
+ray.rllib.callbacks.callbacks.RLlibCallback.on_algorithm_init#
+
+
+RLlibCallback.on_algorithm_init(*, algorithm: Algorithm, metrics_logger: MetricsLogger | None = None, **kwargs) → None[source]#
+Callback run when a new Algorithm instance has finished setup.
+This method gets called at the end of Algorithm.setup() after all
+the initialization is done, and before actually training starts.
+
+Parameters:
+
+algorithm – Reference to the Algorithm instance.
+metrics_logger – The MetricsLogger object inside the Algorithm. Can be
+used to log custom metrics after algo initialization.
+kwargs – Forward compatibility placeholder.
+
+
+
+
+
