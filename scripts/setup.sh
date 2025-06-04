@@ -23,8 +23,14 @@ fi
 echo "checking uv installation..."
 uv --version
 
-echo "installing dependencies"
+echo "installing dependencies..."
 uv sync --frozen
 
-echo "starting marimo notebook"
-uv run marimo edit --headless --no-token
+read -p "start marimo notebook server? (y/n): " answer
+
+if [[ "$answer" =~ ^[Yy]$ ]]; then
+    echo "starting marimo notebook"
+    uv run marimo edit --headless --no-token --port 1337
+else
+    echo "marimo server lauch skipped"
+fi
