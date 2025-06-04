@@ -10,6 +10,8 @@ from openai import OpenAI
 
 from utils import rigorous_document_search
 
+from sentence_transformers import SentenceTransformer
+
 
 class SyntheticEvalSet(BaseEvalSet):
     def __init__(
@@ -30,6 +32,9 @@ class SyntheticEvalSet(BaseEvalSet):
         self.client = OpenAI(api_key=openai_api_key)
 
         self.synth_questions_df = None
+        self.embedding_model = SentenceTransformer(
+            model_name_or_path="all-mpnet-base-v2"
+        )
 
         with open(os.path.join(prompt_path, "question_maker_system.txt"), "r") as f:
             self.question_maker_system_prompt = f.read()
@@ -280,14 +285,13 @@ class SyntheticEvalSet(BaseEvalSet):
             rounds += 1
 
     def _get_sim(self, target, references):
-        response = self.client.embeddings.create(
-            input=[target] + references, model="text-embedding-3-large"
-        )
-        nparray1 = np.array(response.data[0].embedding)
+        embeddings = self.embedding_model.encode([target] + references)
+
+        nparray1 = embeddings[0]
 
         full_sim = []
-        for i in range(1, len(response.data)):
-            nparray2 = np.array(response.data[i].embedding)
+        for i in range(1, len(embeddings)):
+            nparray2 = np.array(embeddings[i])
             cosine_similarity = np.dot(nparray1, nparray2) / (
                 np.linalg.norm(nparray1) * np.linalg.norm(nparray2)
             )

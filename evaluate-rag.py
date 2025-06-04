@@ -150,16 +150,15 @@ def _(Evaluation, sent_collection, sent_questions_collection):
     return
 
 
-@app.cell(hide_code=True)
+@app.cell(disabled=True, hide_code=True)
 def _(mo):
     mo.md(r"""### RecursiveTokenChunker""")
     return
 
 
-@app.cell
+@app.cell(disabled=True)
 def _(RecursiveTokenChunker, embedding_function, general_set):
     chunker = RecursiveTokenChunker(chunk_size=1000, chunk_overlap=200)
-
 
     collection, questions_collection = general_set.get_collections(
         chunker,
@@ -170,7 +169,7 @@ def _(RecursiveTokenChunker, embedding_function, general_set):
     return collection, questions_collection
 
 
-@app.cell
+@app.cell(disabled=True)
 def _(Evaluation, collection, questions_collection):
     _eval = Evaluation(
         "datasets/general_evaluation/questions_df.csv",
@@ -198,15 +197,11 @@ def _(Path):
     load_dotenv()
     openai_api_key = os.getenv("OPENAI_API_KEY")
 
-    corpora_dir_path = Path('datasets/raydocs_full')
+    corpora_dir_path = Path("datasets/raydocs_full")
 
-    corpora_paths = [
-        path
-        for path in corpora_dir_path.rglob('*')
-        if path.is_file()
-    ]
+    corpora_paths = [path for path in corpora_dir_path.rglob("*") if path.is_file()]
 
-    queries_csv_path = 'datasets/raydocs-generated-queries-and-excerpts.csv'
+    queries_csv_path = "datasets/raydocs-generated-queries-and-excerpts.csv"
     return corpora_paths, openai_api_key, queries_csv_path
 
 
@@ -218,14 +213,62 @@ def _(corpora_paths, openai_api_key, queries_csv_path):
         corpora_paths,
         queries_csv_path,
         openai_api_key=openai_api_key,
-        prompt_path="datasets/prompts"
+        prompt_path="datasets/prompts",
     )
 
+    return (synth_set,)
+
+
+@app.cell(disabled=True)
+def _(synth_set):
     synth_set.generate_queries_and_excerpts(
-        approximate_excerpts=True, 
+        approximate_excerpts=True,
         num_rounds=1,
         queries_per_corpus=3,
     )
+    return
+
+
+@app.cell(disabled=True)
+def _(synth_set):
+    synth_set.filter_poor_excerpts()
+    synth_set.filter_duplicates()
+    return
+
+
+@app.cell
+def _(RecursiveTokenChunker, embedding_function, synth_set):
+    _chunker = RecursiveTokenChunker(
+        chunk_size=1000,
+        chunk_overlap=200,
+    )
+
+
+    synth_collection, synth_questions_collection =  ( 
+        synth_set.get_collections(
+            _chunker,
+            embedding_function,
+        )
+    )
+    return synth_collection, synth_questions_collection
+
+
+@app.cell
+def _(
+    Evaluation,
+    evaluation,
+    queries_csv_path,
+    synth_collection,
+    synth_questions_collection,
+):
+    _eval = Evaluation(
+        queries_csv_path,
+        synth_collection,
+        synth_questions_collection,
+    )
+
+    _results = evaluation.evaluate(retrieve=5)
+    print_metrics(_results)
     return
 
 
