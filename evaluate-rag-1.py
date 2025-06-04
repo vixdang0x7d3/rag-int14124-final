@@ -95,8 +95,8 @@ def _(GeneralEvalSet, Path, RecursiveTokenChunker, embedding_function):
 
     _chunkers = [
         RecursiveTokenChunker(
-            chunk_size=800,
-            chunk_overlap=400,
+            chunk_size=1000,
+            chunk_overlap=200,
         ),
         RecursiveTokenChunker(
             chunk_size=800,
@@ -118,7 +118,9 @@ def _(GeneralEvalSet, Path, RecursiveTokenChunker, embedding_function):
 
     collection_pairs = []
     with ThreadPoolExecutor() as executor:
-        futures = [executor.submit(process_chunker, ch, embedding_function) for ch in _chunkers]
+        futures = [
+            executor.submit(process_chunker, ch, embedding_function) for ch in _chunkers
+        ]
         for future in as_completed(futures):
             collection_pairs.append(future.result())
 
