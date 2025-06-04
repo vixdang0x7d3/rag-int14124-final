@@ -27,4 +27,4 @@ echo "installing dependencies"
 uv sync --frozen
 
 echo "starting marimo notebook"
-uv sync --frozen
+uv run marimo edit --headless --no-token
