@@ -10,10 +10,10 @@ gh auth setup-git
 
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-if [ -f "$HOME/.cargo/bin/uv" ]; then
-    export PATH="$HOME/.cargo/bin:$PATH"
-elif [ -f "/root/.cargo/bin/uv" ]; then
-    export PATH="/root/.cargo/bin:$PATH"
+if [ -f "$HOME/.local/bin/uv" ]; then
+    export PATH="$HOME/.local/bin:$PATH"
+elif [ -f "/root/.local/bin/uv" ]; then
+    export PATH="/root/.local/bin:$PATH"
 else
     echo "uv not found in expected locations"
     find / -name "uv" -type f 2>/dev/null | head -5

@@ -13,23 +13,6 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-    Install the ChromaDB Evaluation Framework package
-
-    For `pip` users:
-
-
-    ```
-    pip add git+https://github.com/brandonstarxel/chunking_evaluation.git
-    ```
-    """
-    )
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
     mo.md(r"""### Imports""")
     return
 
@@ -48,14 +31,12 @@ def _():
     from pathlib import Path
 
     return (
-        BaseChunker,
         Evaluation,
         GeneralEvalSet,
         Path,
         RecursiveTokenChunker,
         embedding_functions,
         pd,
-        re,
         torch,
     )
 
@@ -105,114 +86,13 @@ def _(GeneralEvalSet, Path):
     general_set = GeneralEvalSet(
         general_benchmark_path=Path("datasets/general_evaluation")
     )
-    return (general_set,)
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""### Custom SentenceChunker""")
-    return
-
-
-@app.cell
-def _(BaseChunker, re):
-    class SentenceChunker(BaseChunker):
-        def __init__(self, sentences_per_chunk: int = 3):
-            # Initialize the chunker with the number of sentences per chunk
-            self.sentences_per_chunk = sentences_per_chunk
-
-        def split_text(self, text: str) -> list[str]:
-            # Handle the case where the input text is empty
-            if not text:
-                return []
-
-            # Split the input text into sentences using regular expression
-            # Regex looks for white space following . ! or ? and makes a split
-            sentences = re.split(r"(?<=[.!?])\s+", text)
-            chunks = []
-
-            # Group sentences into chunks based on the specified number
-            for i in range(0, len(sentences), self.sentences_per_chunk):
-                # Combine sentences into a single chunk
-                chunk = " ".join(sentences[i : i + self.sentences_per_chunk])
-                chunks.append(chunk)
-
-            # Return the list of chunks
-            return chunks
-
-    return (SentenceChunker,)
-
-
-app._unparsable_cell(
-    r"""
-    import platform
-
-    print(platform.system()
-    """,
-    name="_"
-)
-
-
-@app.cell
-def _(SentenceChunker, embedding_function, general_set):
-    sentence_chunker = SentenceChunker(sentences_per_chunk=10)
-
-    sent_collection, sent_questions_collection = general_set.get_collections(
-        sentence_chunker,
-        embedding_function,
-    )
-    return sent_collection, sent_questions_collection
-
-
-@app.cell
-def _(Evaluation, sent_collection, sent_questions_collection):
-    _eval = Evaluation(
-        "datasets/general_evaluation/questions_df.csv",
-        sent_collection,
-        sent_questions_collection,
-    )
-
-    _results = _eval.evaluate(retrieve=5)
-
-    print_metrics(_results)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""### RecursiveTokenChunker""")
-    return
-
-
-@app.cell
-def _(RecursiveTokenChunker, embedding_function, general_set):
-    chunker = RecursiveTokenChunker()
-
-    collection, questions_collection = general_set.get_collections(
-        chunker,
-        embedding_function,
-        db_to_save_chunks="chroma_db/general_chunks_db/",
-        db_to_save_questions="chroma_db/general_questions_db/",
-    )
-    return chunker, collection, questions_collection
-
-
-@app.cell
-def _(Evaluation, collection, questions_collection):
-    _eval = Evaluation(
-        "datasets/general_evaluation/questions_df.csv",
-        collection,
-        questions_collection,
-    )
-
-    _results = _eval.evaluate(retrieve=5)
-
-    print_metrics(_results)
     return
 
 
 @app.cell
 def _(GeneralEvalSet, Path, RecursiveTokenChunker, embedding_function):
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
     _chunkers = [
         RecursiveTokenChunker(
             chunk_size=800,
@@ -232,18 +112,15 @@ def _(GeneralEvalSet, Path, RecursiveTokenChunker, embedding_function):
         ),
     ]
 
+    def process_chunker(chunker, embedding_function):
+        general_set = GeneralEvalSet(Path("datasets/general_evaluation"))
+        c, q = general_set.get_collections(chunker, embedding_function)
+
     collection_pairs = []
-
-    for _chunker in _chunkers:
-        _general_set = GeneralEvalSet(
-            Path("datasets/general_evaluation"),
-        )
-        c, q = _general_set.get_collections(
-            _chunker,
-            embedding_function,
-        )
-
-        collection_pairs.append((c, q))
+    with ThreadPoolExecutor() as executor:
+        futures = [executor.submit(process_chunker, ch, embedding_function) for ch in _chunkers]
+        for future in as_completed(futures):
+            collection_pairs.append(future.result())
 
     return (collection_pairs,)
 
