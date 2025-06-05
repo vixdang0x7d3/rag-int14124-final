@@ -1,0 +1,52 @@
+question,answer
+What is Ray?,"Ray is an open-source framework for building and scaling Python applications, especially for machine learning workloads."
+How do you install Ray?,You can install Ray using pip: pip install ray.
+What is a Ray task?,A Ray task is a function that is decorated with @ray.remote and can be executed asynchronously in a distributed manner.
+What is a Ray actor?,A Ray actor is a Python class decorated with @ray.remote that allows you to maintain state across multiple method calls in a distributed system.
+How do you start Ray?,You can start Ray by calling ray.init() in your Python script.
+What is Ray Tune?,Ray Tune is a scalable hyperparameter tuning library built on top of Ray.
+What is Ray Serve?,Ray Serve is a scalable model serving library for deploying machine learning models.
+What is Ray RLlib?,Ray RLlib is a scalable reinforcement learning library built on top of Ray.
+How do you define a remote function in Ray?,By decorating a function with @ray.remote and calling it with .remote().
+What is ray.get() used for?,ray.get() retrieves the result of a Ray object reference (ObjectRef).
+What is ray.put() used for?,ray.put() stores an object in the object store and returns an ObjectRef.
+How do you run a Ray cluster on Kubernetes?,"You can use KubeRay, which provides Kubernetes operators and CRDs for managing Ray clusters."
+What is the purpose of ray.wait()?,ray.wait() waits for a list of ObjectRefs and returns when the specified number are ready.
+How do you monitor Ray applications?,"You can use the Ray Dashboard, which provides a web UI for monitoring Ray clusters and applications."
+What is the Ray Dashboard?,The Ray Dashboard is a web-based UI for monitoring and managing Ray clusters.
+How do you define resources for a Ray task?,"You can specify resources in the @ray.remote decorator, e.g., @ray.remote(num_cpus=2)."
+What is object spilling in Ray?,Object spilling is the process of moving objects from memory to disk when the object store is full.
+How do you configure object spilling?,You can configure object spilling by setting the object_spilling_config parameter in ray.init().
+What is Ray Data?,"Ray Data is a library for distributed data processing, optimized for machine learning workloads."
+How do you create a Ray Dataset?,"You can create a Ray Dataset using ray.data.from_items() or by reading from files using ray.data.read_csv(), etc."
+What is the purpose of ray.shutdown()?,ray.shutdown() disconnects the driver from the Ray cluster and cleans up resources.
+How do you define a Ray actor class?,By decorating a class with @ray.remote and instantiating it with .remote().
+What is the difference between tasks and actors in Ray?,"Tasks are stateless functions, while actors are stateful and maintain internal state across method calls."
+How do you pass large objects to Ray tasks?,Use ray.put() to store the object in the object store and pass the ObjectRef to the task.
+What is the purpose of Placement Groups in Ray?,Placement Groups allow you to control the placement of tasks and actors on specific resources or nodes.
+How do you define a Placement Group?,Use ray.util.placement_group() to define a Placement Group with specified resource bundles.
+What is Ray Train?,Ray Train is a library for distributed training of machine learning models using popular frameworks like PyTorch and TensorFlow.
+How do you use Ray Train with PyTorch?,Define a training function and use TorchTrainer from ray.train.torch to run distributed training.
+What is the purpose of ScalingConfig in Ray Train?,"ScalingConfig specifies the number of workers, use of GPUs, and other scaling parameters for training."
+How do you perform hyperparameter tuning with Ray Tune?,Define a training function and use tune.Tuner with a search space and TuneConfig to run experiments.
+What is ASHA in Ray Tune?,ASHA (Asynchronous Successive Halving Algorithm) is a scheduler for early stopping of unpromising trials.
+How do you define a search space in Ray Tune?,"Use the param_space parameter in tune.Tuner with tune.choice(), tune.uniform(), etc."
+What is the purpose of session.report() in Ray Tune?,session.report() is used to report metrics during training for Ray Tune to monitor and make scheduling decisions.
+How do you resume a Ray Tune experiment?,Use the resume parameter in tune.Tuner to resume from a previous experiment checkpoint.
+What is the Ray Job API?,The Ray Job API allows you to submit and manage jobs on a Ray cluster programmatically.
+How do you submit a job using the Ray Job CLI?,Use the command ray job submit --address <cluster_address> -- python script.py.
+What is the purpose of ray.get_actor()?,ray.get_actor() retrieves a named actor by its name from the Ray cluster.
+How do you name a Ray actor?,"Pass the name parameter when creating the actor, e.g., MyActor.options(name='my_actor').remote()."
+What is the difference between ray.get() and ray.wait()?,"ray.get() blocks until all results are ready, while ray.wait() returns as soon as the specified number of results are ready."
+How do you handle exceptions in Ray tasks?,Exceptions raised in tasks are propagated to the driver when you call ray.get().
+What is the purpose of ray.remote() decorator?,ray.remote() marks a function or class for remote execution in the Ray cluster.
+How do you specify custom resources for a task?,"Use the resources parameter in @ray.remote, e.g., @ray.remote(resources={'Custom': 1})."
+What is the Ray Object Store?,The Ray Object Store is a shared-memory object store that holds objects for fast access across tasks and actors.
+How do you debug memory issues in Ray?,Use ray memory and ray dashboard to inspect object references and memory usage.
+What is the purpose of ray.timeline()?,ray.timeline() generates a Chrome tracing timeline for profiling Ray applications.
+How do you enable Ray usage stats collection?,Use the command ray enable-usage-stats.
+How do you disable Ray usage stats collection?,Use the command ray disable-usage-stats.
+What is the Ray State API?,"The Ray State API provides programmatic access to the state of the Ray cluster, including tasks, actors, and objects."
+How do you access the Ray State API?,"Use ray.state.actors(), ray.state.tasks(), etc., to access cluster state information."
+What is the purpose of ray.kill()?,ray.kill() terminates a running actor or task.
+How do you handle actor failures in Ray?,Ray automatically restarts actors by default; you can customize this behavior using the max_restarts parameter.

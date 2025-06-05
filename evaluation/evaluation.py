@@ -115,7 +115,7 @@ class Evaluation:
             )
             recall_scores.append(recall_score)
 
-        return ioc_scores, recall_scores
+        return ioc_scores, highlighted_chunks_count
 
     def _scores_from_dataset_and_retrieval(
         self, question_metadatas, highlighted_chunks_count
@@ -184,12 +184,12 @@ class Evaluation:
 
             iou_denominator = precision_denominator + sum_of_ranges(unused_highlights)
 
-            print(
-                [
-                    (x["start_index"], x["end_index"])
-                    for x in metadatas[:highlighted_chunk_count]
-                ]
-            )
+            # print(
+            #     [
+            #         (x["start_index"], x["end_index"])
+            #         for x in metadatas[:highlighted_chunk_count]
+            #     ]
+            # )
 
             # print(recall_denominator)
             # print(precision_denominator)
@@ -201,7 +201,7 @@ class Evaluation:
 
             precision_score = (
                 numerator_value / precision_denominator
-                if precision_denominator > 0
+                if precision_denominator != 0
                 else 0.0
             )
             precision_scores.append(precision_score)
