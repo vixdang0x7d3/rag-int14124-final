@@ -150,13 +150,13 @@ def _(Evaluation, sent_collection, sent_questions_collection):
     return
 
 
-@app.cell(disabled=True, hide_code=True)
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""### RecursiveTokenChunker""")
     return
 
 
-@app.cell(disabled=True)
+@app.cell
 def _(RecursiveTokenChunker, embedding_function, general_set):
     chunker = RecursiveTokenChunker(chunk_size=1000, chunk_overlap=200)
 
@@ -169,7 +169,7 @@ def _(RecursiveTokenChunker, embedding_function, general_set):
     return collection, questions_collection
 
 
-@app.cell(disabled=True)
+@app.cell
 def _(Evaluation, collection, questions_collection):
     _eval = Evaluation(
         "datasets/general_evaluation/questions_df.csv",
@@ -216,7 +216,7 @@ def _(corpora_paths, openai_api_key, queries_csv_path):
         prompt_path="datasets/prompts",
     )
 
-    return (synth_set,)
+    return SyntheticEvalSet, synth_set
 
 
 @app.cell(disabled=True)
@@ -256,7 +256,6 @@ def _(RecursiveTokenChunker, embedding_function, synth_set):
 @app.cell
 def _(
     Evaluation,
-    evaluation,
     queries_csv_path,
     synth_collection,
     synth_questions_collection,
@@ -267,7 +266,161 @@ def _(
         synth_questions_collection,
     )
 
-    _results = evaluation.evaluate(retrieve=5)
+    _results = _eval.evaluate(retrieve=5)
+    print_metrics(_results)
+    return
+
+
+@app.cell
+def _(
+    Evaluation,
+    SentenceChunker,
+    SyntheticEvalSet,
+    corpora_paths,
+    embedding_function,
+    openai_api_key,
+    queries_csv_path,
+):
+    _chunker = SentenceChunker(
+        sentences_per_chunk=10,
+    )
+
+    _synth_set = SyntheticEvalSet(
+        corpora_paths,
+        queries_csv_path,
+        openai_api_key=openai_api_key,
+        prompt_path="datasets/prompts",
+    )
+
+
+    sent_synth_collection, sent_synth_questions_collection =  ( 
+        _synth_set.get_collections(
+            _chunker,
+            embedding_function,
+        )
+    )
+
+    _eval = Evaluation(
+        queries_csv_path,
+        sent_synth_collection,
+        sent_synth_questions_collection,
+    )
+
+    results = _eval.evaluate(retrieve=5)
+    print_metrics(results)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""### Evaluate fine-tuned embedding model""")
+    return
+
+
+@app.cell
+def _(device, embedding_functions):
+    finetuned_ef = embedding_functions.SentenceTransformerEmbeddingFunction(
+        model_name="thanhpham1/Fine-tune-all-mpnet-base-v2",
+        device=device,
+    )
+    return (finetuned_ef,)
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""### With RecursiveTokenChunking""")
+    return
+
+
+@app.cell
+def _(
+    Evaluation,
+    RecursiveTokenChunker,
+    SyntheticEvalSet,
+    corpora_paths,
+    finetuned_ef,
+    openai_api_key,
+    queries_csv_path,
+):
+    _chunker = RecursiveTokenChunker(
+        chunk_size=1200,
+        chunk_overlap=100,
+    )
+
+    _synth_set = SyntheticEvalSet(
+        corpora_paths,
+        queries_csv_path,
+        openai_api_key=openai_api_key,
+        prompt_path="datasets/prompts",
+    )
+
+
+    _sent_synth_collection, _sent_synth_questions_collection =  ( 
+        _synth_set.get_collections(
+            _chunker,
+            finetuned_ef,
+        )
+    )
+
+    _eval = Evaluation(
+        queries_csv_path,
+        _sent_synth_collection,
+        _sent_synth_questions_collection,
+    )
+
+    _results = _eval.evaluate(retrieve=5)
+    print_metrics(_results)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+    ### With SentenceChunker
+
+
+    """
+    )
+    return
+
+
+@app.cell
+def _(
+    Evaluation,
+    SentenceChunker,
+    SyntheticEvalSet,
+    corpora_paths,
+    finetuned_ef,
+    openai_api_key,
+    queries_csv_path,
+):
+    _chunker = SentenceChunker(
+        sentences_per_chunk=10
+    )
+
+    _synth_set = SyntheticEvalSet(
+        corpora_paths,
+        queries_csv_path,
+        openai_api_key=openai_api_key,
+        prompt_path="datasets/prompts",
+    )
+
+
+    _sent_synth_collection, _sent_synth_questions_collection =  ( 
+        _synth_set.get_collections(
+            _chunker,
+            finetuned_ef,
+        )
+    )
+
+    _eval = Evaluation(
+        queries_csv_path,
+        _sent_synth_collection,
+        _sent_synth_questions_collection,
+    )
+
+    _results = _eval.evaluate(retrieve=5)
     print_metrics(_results)
     return
 
