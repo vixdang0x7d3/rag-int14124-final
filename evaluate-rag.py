@@ -156,20 +156,18 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(disabled=True)
 def _(RecursiveTokenChunker, embedding_function, general_set):
     chunker = RecursiveTokenChunker(chunk_size=1000, chunk_overlap=200)
 
     collection, questions_collection = general_set.get_collections(
         chunker,
         embedding_function,
-        # db_to_save_chunks="chroma_db/general_chunks_db/",
-        # db_to_save_questions="chroma_db/general_questions_db/",
     )
     return collection, questions_collection
 
 
-@app.cell
+@app.cell(disabled=True)
 def _(Evaluation, collection, questions_collection):
     _eval = Evaluation(
         "datasets/general_evaluation/questions_df.csv",
@@ -237,41 +235,6 @@ def _(synth_set):
 
 
 @app.cell
-def _(RecursiveTokenChunker, embedding_function, synth_set):
-    _chunker = RecursiveTokenChunker(
-        chunk_size=1000,
-        chunk_overlap=200,
-    )
-
-
-    synth_collection, synth_questions_collection =  ( 
-        synth_set.get_collections(
-            _chunker,
-            embedding_function,
-        )
-    )
-    return synth_collection, synth_questions_collection
-
-
-@app.cell
-def _(
-    Evaluation,
-    queries_csv_path,
-    synth_collection,
-    synth_questions_collection,
-):
-    _eval = Evaluation(
-        queries_csv_path,
-        synth_collection,
-        synth_questions_collection,
-    )
-
-    _results = _eval.evaluate(retrieve=5)
-    print_metrics(_results)
-    return
-
-
-@app.cell
 def _(
     Evaluation,
     SentenceChunker,
@@ -308,6 +271,41 @@ def _(
 
     results = _eval.evaluate(retrieve=5)
     print_metrics(results)
+    return
+
+
+@app.cell
+def _(RecursiveTokenChunker, embedding_function, synth_set):
+    _chunker = RecursiveTokenChunker(
+        chunk_size=1200,
+        chunk_overlap=100,
+    )
+
+
+    synth_collection, synth_questions_collection =  ( 
+        synth_set.get_collections(
+            _chunker,
+            embedding_function,
+        )
+    )
+    return synth_collection, synth_questions_collection
+
+
+@app.cell
+def _(
+    Evaluation,
+    queries_csv_path,
+    synth_collection,
+    synth_questions_collection,
+):
+    _eval = Evaluation(
+        queries_csv_path,
+        synth_collection,
+        synth_questions_collection,
+    )
+
+    _results = _eval.evaluate(retrieve=5)
+    print_metrics(_results)
     return
 
 
@@ -375,13 +373,7 @@ def _(
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
-    ### With SentenceChunker
-
-
-    """
-    )
+    mo.md(r"""### With SentenceChunker""")
     return
 
 

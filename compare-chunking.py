@@ -19,11 +19,16 @@ def _(mo):
 
 @app.cell
 def _():
-    import torch
+    import os
     import re
+
+
+    import torch
     import pandas as pd
 
-    from evaluation import GeneralEvalSet, Evaluation
+    from dotenv import load_dotenv
+
+    from evaluation import SyntheticEvalSet, Evaluation
     from chunker import BaseChunker, RecursiveTokenChunker
 
     from chromadb.utils import embedding_functions
@@ -32,10 +37,12 @@ def _():
 
     return (
         Evaluation,
-        GeneralEvalSet,
         Path,
         RecursiveTokenChunker,
+        SyntheticEvalSet,
         embedding_functions,
+        load_dotenv,
+        os,
         pd,
         torch,
     )
@@ -82,21 +89,31 @@ def _(device, embedding_functions):
 
 
 @app.cell
-def _(GeneralEvalSet, Path):
-    general_set = GeneralEvalSet(
-        general_benchmark_path=Path("datasets/general_evaluation")
+def _(Path, SyntheticEvalSet, load_dotenv, os):
+    load_dotenv()
+
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    corpora_dir_path = Path("datasets/raydocs_full")
+    corpora_paths = [path for path in corpora_dir_path.rglob("*") if path.is_file()]
+    queries_csv_path = "datasets/raydocs-generated-queries-and-excerpts.csv"
+
+    synth_set = SyntheticEvalSet(
+        corpora_paths, 
+        queries_csv_path, 
+        openai_api_key=openai_api_key,
+        prompt_path="datasets/prompts",
     )
-    return
+    return queries_csv_path, synth_set
 
 
 @app.cell
-def _(GeneralEvalSet, Path, RecursiveTokenChunker, embedding_function):
+def _(RecursiveTokenChunker, embedding_function, synth_set):
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
     _chunkers = [
         RecursiveTokenChunker(
-            chunk_size=1000,
-            chunk_overlap=200,
+            chunk_size=1200,
+            chunk_overlap=100,
         ),
         RecursiveTokenChunker(
             chunk_size=800,
@@ -112,19 +129,22 @@ def _(GeneralEvalSet, Path, RecursiveTokenChunker, embedding_function):
         ),
     ]
 
-    def process_chunker(chunker, embedding_function):
-        general_set = GeneralEvalSet(Path("datasets/general_evaluation"))
-        c, q = general_set.get_collections(chunker, embedding_function)
+    def process_chunker(synth_set, chunker, embedding_function):
+        c, q = synth_set.get_collections(chunker, embedding_function)
+        return (c,q)
 
     collection_pairs = []
-    with ThreadPoolExecutor() as executor:
-        futures = [
-            executor.submit(process_chunker, ch, embedding_function) for ch in _chunkers
-        ]
-        for future in as_completed(futures):
-            collection_pairs.append(future.result())
+    for ch in _chunkers:
+            c, q = process_chunker(synth_set, ch, embedding_function)
+            collection_pairs.append((c, q))
 
     return (collection_pairs,)
+
+
+@app.cell
+def _(collection_pairs):
+    collection_pairs
+    return
 
 
 @app.cell
@@ -135,6 +155,7 @@ def _(
     chunker,
     collection_pairs,
     pd,
+    queries_csv_path,
     result,
     results,
 ):
@@ -142,12 +163,16 @@ def _(
     _df = pd.DataFrame()
 
     for c_collection, q_collection in collection_pairs:
-        eval = Evaluation(
-            "datasets/general_evaluation/questions_df.csv",
+
+        print(c_collection)
+        print(q_collection)
+    
+        _eval = Evaluation(
+            queries_csv_path,
             c_collection,
             q_collection,
         )
-        _result = eval.evaluate(retrieve=5)
+        _result = _eval.evaluate(retrieve=5)
 
         del _result["corpora_scores"]  # Remove detailed scores for brevity
 
@@ -162,6 +187,8 @@ def _(
         _results.append(result)
 
     df = pd.DataFrame(results)
+
+    df
     return
 
 
