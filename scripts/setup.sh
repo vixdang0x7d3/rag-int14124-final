@@ -8,6 +8,9 @@ gh config set git_protocol https
 gh auth login --web
 gh auth setup-git
 
+git config --global user.name "vixdang0x7d3"
+git config --global user.email "buttfacecat2211@gmail.com"
+
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 if [ -f "$HOME/.local/bin/uv" ]; then
